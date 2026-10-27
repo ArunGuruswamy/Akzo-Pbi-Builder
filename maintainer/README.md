@@ -1,4 +1,4 @@
-# Akzo SDD PBI Builder 3.1.0 — maintainer notes
+# Akzo SDD PBI Builder 4.0.0 — maintainer notes
 
 Self-contained offline HTML utility plus a Windows PowerShell installer. No npm
 dependencies. End users open the compiled HTML or run Install-PBIBuilder.cmd; Node 20+
@@ -16,7 +16,8 @@ and Python 3 are only needed to rebuild and test.
   without a BOM.
 - `fixtures/baseline-v2.0.0-core.cjs`, `baseline-v2.1.0-core.cjs`, `baseline-v3.0.0-core.cjs`:
   the exact prior generators, used only by tests and `compare-versions.cjs`;
-  `baseline-v2.1.0-template.md`, `baseline-v3.0.0-template.md`: their templates.
+  `baseline-v3.1.0-core.cjs`; `baseline-v2.1.0-template.md`, `baseline-v3.0.0-template.md`,
+  `baseline-v3.1.0-template.md`: their templates.
 - `fixtures/readiness-cases.cjs`: shared readiness scenarios for JS and PowerShell.
   `load(core)` records approvals with the basis the code under test prints.
 - `fixtures/gap-cases.cjs`: the four reported 3.0.0 gaps as a 3.0.0 agent records them.
@@ -27,10 +28,11 @@ and Python 3 are only needed to rebuild and test.
 python update-fixture.py     # only when shell.html ids/options change
 python build.py              # writes Akzo-SDD-PBI-Builder.html
 node --check src/core.js && node --check src/ui.js
-node test-core.cjs           # 26 workflow checks on real temp files
+node test-core.cjs           # 30 workflow checks on real temp files
 node test-ui.cjs             # real handlers, simulated DOM (not a rendered browser)
 node test-ps.cjs             # Windows PowerShell: byte equivalence with core.js, installer actions
-node compare-versions.cjs    # deterministic v2.1 / 3.0.0 / current evidence (MEASUREMENTS.md)
+node compare-versions.cjs    # deterministic v2.1 / 3.0.0 / 3.1.0 / current evidence (MEASUREMENTS.md)
+node demo-v4.cjs             # deterministic Create PBI -> questions -> validate transcript (docs/V4-DEMO.md)
 node release.cjs             # package root files + ../Akzo-SDD-PBI-Builder-<version>.zip, verified
 ```
 `test-ps.cjs` removes the inherited process-scope execution policy override so the
@@ -67,7 +69,13 @@ characters of SHA-256 over canonical JSON (sorted keys, ordinal; whitespace runs
 strings collapsed; `canon()` / `ConvertTo-Canon`). Scopes are in `READINESS.scopes`.
 PowerShell pitfalls met here: variable names are case-insensitive (`$l` overwrites
 `$L`) and scoping is dynamic (a local `$sha` hides the script's `$Sha` from callees).
-They check completeness and consistency only. `refreshEvidence()` and `-Action RefreshEvidence`
+They check completeness and consistency only.
+
+## Decision engine
+`questionProgress`, `answerQuestion`, `skipQuestion`, `recordAnswer`, `recordSkip` (core.js)
+serve the form's question panel. Writes back up pbi-state.json and DECISION-LOG.md to
+history/, refuse when pbi-state.json changed since it was read, and supersede on edit. The
+agent applies the same rules in chat (guided-pbi-creation.md); that part is instructions only. `refreshEvidence()` and `-Action RefreshEvidence`
 hash raw bytes of repo-relative paths; external paths are skipped (agent records the
 revision instead).
 

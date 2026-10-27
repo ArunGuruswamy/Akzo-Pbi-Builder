@@ -1,4 +1,4 @@
-AKZO SDD PBI BUILDER 3.1.0
+AKZO SDD PBI BUILDER 4.0.0
 Evidence-based PBI refinement | 27 October 2026
 
 WHAT IT DOES
@@ -34,6 +34,16 @@ Both options write identical files for the same settings.
 The installer respects your PowerShell execution policy and never bypasses it.
 If the policy blocks it, ask IT or use Option A. Do not change the policy yourself.
 
+CREATE A PBI
+In Copilot type "Create PBI", or use the New PBI tab of the form. You are guided
+through six short steps; save a draft any time. Business questions come one at
+a time with selectable answers (VS Code) or numbered options, and can also be
+answered on the form's Continue tab. See docs/USER-GUIDE.md.
+
+UPGRADING FROM 3.1.0
+Install as above and allow reviewed updates. Existing PBIs and approvals stay
+valid. See MIGRATION.md.
+
 UPGRADING FROM 3.0.0
 Install as above and allow reviewed updates. PBI folders are not changed. 3.0.0
 approvals cannot show what was reviewed, so the check no longer accepts them: a
@@ -46,8 +56,10 @@ removed only if you never edited them; edited ones are kept and listed. Existing
 PBIs, decisions and history are untouched. See MIGRATION.md.
 
 DAILY USE
-In Copilot select the agent and type "New PBI", "Continue PBI <number or folder>"
-or "Refine PBI <number>: <what changed>". The form's New PBI and Continue PBI tabs
+In Copilot select the agent and type "Create PBI", "Resume PBI <number>",
+"Continue PBI <number or folder>" or "Refine PBI <number>: <what changed>".
+Other commands: Review, Edit, Show Decisions, Analyze Legacy, Show Technical
+Flow, Generate Acceptance Criteria, Export and Validate PBI <number>. The form's New PBI and Continue PBI tabs
 remain available. Before final approval, run Check PBI readiness (form) or
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -Action CheckPbi -Pbi <folder>
 When the PBI is ready for review, the check prints the approval basis the agent

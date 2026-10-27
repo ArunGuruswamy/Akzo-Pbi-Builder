@@ -1,5 +1,54 @@
 # Changelog
 
+## 4.0.0 — 27 October 2026
+
+### Guided PBI creation
+- "Create PBI" (also New PBI, Create User Story, Refine New Requirement, Start PBI): six
+  steps (title and project, requirement, acceptance criteria, supporting material, kind of
+  change, review) with prefill from what the user already gave, Save draft and Resume.
+- The form's New PBI tab is the same wizard: progress, Back/Next, Save draft, Start analysis,
+  Cancel, target project from the configured sources, a real file picker that copies
+  attachments into the PBI's attachments/ folder, and Resume or Create separate draft when the
+  PBI number already exists (previously a hard stop).
+- Commands: Resume, Review, Edit, Show Decisions, Analyze Legacy, Show Technical Flow,
+  Generate Acceptance Criteria, Export and Validate PBI.
+
+### Business questions
+- The agent acts as a Business Analyst. It never asks business users about registration,
+  pipelines, DI, middleware, builds, repository paths, GraphQL generation or deployment;
+  missing technical evidence goes into the technical assessment and does not stop business
+  refinement.
+- VS Code: the agent's tools include `vscode/askQuestions` (interactive question controls; the
+  host ignores unavailable tools). Elsewhere: numbered options with back, skip, status and why.
+- The form's Continue tab has an Answer questions panel: options, custom answer, required
+  name, skip (optional questions only), edit previous answer, show decisions.
+- Decision engine (core.js): each answer is saved at once to pbi-state.json and DECISION-LOG.md
+  with a backup in history/; editing an answer supersedes the earlier decision; the file is not
+  written if it changed meanwhile. One answer approves that decision only, without a second
+  confirmation.
+- Question statuses unanswered, answered, approved, deferred, superseded and not-applicable
+  (open and resolved still accepted); identical question text is flagged.
+
+### Evidence
+- New guide `skills/crm-plugin-workflow-intelligence.md`: call chains from one entry point with
+  a visited list and depth bound, a 10-point record per entry point, evidence per rule, and a
+  plain-language presentation (technical evidence, simple explanation, difference, next
+  action).
+- Evidence records may carry `system` (legacy-crm, cdms, dab, ocp, graphql, other). Legacy CRM
+  evidence cannot prove a DAB/OCP/GraphQL path (`LEGACY_NOT_TARGET_EVIDENCE`). A PBI may record
+  `evidenceScope` (for example excluding legacy-crm, as directed for PBI 305915) backed by an
+  approved decision; excluded evidence is rejected.
+
+### Compatibility
+- pbi-state.json stays schemaVersion 2. A PBI approved under 3.1.0 stays Development-Ready after
+  the upgrade (tested). The pinned v2.0/v2.1 comparison agents keep their original tools.
+- Results remain identical in the form and PowerShell (61 shared scenarios).
+
+### Not included
+- No VS Code extension (Quick Pick/webview); the documented in-chat tool is used instead.
+- No Azure DevOps auto-prefill (no approved connection exists); screenshots and documents are
+  read by Copilot only where its tools can open them.
+
 ## 3.1.0 — 27 October 2026
 
 ### Fixed readiness gaps (each reproduced by a failing test first)

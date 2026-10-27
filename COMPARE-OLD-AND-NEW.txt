@@ -1,7 +1,7 @@
-TEAM PILOT - BASELINE VERSUS CURRENT PBI BUILDER (3.1.0)
+TEAM PILOT - BASELINE VERSUS CURRENT PBI BUILDER (4.0.0)
 
 PURPOSE
-Check, on identical requests and repository state, whether version 3.1 finds the
+Check, on identical requests and repository state, whether version 4.0 finds the
 right enforcement owner and target-path responsibility for each business rule,
 asks fewer and better questions, and reports readiness honestly, compared with an
 earlier version. Measure usage when available. No saving is assumed.
@@ -14,7 +14,7 @@ The trial's README.md and comparison.json name the baseline used. After the tria
 click Remove comparison agents. Trial folders and results are kept.
 
 SETUP
-1. Install 3.1 in a throwaway project copy with access to the needed evidence.
+1. Install 4.0 in a throwaway project copy with access to the needed evidence.
 2. In the form, open Compare old & new, choose the baseline, enter one title and a
    description with its known rules and exceptions. Save.
 3. Reopen the IDE and confirm both agent names appear.
@@ -41,7 +41,7 @@ REVIEW QUALITY FIRST (QUALITY-REVIEW.md)
 Missed rules; incorrect enforcement owner or path; unsupported assumptions;
 repeated questions; readiness errors; invented approvals; application changes;
 output outside the assigned folder. Any of these fails the run regardless of cost.
-For 3.1 runs, also run Check PBI readiness on the result and record its output.
+For 4.0 runs, also run Check PBI readiness on the result and record its output.
 
 RECORD MEASUREMENTS (results.csv)
 Elapsed minutes, follow-up questions, searches and tool calls from the chat; input,

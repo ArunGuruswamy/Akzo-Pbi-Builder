@@ -106,6 +106,19 @@ async function load(P){
  await c('open blocking PO/BA question awaits decision',s=>{s.questions[0].status='open';s.status='Awaiting PO/BA Decision';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['BLOCKING_QUESTION']});
  await c('resolved PO/BA question needs an approved decision',s=>{s.questions[0].decisionRef='';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['QUESTION_UNSUPPORTED',...OVER]});
  await c('resolved technical question needs a resolution',s=>{s.questions.push({id:'Q-2',blocking:true,owner:'technical',status:'resolved',question:'Does DAB call the plugin?'});},{rebind:true,expect:'Needs Evidence',codes:['QUESTION_UNSUPPORTED',...OVER]});
+ // 4.0: question engine statuses, duplicates and evidence scope.
+ await c('question answered in the question panel counts as resolved',s=>{s.questions[0].status='answered';},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('deferred blocking PO/BA question stays open',s=>{s.questions[0].status='deferred';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['BLOCKING_QUESTION',...OVER]});
+ await c('unknown question status is treated as open',s=>{s.questions[0].status='done';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['BLOCKING_QUESTION',...OVER]});
+ await c('not-applicable PO/BA question needs a reason, not a decision',s=>{Object.assign(s.questions[0],{status:'not-applicable',resolution:'Released formulas are out of scope',decisionRef:''});},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('the same question recorded twice',s=>{s.questions.push({id:'Q-2',blocking:false,owner:'po-ba',status:'unanswered',question:' May a Released formula  return to Draft? '});},{rebind:true,expect:'Ready for Review',codes:['QUESTION_DUPLICATE',...OVER],refs:['Q-2']});
+ await c('a superseded duplicate is ignored',s=>{s.questions.push({id:'Q-2',blocking:true,owner:'po-ba',status:'superseded',question:'May a Released formula return to Draft?'});},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('legacy CRM evidence cannot prove what DAB does',s=>{s.evidence[3].system='legacy-crm';},{rebind:true,expect:'Needs Evidence',codes:['LEGACY_NOT_TARGET_EVIDENCE','LEVEL_EVIDENCE_MISSING',...OVER],refs:['BR-1/dab/EV-4','BR-1/dab']});
+ await c('legacy CRM evidence is valid for the CDMS path',s=>{s.evidence[2].system='legacy-crm';s.evidence[0].system='cdms';},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('evidence excluded by the recorded scope decision (PBI 305915 direction)',s=>{s.evidenceScope={exclude:['legacy-crm'],decisionRef:'DEC-3'};s.decisions.push({id:'DEC-3',pbi:PBI,status:'approved',evidence:'User direction in chat 2026-10-25: exclude legacy plugins from DAB analysis',supersedes:''});s.evidence[0].system='legacy-crm';},
+  {rebind:true,docs:()=>({decisionLog:LOG+'DEC-3 exclude legacy plugin evidence\n'}),expect:'Needs Evidence',codes:['EVIDENCE_OUT_OF_SCOPE','NO_EVIDENCE',...OVER],refs:['BR-1/EV-1']});
+ await c('evidence scope exclusion without a decision',s=>{s.evidenceScope={exclude:['legacy-crm']};},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['SCOPE_DECISION_MISSING',...OVER]});
+ await c('unknown evidence system is incomplete',s=>{s.evidence[1].system='crm';},{rebind:true,expect:'Needs Evidence',codes:['EVIDENCE_INCOMPLETE',...OVER],refs:['EV-2']});
  await c('rule links an unknown dependency',s=>{s.rules[0].dependencies=['DEP-9'];s.status='Draft';},{rebind:true,expect:'Draft',codes:['DEPENDENCY_UNKNOWN']});
  await c('rule without negative coverage is a draft',s=>{s.acceptanceCriteria=s.acceptanceCriteria.filter(a=>a.id!=='AC-6');s.status='Draft';},{rebind:true,expect:'Draft',codes:['MISSING_COVERAGE']});
  await c('state of another PBI folder is rejected',s=>{s.pbi='pbi-999-elsewhere';},{expect:'Draft',codes:['STATE_PBI_MISMATCH',...OVER]});

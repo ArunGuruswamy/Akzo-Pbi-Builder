@@ -1,7 +1,7 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const P=require('./src/core.js');
-const V20=require('./fixtures/baseline-v2.0.0-core.cjs'),V21=require('./fixtures/baseline-v2.1.0-core.cjs'),V30=require('./fixtures/baseline-v3.0.0-core.cjs');
+const V20=require('./fixtures/baseline-v2.0.0-core.cjs'),V21=require('./fixtures/baseline-v2.1.0-core.cjs'),V30=require('./fixtures/baseline-v3.0.0-core.cjs'),V31=require('./fixtures/baseline-v3.1.0-core.cjs');
 const {DirectoryHandle}=require('./fixtures/fs-handles.cjs');
 const shared=require('./fixtures/readiness-cases.cjs'),CASE_PBI=shared.PBI,gaps=require('./fixtures/gap-cases.cjs');
 let count=0;
@@ -14,7 +14,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  const html=await fs.readFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),'utf8');
  const raw={projectName:'Customizations & QA',ide:'visualstudio',role:'legacy',sources:{dab:'../DAB',legacy:'',cdms:''},includeReferences:true};
  const setup=P.setupFiles(raw,assets,html);
- await test('one agent: VS and VS Code names, tools and relative source registry',async()=>{assert.equal(setup.config.sources.legacy,'.');assert.match(setup.files[P.AGENT],/readfile/);assert.match(setup.files[P.AGENT],/Customizations & QA/);assert.equal(Object.keys(setup.files).filter(p=>p.startsWith('.github/agents/')).length,1);assert.ok(!Object.keys(setup.files).includes('.github/copilot-instructions.md'));const c=P.setupFiles({...raw,projectName:'Other project',ide:'vscode',role:'dab'},assets,html);assert.match(c.files[P.AGENT],/\["read", "search", "edit"\]/);assert.equal(c.config.sources.dab,'.');assert.ok(!Object.values(c.files).some(x=>x.includes('C:\\Users\\prasadv')));assert.ok(!/dynamic/i.test(Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.includes('REFERENCES-INDEX')&&!p.endsWith('.html')).map(([p,t])=>p+t).join('')))});
+ await test('one agent: VS and VS Code names, tools and relative source registry',async()=>{assert.equal(setup.config.sources.legacy,'.');assert.match(setup.files[P.AGENT],/readfile/);assert.match(setup.files[P.AGENT],/Customizations & QA/);assert.equal(Object.keys(setup.files).filter(p=>p.startsWith('.github/agents/')).length,1);assert.ok(!Object.keys(setup.files).includes('.github/copilot-instructions.md'));const c=P.setupFiles({...raw,projectName:'Other project',ide:'vscode',role:'dab'},assets,html);assert.match(c.files[P.AGENT],/\["read", "search", "edit", "vscode\/askQuestions"\]/);assert.equal(c.config.sources.dab,'.');assert.ok(!Object.values(c.files).some(x=>x.includes('C:\\Users\\prasadv')));assert.ok(!/dynamic/i.test(Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.includes('REFERENCES-INDEX')&&!p.endsWith('.html')).map(([p,t])=>p+t).join('')))});
  await test('agent carries ownership, readiness and final-approval rules; guides load on demand',async()=>{const a=setup.files[P.AGENT];for(const re of [/four evidence levels/i,/Plugin source alone does not prove/,/ONE consolidated approval summary/,/PO\/BA approval/,/Technical approval/,/Final user approval/,/Never\s+infer approval from silence/,/marks the affected\s+approvals stale even when no rev changed/,/copied unchanged/,/Do not\s+change application code, tests, dependencies/,/hidden or disabled button/])assert.match(a,re);for(const s of ['execution-path-analysis','readiness-and-approval','repository-knowledge'])assert.ok(setup.files[P.BASE+'/skills/'+s+'.md']);assert.match(setup.files[P.BASE+'/PBI-TEMPLATE.md'],/Validation ownership/);assert.match(setup.files[P.BASE+'/REFERENCES-INDEX.md'],/^- L\d+ #/m)});
  await test('generation contract: bundle placeholders render to setupFiles and fail on unknown tokens',async()=>{const b=JSON.parse(JSON.stringify(P.bundle(assets)));assert.equal(b.schemaVersion,1);for(const t of b.setup)if(t.template)for(const m of t.template.matchAll(/\{\{PBI:([A-Z0-9_]+)\}\}/g))assert.ok(b.tokens.includes(m[1]),m[1]);assert.deepEqual(b.setup.map(t=>t.path).filter(p=>p in setup.files),Object.keys(setup.files));assert.throws(()=>P.render('x {{PBI:NOPE}}',{},'t'),/Unresolved placeholder \{\{PBI:NOPE\}\}/);assert.throws(()=>P.normalizeConfig({...raw,schemaVersion:2}),/Unsupported config schemaVersion/);assert.equal(P.render('{{PBI:A}}',{A:'{{PBI:B}} $&'},'t'),'{{PBI:B}} $&')});
  await test('fresh install writes and verifies files while preserving unrelated instructions',async()=>{await P.write(root,'.github/copilot-instructions.md','KEEP ME');const rows=await P.plan(root,setup.files,true);assert.ok(rows.every(r=>r.state==='create'));const r=await P.apply(root,rows);assert.equal(r.written,Object.keys(setup.files).length+1);assert.equal(await P.read(root,'.github/copilot-instructions.md'),'KEEP ME');for(const [p,t]of Object.entries(setup.files))assert.equal(await P.read(root,p),t)});
@@ -63,6 +63,19 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   const applied=await P.apply(r,rows,true);
   assert.match(await P.read(r,V21.CONCISE_AGENT),/My team note/);assert.ok(await P.read(r,'.github/prompts/akzo-pbi-new-concise.prompt.md'));assert.equal(await P.read(r,V21.AGENT),null);
   assert.deepEqual(applied.kept.sort(),[V21.CONCISE_AGENT,'.github/prompts/akzo-pbi-new-concise.prompt.md'].sort());
+  await fs.rm(dir,{recursive:true,force:true});
+ });
+ await test('upgrade from actual 3.1.0 adds the two guides, keeps PBI data, and a 3.1-approved PBI stays Development-Ready',async()=>{
+  const {dir,root:r}=await tempRoot('akzo-upgrade31-');
+  const a31={...assets,template:await fs.readFile(path.join(__dirname,'fixtures/baseline-v3.1.0-template.md'),'utf8')};
+  const old=V31.setupFiles(raw,a31,'HTML 3.1');await V31.apply(r,await V31.plan(r,old.files,true));
+  const ok=cases[0],folder='playbook/pbis/'+CASE_PBI;await shared.writeCase(P,r,folder,ok);
+  assert.equal((await V31.checkPbi(r,folder)).computedStatus,'Development-Ready');
+  const before={};for(const f of ['pbi-state.json','REFINED-PBI.md','REQUEST.md','DECISION-LOG.md'])before[f]=await P.read(r,folder+'/'+f);
+  const rows=await P.plan(r,setup.files,true);assert.ok(!rows.some(x=>['conflict','retire','retire-conflict'].includes(x.state)));
+  assert.deepEqual(rows.filter(x=>x.state==='create').map(x=>x.path).sort(),[P.BASE+'/skills/crm-plugin-workflow-intelligence.md',P.BASE+'/skills/guided-pbi-creation.md']);
+  await P.apply(r,rows,true);for(const [f,t] of Object.entries(before))assert.equal(await P.read(r,folder+'/'+f),t,f);
+  const after=await P.checkPbi(r,folder);assert.equal(after.computedStatus,'Development-Ready',JSON.stringify(after.issues));
   await fs.rm(dir,{recursive:true,force:true});
  });
  await test('upgrade from actual 3.0.0 updates managed files with backups, keeps PBI data and baselines, and never trusts 3.0.0 approvals',async()=>{
@@ -127,6 +140,52 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  });
  await test('reported 3.0.0 gaps: changed approved text, ID-only document, omitted DAB path, unknown evidence are not Development-Ready',async()=>{
   for(const c of gaps.cases){const r=await P.readiness(c.state,c.docs,gaps.PBI);assert.notEqual(r.computedStatus,'Development-Ready','gap '+c.gap+': '+c.name);assert.equal(r.finalAllowed,false,'gap '+c.gap);}
+ });
+ await test('4.0 agent: commands, guided creation, business-only questions, interactive or numbered answers, evidence scope; two new guides',async()=>{
+  const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],c=setup.files[P.BASE+'/skills/crm-plugin-workflow-intelligence.md'];
+  for(const re of [/Create PBI \(also New PBI, Create User Story/,/Resume PBI <n>[\s\S]*Validate PBI <n>/,/never ask them about plugin registration/,/does not stop business\s+refinement and is never a business question/,
+   /vscode\/askQuestions/,/accept 1-4 \(4 = custom answer\), back[\s\S]*skip \(optional\s+questions only\), status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
+   /explicit requirement, approved business decision,\s+proposed interpretation, technical observation, unverified technical detail or\s+open business question/,/Legacy CRM plugin and workflow behavior is historical\s+context, never proof/,/do not challenge it again/])assert.match(a,re);
+  for(const re of [/Step n of 6/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
+  for(const re of [/visited list of methods; stop at\s+a method already visited \(cycle\)/,/registration\s+unverified/,/Simple explanation/,/Important difference/,/"system": "legacy-crm"/])assert.match(c,re);
+  const vs=P.setupFiles({...raw,ide:'visualstudio'},assets,html).files[P.AGENT];assert.match(vs,/tools: \["readfile", "code_search", "editfiles"\]/);
+ });
+ await test('guided intake: title-only draft, criteria modes, attachments and target project (scenarios A, B, C, D, E)',async()=>{
+  const cfg=setup.config,title='Creation of Adaptation Imitation Request & Paint System';
+  const draft=P.newPbi(cfg,{title,draft:true,step:'description'});assert.equal(draft.request.wizard.status,'draft');assert.equal(draft.request.wizard.step,'description');assert.match(draft.prompt,/saved draft/);
+  assert.throws(()=>P.newPbi(cfg,{title}),/Describe the requirement, or attach/);
+  const a=P.newPbi(cfg,{title,description:'Allow an Adaptation request for an Industrial Market Color Instance.'});assert.equal(a.request.acceptanceCriteriaMode,'skip');assert.equal(a.request.project,cfg.projectName);assert.match(a.files[a.folder+'/REQUEST.md'],/## Acceptance criteria\n\nSkipped for now/);
+  const b=P.newPbi(cfg,{title,number:'305915',description:'D',project:'DAB API',changeType:'migrate',acMode:'enter',acceptanceCriteria:'Given an Industrial instance, when an Adaptation is requested, then a Paint System is created.'});
+  assert.match(b.files[b.folder+'/REQUEST.md'],/## Target project\n\nDAB API[\s\S]*Migrates legacy functionality[\s\S]*Given an Industrial instance/);
+  assert.throws(()=>P.newPbi(cfg,{title,description:'D',acMode:'enter'}),/Enter the acceptance criteria/);assert.throws(()=>P.newPbi(cfg,{title,description:'D',acMode:'attached'}),/Attach the file/);
+  assert.throws(()=>P.newPbi(cfg,{title,description:'D',changeType:'other'}),/kind of change/);
+  const g=P.newPbi(cfg,{title,description:'D',acMode:'draft'});assert.match(g.prompt,/Draft Given\/When\/Then[\s\S]*marked proposed/);
+  const c=P.newPbi(cfg,{title,acMode:'attached',attachments:['Spec v2.pdf','screen.png','screen.png','CON.txt','../evil.docx','trailing. ']});
+  assert.deepEqual(c.attachments.map(p=>p.slice(c.folder.length+1)),['attachments/Spec v2.pdf','attachments/screen.png','attachments/screen-2.png','attachments/_CON.txt','attachments/.._evil.docx','attachments/trailing']);
+  assert.match(c.prompt,/report any you cannot open/);assert.match(c.files[c.folder+'/REQUEST.md'],/Attachments \(not yet reviewed\)[\s\S]*screen\.png → attachments\/screen-2\.png/);
+ });
+ await test('question engine: next question, selection, custom answer, edit with supersede, skip rules, history (scenarios F, G, L, M)',async()=>{
+  const pbi='pbi-305915-adaptation-request',folder='playbook/pbis/'+pbi;
+  const state={schemaVersion:2,pbi,status:'Draft',evidenceScope:{exclude:['legacy-crm'],decisionRef:'DEC-1'},questions:[
+   {id:'Q-1',blocking:true,owner:'po-ba',status:'answered',question:'Exclude legacy plugin evidence from the DAB analysis?',resolution:'Yes, exclude it',decisionRef:'DEC-1'},
+   {id:'Q-2',blocking:false,owner:'po-ba',status:'unanswered',question:'Show an information banner on the request?',options:[{key:'A',text:'Yes'},{key:'B',text:'No'}]},
+   {id:'Q-3',blocking:true,owner:'po-ba',status:'unanswered',question:'Should an Adaptation request be allowed for another Industrial Instance when an existing request already uses the same Product?',why:'Decides when a duplicate is blocked.',
+    options:[{key:'A',text:'Yes. Allow different Industrial Instances; block duplicates only for the same Instance, Product and Local/Global combination.'},{key:'B',text:'No. Block duplicates across every Industrial Instance of the same Market Color.'}]}],
+   decisions:[{id:'DEC-1',pbi,status:'approved',evidence:'User direction in chat 2026-10-25',supersedes:''}]};
+  await P.write(root,folder+'/pbi-state.json',JSON.stringify(state));await P.write(root,folder+'/DECISION-LOG.md','# Decision log\n\n- DEC-1 exclude legacy plugin evidence');
+  let p=P.questionProgress(state);assert.equal(p.next.id,'Q-3','blocking question first; answered Q-1 is never asked again');assert.equal(p.answered,1);assert.equal(p.total,3);
+  await assert.rejects(()=>P.recordSkip(root,folder,'Q-3'),/cannot be skipped/);await P.recordSkip(root,folder,'Q-2');
+  await assert.rejects(()=>P.recordAnswer(root,folder,'Q-3',{option:'A'}),/Enter your name/);await assert.rejects(()=>P.recordAnswer(root,folder,'Q-3',{option:'Z',by:'Priya'}),/Choose one of the options/);
+  let r=await P.recordAnswer(root,folder,'Q-3',{option:'A',by:'Priya (PO)',at:'2026-10-27T10:00:00Z'});assert.equal(r.decision.id,'DEC-2');assert.equal(r.decision.status,'approved');
+  // A restart reads everything back from disk: nothing blocking is asked again.
+  p=P.questionProgress(JSON.parse(await P.read(root,folder+'/pbi-state.json')));assert.equal(p.next,null);assert.deepEqual(p.deferred,['Q-2']);assert.equal(p.answeredQuestions.find(q=>q.id==='Q-3').resolution,state.questions[2].options[0].text);
+  r=await P.recordAnswer(root,folder,'Q-3',{option:'custom',custom:'Block duplicates for the same Instance and Product only.',by:'Priya (PO)',at:'2026-10-27T10:05:00Z'});
+  const disk=JSON.parse(await P.read(root,folder+'/pbi-state.json'));
+  assert.deepEqual(disk.decisions.map(d=>d.id+':'+d.status+':'+d.supersedes),['DEC-1:approved:','DEC-2:superseded:','DEC-3:approved:DEC-2']);assert.equal(disk.questions[2].answer.option,'custom');
+  assert.deepEqual(disk.evidenceScope,state.evidenceScope);assert.equal(disk.questions[0].resolution,'Yes, exclude it');
+  const log=await P.read(root,folder+'/DECISION-LOG.md');assert.match(log,/DEC-1 exclude legacy[\s\S]*- DEC-2 \(approved\)[\s\S]*- DEC-3 \(approved, supersedes DEC-2\): Q-3 .* → Block duplicates/);
+  let backups=0;for await(const [n] of (await (await (await (await (await root.getDirectoryHandle('playbook')).getDirectoryHandle('pbis')).getDirectoryHandle(pbi)).getDirectoryHandle('history'))).entries())if(n.startsWith('pbi-state.'))backups++;assert.equal(backups,3);
+  await P.write(root,folder+'/pbi-state.json','{broken');await assert.rejects(()=>P.recordAnswer(root,folder,'Q-2',{option:'A',by:'Priya'}),/not valid JSON/);assert.equal(await P.read(root,folder+'/pbi-state.json'),'{broken');
  });
  await test('checkPbi reads the PBI folder files and blocks a final document without approvals',async()=>{
   const folder='playbook/pbis/'+CASE_PBI,c=cases.find(x=>x.name.startsWith('pending approvals'));

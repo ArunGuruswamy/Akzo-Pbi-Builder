@@ -6,7 +6,7 @@ const P=require('./src/core.js');
 const pkg=path.resolve(__dirname,'..'),zipPath=path.join(path.dirname(pkg),`Akzo-SDD-PBI-Builder-${P.VERSION}.zip`);
 const EXCLUDE=new Set(['maintainer/Akzo-SDD-PBI-Builder.html','maintainer/generated-test.zip','maintainer/generated-comparison.zip','SHA256SUMS.txt']);
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
-async function list(dir,rel=''){let out=[];for(const e of await fs.readdir(path.join(dir,rel),{withFileTypes:true})){const r=rel?rel+'/'+e.name:e.name;if(e.isDirectory())out=out.concat(await list(dir,r));else if(!EXCLUDE.has(r))out.push(r);}return out.sort();}
+async function list(dir,rel=''){let out=[];for(const e of await fs.readdir(path.join(dir,rel),{withFileTypes:true})){const r=rel?rel+'/'+e.name:e.name;if(e.name==='.git')continue;if(e.isDirectory())out=out.concat(await list(dir,r));else if(!EXCLUDE.has(r))out.push(r);}return out.sort();}
 (async()=>{
  const assets=JSON.parse(await fs.readFile(path.join(__dirname,'src/assets.json'),'utf8'));
  await fs.copyFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),path.join(pkg,'Akzo-SDD-PBI-Builder.html'));

@@ -1,7 +1,7 @@
 'use strict';
 // Deterministic before/after evidence for identical settings: what each version's installed
 // instructions state, and what each version can check without an AI run. Not model output quality.
-const fs=require('node:fs'),P=require('./src/core.js'),V21=require('./fixtures/baseline-v2.1.0-core.cjs'),V30=require('./fixtures/baseline-v3.0.0-core.cjs');
+const fs=require('node:fs'),P=require('./src/core.js'),V21=require('./fixtures/baseline-v2.1.0-core.cjs'),V30=require('./fixtures/baseline-v3.0.0-core.cjs'),V31=require('./fixtures/baseline-v3.1.0-core.cjs');
 const shared=require('./fixtures/readiness-cases.cjs'),gaps=require('./fixtures/gap-cases.cjs');
 const assets=JSON.parse(fs.readFileSync(__dirname+'/src/assets.json','utf8'));
 const raw={projectName:'Customizations',ide:'visualstudio',role:'legacy',sources:{dab:'../DAB',legacy:'',cdms:''},includeReferences:true};
@@ -11,6 +11,7 @@ const guides=(core,files)=>Object.entries(files).filter(([p])=>p===core.AGENT||p
 const texts={
  'v2.1 Concise':V21.setupFiles(raw,assets,'').files[V21.CONCISE_AGENT]+template('2.1.0'),
  'v3.0.0':guides(V30,V30.setupFiles(raw,assets,'').files)+template('3.0.0'),
+ 'v3.1.0':guides(V31,V31.setupFiles(raw,assets,'').files)+template('3.1.0'),
  ['v'+P.VERSION]:guides(P,P.setupFiles(raw,assets,'').files)+assets.template};
 const checks=[
  ['Plugin source alone is not proof the rule is active',/source alone does not prove/i],
@@ -31,9 +32,16 @@ const checks=[
  ['Document must carry the same rule and criterion text as the state',/must contain the same\s+text/i],
  ['Code-enforced versus agent-dependent controls stated',/What the check enforces and what depends on you/],
  ['3.0.0 approvals never carried forward on migration',/check never accepts a 3\.0\.0 approval/i],
- ['New PBI starts without earlier decisions or approvals',/starts with no decisions or approvals/i],
- ['Question gives business example and consequence of each option',/consequence of each/i],
- ['Do not re-ask an answered question in this PBI',/already holds an applicable approved answer/i],
+ ['Business users never asked about registration, pipelines, builds or deployment',/never ask them about plugin registration/],
+ ['Technical gaps go to the technical assessment instead of blocking business refinement',/does not stop business\s+refinement/],
+ ['Interactive answers in VS Code (vscode/askQuestions) with a numbered fallback',/vscode\/askQuestions/],
+ ['One answer approves one decision; no second confirmation',/second confirmation of the same answer/],
+ ['Guided Create PBI with prefill, save draft and resume',/Step n of 6/],
+ ['Bounded CRM plugin/workflow call-chain tracing with plain-language explanation',/visited list of methods/],
+ ['Legacy CRM evidence never proves DAB behavior; recorded evidence scope',/historical\s+context, never proof/],
+ ['New PBI starts without earlier decisions or approvals',/starts with no decisions or\s+approvals/i],
+ ['Question gives business example and consequence of each option',/consequence of each|options with\s+their consequence/i],
+ ['Do not re-ask an answered question in this PBI',/already holds an applicable approved answer|skip the\s+question if any of them already answers it/i],
  ['Reusable knowledge separated from PBI state, with fingerprints',/fingerprint/i],
  ['Reference documents navigated by heading index, not loaded whole',/REFERENCES-INDEX/],
  ['One unresolved question at a time (kept)',/one unresolved\s+(business )?question at a\s+time/i],

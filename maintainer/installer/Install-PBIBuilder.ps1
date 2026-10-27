@@ -301,6 +301,8 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         if (-not ((Get-Prop $state 'dependencies') -is [array])) { & $add 'NO_DEPENDENCIES' 0 $pbi }
         $seen = New-Object System.Collections.Generic.List[string]
         foreach ($n in $Spec.lists) { foreach ($x in $Lists[$n]) { $id = Get-Prop $x 'id'; if (-not (Test-Str $id)) { continue }; if ($seen.Contains($id)) { & $add 'DUPLICATE_ID' 0 $id } else { $seen.Add($id) } } }
+        $evScope = Get-Prop $state 'evidenceScope'; $excluded = @((Get-Arr (Get-Prop $evScope 'exclude')) | Where-Object { $_ -is [string] })
+        if ($excluded.Count -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $evScope 'decisionRef')) 'status') 'approved')) { & $add 'SCOPE_DECISION_MISSING' 2 $pbi }
         $scope = Get-Prop $state 'paths'; if (-not (Test-Obj $scope)) { $scope = [pscustomobject]@{} }
         $applies = New-Object System.Collections.Generic.List[string]
         foreach ($k in $Spec.requiredPaths) { if (-not (Test-Has $scope $k)) { & $add 'PATH_SCOPE_MISSING' 1 $k } }
@@ -319,7 +321,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             $scripted = (Test-Same $otype 'plugin') -or (Test-Same $otype 'workflow')
             if ($scripted -and (-not (Test-In $Spec.registration $reg) -or (Test-Same $reg 'unknown'))) { & $add 'REGISTRATION_UNKNOWN' 1 $id }
             $levels = New-Object System.Collections.ArrayList
-            foreach ($e in (Get-Arr (Get-Prop $r 'evidence'))) { $x = Find-Id $evidence $e; if ($null -ne $x) { [void]$levels.Add((Get-Prop $x 'level')) } else { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$(Get-Shown $e)" } }
+            foreach ($e in (Get-Arr (Get-Prop $r 'evidence'))) { $x = Find-Id $evidence $e; if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$(Get-Shown $e)" } elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$(Get-Shown $e)" } else { [void]$levels.Add((Get-Prop $x 'level')) } }
             if (-not (Test-Same $otype 'none') -and -not (Test-In $levels 'code')) { & $add 'NO_EVIDENCE' 1 $id }
             if ($scripted -and ((Test-Same $reg 'active') -or (Test-Same $reg 'disabled') -or (Test-Same $reg 'missing')) -and -not (Test-In $levels 'registration')) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/registration" }
             if ((Test-Same (Get-Prop $r 'runtime') 'verified') -and -not (Test-In $levels 'runtime')) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/runtime" }
@@ -331,7 +333,13 @@ function Get-Readiness($state, $docs, [string]$pbi) {
                 if (-not (Test-In $Spec.pathStatus $st) -or (Test-Same $st 'unknown') -or ((Test-Same $st 'not-applicable') -and -not (Test-Str (Get-Prop $p 'reason')))) { & $add 'PATH_UNKNOWN' 1 "$id/$k"; continue }
                 if (Test-Same $st 'not-applicable') { continue }
                 $reach = $false
-                foreach ($e in (Get-Arr (Get-Prop $p 'evidence'))) { $x = Find-Id $evidence $e; if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$k/$(Get-Shown $e)" } elseif (Test-Same (Get-Prop $x 'level') 'reach') { $reach = $true } }
+                foreach ($e in (Get-Arr (Get-Prop $p 'evidence'))) {
+                    $x = Find-Id $evidence $e
+                    if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$k/$(Get-Shown $e)" }
+                    elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$k/$(Get-Shown $e)" }
+                    elseif ((Test-Same (Get-Prop $x 'system') 'legacy-crm') -and -not (Test-Same $k 'cdms')) { & $add 'LEGACY_NOT_TARGET_EVIDENCE' 1 "$id/$k/$(Get-Shown $e)" }
+                    elseif (Test-Same (Get-Prop $x 'level') 'reach') { $reach = $true }
+                }
                 if (-not $reach) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/$k" }
             }
             if ((Test-Same $action 'resolve-gap') -or @((Get-Arr (Get-Prop $r 'gaps')) | Where-Object { -not (Test-Obj $_) -or -not (Test-Same (Get-Prop $_ 'status') 'resolved') }).Count) { & $add 'EVIDENCE_GAP' 1 $id }
@@ -357,7 +365,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         for ($i = 0; $i -lt $evidence.Count; $i++) {
             $e = $evidence[$i]; $eid = Get-Prop $e 'id'; $id = if ((Test-Obj $e) -and (Test-Str $eid)) { $eid } else { "evidence $($i + 1)" }
             $kind = Get-Prop $e 'kind'; $src = Get-Prop $e 'source'
-            if (-not (Test-Obj $e) -or -not (Test-Str $eid) -or -not (Test-In $Spec.evidenceLevels (Get-Prop $e 'level')) -or -not (Test-In $Spec.evidenceKinds $kind) -or -not (Test-Str $src) -or -not (Test-Str (Get-Prop $e 'location')) -or -not (Test-Str (Get-Prop $e 'summary')) -or ((Test-Same $kind 'repo-file') -and -not (Test-SafePath $src)) -or ((Test-Same $kind 'external') -and -not (Test-Str (Get-Prop $e 'revision')))) { & $add 'EVIDENCE_INCOMPLETE' 1 $id; continue }
+            if (-not (Test-Obj $e) -or -not (Test-Str $eid) -or -not (Test-In $Spec.evidenceLevels (Get-Prop $e 'level')) -or -not (Test-In $Spec.evidenceKinds $kind) -or -not (Test-Str $src) -or -not (Test-Str (Get-Prop $e 'location')) -or -not (Test-Str (Get-Prop $e 'summary')) -or ((Test-Has $e 'system') -and -not (Test-In $Spec.evidenceSystems (Get-Prop $e 'system'))) -or ((Test-Same $kind 'repo-file') -and -not (Test-SafePath $src)) -or ((Test-Same $kind 'external') -and -not (Test-Str (Get-Prop $e 'revision')))) { & $add 'EVIDENCE_INCOMPLETE' 1 $id; continue }
             $stale = Get-Prop $e 'stale'; if (($stale -is [bool]) -and $stale) { & $add 'EVIDENCE_STALE' 1 $id }
             if (Test-Same $kind 'repo-file') {
                 $h = & $fileOf $src; $recorded = Get-Prop $e 'sha256'
@@ -370,12 +378,17 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             elseif (Test-Same $a.identity 'unknown') { & $add 'IDENTITY_UNKNOWN' 1 $id }
         }
         $qs = $Lists['questions']
+        $asked = New-Object System.Collections.Generic.List[string]
         for ($i = 0; $i -lt $qs.Count; $i++) {
-            $q = $qs[$i]; $b = Get-Prop $q 'blocking'
-            if (-not (Test-Obj $q) -or -not ($b -is [bool]) -or -not $b) { continue }
+            $q = $qs[$i]; $qst = Get-Prop $q 'status'
+            if (-not (Test-Obj $q) -or (Test-Same $qst 'superseded')) { continue }
             $id = if (Test-Str (Get-Prop $q 'id')) { $q.id } else { "question $($i + 1)" }; $cap = if (Test-Same (Get-Prop $q 'owner') 'technical') { 1 } else { 2 }
-            if (-not (Test-Same (Get-Prop $q 'status') 'resolved')) { & $add 'BLOCKING_QUESTION' $cap $id }
-            elseif (-not (Test-Str (Get-Prop $q 'resolution')) -or ($cap -eq 2 -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $q 'decisionRef')) 'status') 'approved'))) { & $add 'QUESTION_UNSUPPORTED' $cap $id }
+            $qt = Get-Prop $q 'question'
+            if (Test-Str $qt) { $t = Get-Norm $qt; if ($asked.Contains($t)) { & $add 'QUESTION_DUPLICATE' 3 $id } else { $asked.Add($t) } }
+            $b = Get-Prop $q 'blocking'
+            if (-not ($b -is [bool]) -or -not $b) { continue }
+            if (-not (Test-In $Spec.questionResolved $qst)) { & $add 'BLOCKING_QUESTION' $cap $id }
+            elseif (-not (Test-Str (Get-Prop $q 'resolution')) -or ($cap -eq 2 -and -not (Test-Same $qst 'not-applicable') -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $q 'decisionRef')) 'status') 'approved'))) { & $add 'QUESTION_UNSUPPORTED' $cap $id }
         }
         $as = $Lists['assumptions']
         for ($i = 0; $i -lt $as.Count; $i++) {
@@ -411,6 +424,9 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             $part[$n] = $list
         }
         foreach ($n in @('paths', 'feasibility')) { $part[$n] = @(, @($n, (Get-Fp (Get-Prop $state $n)))) }
+        # Only fingerprinted when recorded, so approvals given before 4.0 stay valid.
+        # Assigned inside the branches: an if-expression would unroll the one-pair array.
+        if (Test-Has $state 'evidenceScope') { $part['evidenceScope'] = @(, @('evidenceScope', (Get-Fp (Get-Prop $state 'evidenceScope')))) } else { $part['evidenceScope'] = @() }
         foreach ($k in $Spec.approvals) {
             $m = New-Map; foreach ($n in $Spec.scopes.$k) { foreach ($pair in $part[$n]) { $m[$pair[0]] = $pair[1] } }
             $keys = [string[]]@($m.Keys); [array]::Sort($keys, [System.StringComparer]::Ordinal)

@@ -1,4 +1,18 @@
-# Migrating to Akzo SDD PBI Builder 3.1.0
+# Migrating to Akzo SDD PBI Builder 4.0.0
+
+## From 3.1.0
+Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`.
+- Updated (with backups): the agent, `readiness-and-approval.md` and the other guides, the
+  template, README, config and the form. Added: `skills/guided-pbi-creation.md` and
+  `skills/crm-plugin-workflow-intelligence.md`.
+- PBI folders are not changed. pbi-state.json stays schemaVersion 2; existing approvals keep
+  their fingerprints and stay valid (tested). New fields (question options and answers,
+  evidence `system`, `evidenceScope`) are optional.
+- An edited agent or guide is reported as a conflict and nothing is written until you resolve it.
+- Rollback: restore from `playbook/pbi-builder/backups/<batch>/`, or install 3.1.0 again with
+  reviewed updates allowed; it also removes the two new guides if unchanged (backed up first).
+
+# Migrating to 3.1.0
 
 ## From 3.0.0
 
