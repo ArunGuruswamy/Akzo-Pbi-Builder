@@ -1,0 +1,45 @@
+'use strict';
+// Executes actual event handlers with a simulated DOM and directory-handle API.
+// This is not a rendered-browser or native folder-picker test.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto').webcrypto;
+const descriptors=JSON.parse(fs.readFileSync(__dirname+'/dom-fixture.json','utf8'));
+const html=fs.readFileSync(__dirname+'/Akzo-SDD-PBI-Builder.html','utf8');
+class Element{constructor(x={}){Object.assign(this,{tagName:x.tag||'div',id:x.id||'',className:x.className||'',dataset:x.tab?{tab:x.tab}:{},value:x.value||'',checked:x.checked||false,textContent:x.text||'',disabled:false,children:[],style:{}});this.classList={contains:c=>this.className.split(' ').includes(c),toggle:(c,b)=>{const a=new Set(this.className.split(' '));b?a.add(c):a.delete(c);this.className=[...a].join(' ')},add:c=>this.classList.toggle(c,true),remove:c=>this.classList.toggle(c,false)};}setAttribute(k,v){this[k]=v}append(...xs){this.children.push(...xs)}replaceChildren(...xs){this.children=xs;if(this.tagName==='select')this.value=xs[0]?.value||''}add(x){this.append(x)}scrollIntoView(){}focus(){}select(){}click(){return this.onclick?.();}}
+const elems=descriptors.map(x=>new Element(x)),ids=Object.fromEntries(elems.filter(x=>x.id).map(x=>[x.id,x])),handlers={};
+const document={getElementById:id=>{if(!ids[id])throw Error('Missing HTML id: '+id);return ids[id]},querySelectorAll:s=>elems.filter(x=>s==='button'?x.tagName==='button':s==='nav button'?!!x.dataset.tab:s==='.panel'?x.className.split(' ').includes('panel'):false),createElement:tag=>new Element({tag}),addEventListener:(n,f)=>handlers[n]=f,documentElement:{outerHTML:html}};
+function err(name){return Object.assign(Error(name),{name})}
+class MemFile{constructor(name){this.name=name;this.kind='file';this.text='';}async getFile(){return{text:async()=>this.text,arrayBuffer:async()=>new TextEncoder().encode(this.text).buffer}}async createWritable(){let next;return{write:async t=>{next=t},close:async()=>{this.text=next},abort:async()=>{}}}}
+class MemDir{constructor(name){this.name=name;this.kind='directory';this.children=new Map()}async getDirectoryHandle(n,{create=false}={}){let d=this.children.get(n);if(!d&&create){d=new MemDir(n);this.children.set(n,d);}if(!d)throw err('NotFoundError');if(d.kind!=='directory')throw err('TypeMismatchError');return d;}async getFileHandle(n,{create=false}={}){let f=this.children.get(n);if(!f&&create){f=new MemFile(n);this.children.set(n,f)}if(!f)throw err('NotFoundError');if(f.kind!=='file')throw err('TypeMismatchError');return f;}async*entries(){yield*this.children.entries()}async removeEntry(n){if(!this.children.delete(n))throw err('NotFoundError')}}
+const root=new MemDir('AN.ColorDMS.Customizations');root.children.set('.git',new MemDir('.git'));root.children.set('ColorDMS.sln',new MemFile('ColorDMS.sln'));
+const urls=[];let copied='';
+const ctx={console,document,crypto,TextEncoder,Blob,DataView,Uint8Array,Date,JSON,Option:class extends Element{constructor(text,value){super({tag:'option',value,text})}},URL:{createObjectURL:b=>{urls.push(b);return'blob:test'},revokeObjectURL:()=>{}},navigator:{clipboard:{writeText:async s=>{copied=s}}},setTimeout:()=>{},showDirectoryPicker:async()=>root};ctx.window=ctx;vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(__dirname+'/src/core.js','utf8'),ctx);vm.runInContext(fs.readFileSync(__dirname+'/src/ui.js','utf8'),ctx);handlers.DOMContentLoaded();
+async function click(id){await ids[id].onclick();if(ids.message.className.includes('error'))throw Error(ids.message.textContent);}
+(async()=>{
+ await click('pick');assert.equal(ids.projectName.value,root.name);assert.equal(ids.rootConfirmed.checked,true);assert.match(ids.solutions.textContent,/ColorDMS.sln/);
+ ids.displayPath.value='C:\\Users\\prasadv\\AN.ColorDMS.Customizations';await click('preview');assert.match(ids.message.textContent,/No files written/);assert.equal(await ctx.PBI.read(root,ctx.PBI.AGENT),null);
+ await click('install');assert.match(ids.connectedDetail.textContent,/Installed/);assert.match(ids.promptText.value,/Check this PBI Builder setup/);assert.match(await ctx.PBI.read(root,ctx.PBI.AGENT),/AN.ColorDMS.Customizations/);
+ await click('install');assert.match(ids.message.textContent,/0 files saved/);
+ ids.pbiTitle.value='Create improved formula';ids.pbiDescription.value='A business description';ids.pbiNumber.value='300186';await click('saveNew');assert.match(ids.promptText.value,/Start PBI preparation/);await click('copyPrompt');assert.equal(copied,ids.promptText.value);
+ await ids.saveNew.onclick();assert.match(ids.message.textContent,/already has an intake folder/);
+ await click('refresh');assert.equal(ids.existingPbi.children.length,2);ids.existingPbi.value=ids.existingPbi.children[1].value;ids.existingPbi.onchange();assert.match(ids.pbiDetails.textContent,/REQUEST.md/);
+ ids.changes.value='Continue from next unresolved question';await click('saveRefine');assert.match(ids.promptText.value,/Refine the existing PBI/);await click('verify');assert.match(ids.message.textContent,/All recorded files match/);
+ await click('setupZip');assert.ok(urls.length);assert.match(ids.message.textContent,/does not install files/);
+ // ZIP settings must not cause a subsequent direct save to use the wrong project.
+ ids.projectName.value='Another project';await click('setupZip');ids.pbiNumber.value='';ids.pbiTitle.value='Another requirement';await click('saveNew');assert.match(ids.outputInstruction.textContent,/AN.ColorDMS.Customizations/);
+ ids.comparisonTitle.value='Status validation';ids.comparisonDescription.value='Keep all errors and partial-success results.';
+ ids.comparisonBaseline.value='2.0-original';await click('saveComparison');assert.match(ids.baselineName.textContent,/Baseline v2\.0 Original/);assert.match(ids.currentName.textContent,/^Akzo SDD PBI Builder - /);assert.ok(await ctx.PBI.read(root,ctx.PBI.BASELINES['2.0-original'].path));
+ assert.notEqual(ids.baselinePrompt.value,ids.currentPrompt.value);assert.match(ids.message.textContent,/No AI tasks have run/);
+ await click('copyBaseline');assert.equal(copied,ids.baselinePrompt.value);await click('copyCurrent');assert.equal(copied,ids.currentPrompt.value);
+ const before=(await ctx.PBI.listPbis(root)).length;await click('comparisonZip');assert.equal((await ctx.PBI.listPbis(root)).length,before);assert.match(ids.comparisonNext.textContent,/Extract it/);
+ await click('cleanupComparison');assert.match(ids.message.textContent,/Removed: .*baseline-v2\.0-original/);assert.equal(await ctx.PBI.read(root,ctx.PBI.BASELINES['2.0-original'].path),null);
+ assert.match(ids.outputInstruction.textContent,/select Akzo SDD PBI Builder - AN\.ColorDMS/);
+ await ids.checkReadiness.onclick();assert.match(ids.message.textContent,/Computed status: Draft[\s\S]*STATE_MISSING/);assert.doesNotMatch(ids.message.textContent,/Approval basis/);
+ // A PBI ready for review shows the approval basis the agent records; the same scenario PowerShell is tested with.
+ const shared=require('./fixtures/readiness-cases.cjs'),{cases}=await shared.load(ctx.PBI),pending=cases.find(c=>c.name.startsWith('pending approvals'));
+ await shared.writeCase(ctx.PBI,root,'playbook/pbis/'+shared.PBI,pending);ids.existingPbi.value='';ids.manualPbi.value='playbook/pbis/'+shared.PBI;
+ await ids.checkReadiness.onclick();assert.match(ids.message.textContent,/Computed status: Ready for Review[\s\S]*Approval basis[\s\S]*poba \(fingerprint [0-9a-f]{16}\): \{"AC-1":"[0-9a-f]{16}"/);
+ await click('refreshEvidence');assert.match(ids.message.textContent,/No evidence index found/);
+ ids.displayPath.value='C:\\wrong\\OtherProject';await ids.install.onclick();assert.match(ids.message.textContent,/different folder name/);
+ console.log('PASS UI handler smoke: select, review, install, repeat, intake, duplicate number, clipboard, list, refinement, verify, ZIP fallback, config isolation, comparison creation with chosen baseline, comparison clipboard, comparison ZIP, comparison cleanup, readiness check, evidence refresh, path mismatch.');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,105 @@
+# Migrating to Akzo SDD PBI Builder 3.1.0
+
+## From 3.0.0
+
+### Setup files
+Install 3.1.0 with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`.
+File names are unchanged. The agent, the three guides, `config.json`, `README.md`,
+`PBI-TEMPLATE.md` and the form are updated after you allow reviewed updates;
+each replaced file is backed up to `playbook/pbi-builder/backups/<batch>/`. A setup
+file you edited is reported as a conflict and nothing is written until you resolve
+it (same rules as before). Never touched: `playbook/pbis/**`, knowledge notes,
+backups, comparison baseline agents and trial folders, `.github/copilot-instructions.md`.
+
+### Existing PBIs (pbi-state.json schemaVersion 1)
+Nothing in a PBI folder is rewritten by the installer or the check.
+- The readiness check still reads a 3.0.0 state. It reports `STATE_OUTDATED`
+  and applies the 3.1.0 rules, so missing path scope, evidence records and
+  criterion text are listed.
+- A 3.0.0 approval recorded revision numbers, not what was reviewed. It is
+  reported as `APPROVAL_UNBOUND` and never counts. **A 3.0.0 PBI that was
+  Development-Ready is no longer Development-Ready until it is migrated and
+  approved again.** This is deliberate: the reviewed content of those approvals
+  cannot be established.
+- To migrate, open the PBI with the agent ("Continue PBI <number>"). It copies
+  `pbi-state.json` to `history/`, writes schemaVersion 2, moves each old approval
+  to `approvalHistory` marked stale, and records anything it cannot establish as a
+  gap. Then follow the normal review: run Check PBI readiness, present the
+  consolidated approval request, record the new approvals with the printed basis.
+- An existing `REFINED-PBI.md` stays in place. Until the PBI is Development-Ready
+  again, the check reports it as `FINAL_WITHOUT_APPROVAL`.
+
+### What is enforced by code and what depends on the agent
+| Control | Enforced by |
+| --- | --- |
+| Status computed from state, documents and local evidence; approvals bound to fingerprints; document text, evidence references, path scope, decision log | Readiness check (form and PowerShell, identical results) |
+| Migration rewrite of a 3.0.0 state, history copies, approvalHistory entries | Agent instructions |
+| Asking the right owner, recording answers as stated, never editing a basis, not creating REFINED-PBI.md before the check allows it | Agent instructions |
+| Whether an approver really agreed, whether content is correct, whether external evidence is current | Nobody: these remain human review |
+
+The check reports; it cannot stop a file from being written.
+
+### Rollback to 3.0.0
+Restore the setup files from `playbook/pbi-builder/backups/<batch>/`, or install the
+3.0.0 package again with reviewed updates allowed. PBIs migrated to schemaVersion 2
+then show `STATE_SCHEMA` in the 3.0.0 check; their `history/` folder holds the
+schemaVersion 1 copy.
+
+# Migrating to 3.0.0 (from 2.0 or 2.1)
+
+## What changes in your repository
+
+| Before (2.0 / 2.1) | After (3.0) |
+| --- | --- |
+| `.github/agents/akzo-sdd-pbi-dynamic.agent.md` ("Akzo SDD PBI Builder - X") | `.github/agents/akzo-sdd-pbi-builder.agent.md` (same display name) |
+| `.github/agents/akzo-sdd-pbi-dynamic-concise.agent.md` ("... Concise - X") | Retired; its behavior is part of the single agent |
+| `.github/prompts/akzo-pbi-{new,refine}-concise.prompt.md` | Retired |
+| `.github/prompts/akzo-pbi-{new,refine}.prompt.md` | Kept, now point at the single agent |
+| — | `playbook/pbi-builder/skills/*.md` (guides the agent loads on demand) |
+| — | `playbook/pbi-builder/REFERENCES-INDEX.md` (when references are included) |
+| `config.json` with `conciseAgentName` | `conciseAgentName` dropped; `packageVersion` 3.0.0 |
+
+Retirement rules, applied by both the form and `Install-PBIBuilder.ps1`:
+- A retired file is backed up to `playbook/pbi-builder/backups/<batch>/` and removed
+  only if its SHA-256 still matches the previous installation manifest, and only
+  after every new file has been written and verified.
+- An edited old file, or one without an ownership record, is kept and reported as
+  `retire-conflict`. Delete it yourself, or change its `name:` line to keep a
+  personal copy without a duplicate name in Copilot.
+- If any step fails, every touched file is restored. An interrupted run (for example
+  a closed window) can simply be rerun: files already written show as unchanged.
+
+Never touched: `playbook/pbis/**` (requests, drafts, decisions, approvals, history),
+`playbook/pbi-builder/knowledge/**`, backups, `.github/copilot-instructions.md`,
+application code and unrelated agents.
+
+## Existing PBIs
+- Folders from 2.x keep working with Continue/Refine PBI.
+- A `REFINED-PBI.md` written by 2.x without `pbi-state.json` is treated as a draft.
+  The agent keeps it and creates the 3.0 records (`DRAFT-PBI.md`,
+  `VALIDATION-MATRIX.md`, `pbi-state.json`) beside it, then revalidates and asks for
+  approval before finalizing.
+- Decisions recorded in a PBI stay with that PBI. They are never reused for another.
+
+## New in the PBI folder
+| File | Purpose |
+| --- | --- |
+| `DRAFT-PBI.md` | Readable working PBI (template extended with actors, ownership, CDMS vs DAB, failures, data/state, readiness) |
+| `VALIDATION-MATRIX.md` | One record per business rule with detailed evidence |
+| `pbi-state.json` | Structured rules, criteria, owners, decisions and approvals for the readiness check |
+| `REFINED-PBI.md` | Now created only after PO/BA, technical and final user approval are recorded |
+
+## Rollback
+- Restore files from `playbook/pbi-builder/backups/<batch>/` (same relative paths).
+- Or install the 2.1 package again: it recreates its two agents and, after you allow
+  updates, updates the shared files it owns (config, template, README, form) with
+  backups. It ignores the 3.0 agent and guides; delete them yourself if you want
+  only the 2.1 agents.
+- To compare without rolling back, use Compare old & new with a pinned baseline.
+
+## Windows installer
+`Install-PBIBuilder.cmd` / `.ps1` install the same files as the form, from
+`pbi-builder-bundle.json` generated by the same `core.js`. An existing installation
+from the form is recognised (same manifest), and vice versa.
+The browser stores `PBI-Builder.html` as it serializes the page and PowerShell copies
+the package file, so switching installers shows that one file as an update.

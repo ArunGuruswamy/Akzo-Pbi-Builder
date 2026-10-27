@@ -1,0 +1,88 @@
+Akzo SDD PBI Builder 3.1.0
+Validation date: 27 October 2026 (Windows 11, Node 20.20.2, Python 3.13.7,
+Windows PowerShell 5.1.22621.6133, CurrentUser execution policy RemoteSigned)
+
+BASELINE BEFORE CHANGES
+- 3.0.0 package rebuilt from source; its 24 core checks, UI smoke suite and
+  6 PowerShell checks passed. The 3.0.0 ZIP hash matched its .sha256 file.
+- The 3.0.0 generator and template were frozen as test fixtures before any change.
+
+THE FOUR REPORTED GAPS (reproduced first)
+A new test fed the four states a 3.0.0 agent would record into the readiness
+check. Before the fix it failed: 3.0.0 returned Development-Ready with no issues
+for all four. After the fix none of them is Development-Ready. The same four gaps
+in the 3.1.0 format, each as the only defect, give: 1 Ready for Review (approvals
+stale, "changed BR-1"), 2 Ready for Review (rule and criterion text missing from the
+document), 3 Needs Evidence (BR-1/dab not assessed), 4 Needs Evidence (BR-1/EV-404
+unknown).
+
+PASSED
+- Syntax: core.js, ui.js; PowerShell parser for both .ps1 files (0 errors); all
+  installer files pure ASCII.
+- test-core.cjs: 26 checks on real temporary files: the 24 earlier checks (the
+  readiness-scenario and agent-wording checks now assert the 3.1.0 rules), plus:
+  - the four gaps (3.0.0 format) are never Development-Ready;
+  - upgrade from a real 3.0.0 installation: managed files updated only after
+    opt-in, with backups; PBI state, request, final document, decision log, history,
+    knowledge and an edited comparison baseline byte-identical afterwards; the old
+    state is reported STATE_OUTDATED with three APPROVAL_UNBOUND;
+  - checkPbi on real files detects an evidence file deleted after approval;
+  - path validation rejects Windows device names and trailing dots/spaces.
+- 50 shared readiness scenarios with exact expected issue codes (and named IDs
+  where it matters): fully approved; whitespace-only reformatting keeps approvals;
+  the four gaps; criterion added or removed after approval; dependency change
+  invalidates only technical and final user approval; decision change only PO/BA
+  and final user; 3.0.0 approvals unbound; pending/incomplete approvals; plugin
+  registration missing/unknown/disabled; DAB bypass versus reuse; DAB scope
+  omitted or ruled out without a reason; reach/registration/runtime claims without
+  matching evidence; external evidence without revision; evidence file deleted or
+  changed after approval; recorded sha256 mismatch; stale evidence; aliasing
+  evidence paths; identity and actor gaps; placeholder, too-short and missing text;
+  document text, status and ID mismatches; foreign, unlogged and wrongly
+  superseding decisions; open and unsupported PO/BA and technical questions;
+  unknown dependency; missing coverage; wrong PBI folder; missing, unsupported and
+  malformed state.
+- test-ui.cjs: real handlers with simulated DOM; the readiness button shows the
+  approval basis for a PBI ready for review and not for a draft.
+- test-ps.cjs (7 checks, real Windows PowerShell, real policy, folders with spaces
+  and Kannada characters):
+  - installer output byte-identical to core.js for both IDE profiles, references
+    on/off, quotes, backslashes and Unicode;
+  - upgrade from 2.1 byte-identical to the form's upgrade, including backups;
+  - upgrade from 3.0.0 identical to the form's upgrade (except PBI-Builder.html and
+    the manifest hash of it, which differ by design), PBI data and baselines
+    untouched, and CheckPbi on the old PBI identical to core;
+  - preview, verify, repair, conflict, rollback, .cmd exit codes, simulated
+    AllSigned block without bypass, uninstall keeping PBIs, knowledge and backups;
+  - CheckPbi JSON identical to core, field by field including every fingerprint,
+    for all 50 scenarios and the four 3.0.0 gap states, with real evidence files;
+    human output prints the approval basis;
+  - RefreshEvidence identical to core; bad bundles stop before writing.
+- Mutation checks on a copy of the installer (never on the shipped file): breaking
+  whitespace normalization, removing the device-name check, lowering the text
+  threshold, or changing the technical-question cap each made the parity check fail.
+- release.cjs: ZIP extracted by PowerShell Expand-Archive; every SHA-256 matches.
+
+NOT VERIFIED HERE
+- Native Edge/Chrome folder dialogs and visual rendering of the form.
+- Visual Studio / VS Code agent discovery and tool availability.
+- Live Copilot behavior: whether the model writes schemaVersion 2 state correctly,
+  copies the approval basis unchanged, migrates 3.0.0 states as instructed, finds
+  the right enforcement owner; time, searches, tool calls, tokens and AI credits.
+- The FolderBrowserDialog and prompts of the installer's guided (double-click) mode.
+- Machines with AllSigned or Restricted policy, or a ZIP still marked as downloaded
+  under RemoteSigned: the unsigned installer is blocked there by design (simulated
+  above); use the HTML form. Code signing is an organization decision.
+- External evidence (other repositories, environments): the check verifies only that
+  a revision is recorded, not that it is current.
+
+TEAM-MACHINE SMOKE TEST
+1. Install into a throwaway copy with the form and, separately, with
+   Install-PBIBuilder.cmd; run Check installed files / -Action Verify.
+2. Reopen the IDE; confirm one agent "Akzo SDD PBI Builder - <project>" appears.
+3. Run the setup-check prompt; confirm real source access.
+4. Refine one PBI to Ready for Review; run Check PBI readiness, give the agent the
+   approval basis, record approvals, and confirm the check reports Development-Ready.
+   Change one rule afterwards and confirm the approvals turn stale.
+5. Open one existing 3.0.0 PBI with the agent and confirm the migration keeps the
+   old file in history/ and the old approvals in approvalHistory.
