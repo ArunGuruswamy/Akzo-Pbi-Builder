@@ -9,7 +9,8 @@ also type New PBI, Create User Story, Refine New Requirement or Start PBI. The a
 through six short steps:
 
 1. **Title.** Optionally add the PBI number and choose the target project from the configured
-   list.
+   list, and the application: **CDMS**, **DAB** or **Both**. You are asked once; the answer is
+   saved.
 2. **What should the application do?** Use your own words. Pasted Azure DevOps text, rules or
    code are fine.
 3. **Acceptance criteria.** Enter them, let the agent draft them for review, point to an
@@ -59,6 +60,8 @@ How answers are recorded:
 | `Show Decisions 305915` | Lists decisions with who, when and what they replaced |
 | `Analyze Legacy 305915` | Explains how the legacy CRM process works, with file and line evidence |
 | `Show Technical Flow 305915` | The traced call chain |
+| `Extract Plugin Rules 305915 FormulaPlugin` | Reads the plugin code and writes PLUGIN-RULES.md: each validation and business rule with its condition, exact error message, data needed, whether DAB must implement it, and test cases. Asks first if the PBI excludes legacy evidence |
+| `Analyze Workflows 305915 Create Paint System` | Traces the classic CRM workflows and custom workflow activities on that operation and writes PLUGIN-WORKFLOW-COVERAGE.md: which rules plugins, workflows or custom activities already handle (and how sure that is), and what DAB must do. Follows the PBI's scope: CDMS, DAB or Both |
 | `Generate Acceptance Criteria 305915` | Proposed Given/When/Then criteria for review |
 | `Export PBI 305915` | The final PBI if allowed, otherwise the draft clearly marked |
 | `Validate PBI 305915` | Explains the readiness check result |
@@ -79,10 +82,32 @@ When all questions are answered, the agent:
    `Install-PBIBuilder.cmd -RepoPath <repo> -Action CheckPbi -Pbi <folder>`;
 3. presents one consolidated approval request (PO/BA, technical, final user).
 
-`REFINED-PBI.md` is created only when the check allows it. The check confirms completeness and
+`REFINED-PBI.md`, `CDMS-REFINED-PBI.md` and `DAB-REFINED-PBI.md` are created only when the
+check allows it, and only for the applications you chose. The check confirms completeness and
 consistency; it cannot confirm that the content is right or who really approved.
 
-## Legacy evidence and DAB
-For a DAB/OCP/GraphQL PBI, legacy CRM plugin behavior is background only; it never proves what
-DAB does. If you tell the agent to leave legacy plugins out of a PBI's analysis, it records that
-once as a decision and does not challenge it again.
+## CDMS, DAB and the legacy rules
+The agent reads the legacy code (plugins, workflows, custom workflow activities, JavaScript,
+HTML web resources and ribbon commands) and lists every business rule once, with all the places
+it was found (LEGACY-BUSINESS-RULE-CATALOG.md and BUSINESS-RULE-OWNERSHIP.md).
+
+- **CDMS:** a rule an existing CRM plugin already handles (with its registration checked) is
+  reused; the PBI says to verify it, not to build it again. Workflow and JavaScript rules are
+  included as CDMS API work or verification.
+- **DAB:** there is no DAB plugin. Every applicable rule is a DAB requirement, implemented in DAB's
+  own code (Azure Functions, CQRS handlers, FluentValidation for input checks, domain services,
+  GraphQL). The PBI says what DAB already has, what is partial and what is missing.
+- **Both:** one shared set of business rules and decisions, and two separate application PBIs.
+
+Every rule is checked branch by branch (for example Yes and No, failure and rollback). A plugin
+that handles the Yes path does not make the rule covered; a missing No path is reported as a
+gap with its risk and a proposed approach.
+
+## Handing over to development
+On the Continue tab, select the PBI and click **Export developer handoff**. It writes
+`business-rules.json` (for the development agent) and `BRANCH-COVERAGE-MATRIX.md` from the PBI's
+recorded state, and keeps earlier exports in `history/`. The file separates approved
+requirements, proposed requirements and technical findings, and lists every open gap.
+
+Legacy code tells the agent what DAB must do; it never proves what DAB already does. If an
+earlier decision left legacy evidence out of a PBI, it stays until you change it.

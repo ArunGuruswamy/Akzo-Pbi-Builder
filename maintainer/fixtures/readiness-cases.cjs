@@ -119,6 +119,42 @@ async function load(P){
   {rebind:true,docs:()=>({decisionLog:LOG+'DEC-3 exclude legacy plugin evidence\n'}),expect:'Needs Evidence',codes:['EVIDENCE_OUT_OF_SCOPE','NO_EVIDENCE',...OVER],refs:['BR-1/EV-1']});
  await c('evidence scope exclusion without a decision',s=>{s.evidenceScope={exclude:['legacy-crm']};},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['SCOPE_DECISION_MISSING',...OVER]});
  await c('unknown evidence system is incomplete',s=>{s.evidence[1].system='crm';},{rebind:true,expect:'Needs Evidence',codes:['EVIDENCE_INCOMPLETE',...OVER],refs:['EV-2']});
+ // XRM workflow intelligence: owners are attributed to the component whose code proves them.
+ const wf=(s,type,comp,reg='active')=>{s.rules[0].owner={type,component:'Set Historic status'};s.rules[0].registration=reg;s.evidence[0].component=comp;};
+ await c('classic workflow owner backed by workflow code and activation',s=>wf(s,'workflow','workflow'),{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('workflow rule cited only with plugin code is misattributed',s=>wf(s,'workflow','plugin'),{rebind:true,expect:'Needs Evidence',codes:['OWNER_MISATTRIBUTED',...OVER],refs:['BR-1/workflow']});
+ await c('workflow without activation evidence stays unverified',s=>wf(s,'workflow','workflow','unknown'),{rebind:true,expect:'Needs Evidence',codes:['REGISTRATION_UNKNOWN',...OVER]});
+ await c('custom workflow activity needs activation like a plugin',s=>wf(s,'custom-activity','custom-activity','unknown'),{rebind:true,expect:'Needs Evidence',codes:['REGISTRATION_UNKNOWN',...OVER]});
+ await c('multiple owners need code evidence from each component',s=>{s.rules[0].owner={type:'multiple',types:['plugin','workflow']};s.evidence[0].component='plugin';},{rebind:true,expect:'Needs Evidence',codes:['OWNER_MISATTRIBUTED',...OVER],refs:['BR-1/workflow']});
+ await c('multiple owners backed by plugin and workflow code',s=>{s.rules[0].owner={type:'multiple',types:['plugin','workflow']};s.evidence[0].component='plugin';s.evidence.push({id:'EV-7',level:'code',kind:'repo-file',source:'Workflows/SetHistoric.xaml',location:'SetEntityProperty statuscode, lines 1-3',summary:'Workflow sets Historic',component:'workflow'});s.rules[0].evidence.push('EV-7');},
+  {rebind:true,sources:{'Workflows/SetHistoric.xaml':'<Activity x:Class="SetHistoric">\n  <SetEntityProperty Attribute="statuscode" Value="Historic"/>\n</Activity>\n'},expect:'Development-Ready',codes:[]});
+ await c('multiple owners with one type is incomplete',s=>{s.rules[0].owner={type:'multiple',types:['plugin']};s.status='Draft';},{rebind:true,expect:'Draft',codes:['RULE_INCOMPLETE'],refs:['BR-1']});
+ await c('unknown owner blocks Development-Ready',s=>{s.rules[1].owner={type:'unknown'};},{rebind:true,expect:'Needs Evidence',codes:['OWNER_UNKNOWN',...OVER],refs:['BR-2']});
+ await c('unknown evidence component is incomplete',s=>{s.evidence[1].component='flow';},{rebind:true,expect:'Needs Evidence',codes:['EVIDENCE_INCOMPLETE',...OVER],refs:['EV-2']});
+ // CDMS/DAB ownership: DAB implements every rule in its own code; one canonical rule per outcome.
+ await c('CDMS reuses the plugin while DAB implements the rule itself',s=>{s.rules[0].targetAction='reuse';s.rules[0].dab={layer:'handler',status:'missing'};},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('reuse without DAB ownership is not enforced on the bypassed DAB path',s=>{s.rules[0].targetAction='reuse';},{rebind:true,expect:'Needs Evidence',codes:['REUSE_NOT_ENFORCED',...OVER],refs:['BR-1']});
+ await c('DAB rule assigned to a plugin is rejected',s=>{s.rules[0].dab={layer:'CRM plugin',status:'missing'};},{rebind:true,expect:'Needs Evidence',codes:['DAB_PLUGIN_ASSIGNED',...OVER],refs:['BR-1']});
+ await c('missing DAB behavior assigned to an application handler',s=>{s.rules[0].dab={layer:'handler',status:'missing'};s.rules[1].dab={layer:'validator',status:'implemented'};},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('DAB ownership without a status is invalid',s=>{s.rules[0].dab={layer:'validator'};},{rebind:true,expect:'Needs Evidence',codes:['DAB_OWNER_INVALID',...OVER],refs:['BR-1']});
+ await c('DAB not-applicable needs a reason',s=>{s.rules[0].dab={status:'not-applicable'};s.rules[1].dab={status:'not-applicable',reason:'Form layout only'};},{rebind:true,expect:'Needs Evidence',codes:['DAB_OWNER_INVALID',...OVER],refs:['BR-1']});
+ await c('the same rule recorded twice from different sources',s=>{s.rules[1].rule=s.rules[0].rule;},{rebind:true,expect:'Ready for Review',codes:['RULE_DUPLICATE',...OVER],refs:['BR-2']});
+ await c('JavaScript and web resource evidence components are accepted',s=>{s.evidence[4].component='javascript';s.rules[1].owner={type:'multiple',types:['ui','application']};},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('approved PBI may have CDMS and DAB final documents',null,{docs:(s,st)=>({refined:doc(st,s),cdmsRefined:doc(st,s),dabRefined:doc(st,s)}),expect:'Development-Ready',codes:[]});
+ await c('application PBI before approval is blocked',pending,{docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL'],refs:['DAB-REFINED-PBI.md']});
+ await c('application PBI missing a rule',null,{docs:(s,st)=>({cdmsRefined:doc(st,{...s,rules:s.rules.slice(0,1)})}),expect:'Ready for Review',codes:['DOC_MISSING_ID','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['CDMS-REFINED-PBI.md/BR-2','CDMS-REFINED-PBI.md']});
+ await c('DAB PBI for a CDMS-only PBI',s=>{s.paths.dab={applies:false,reason:'CDMS only'};for(const r of s.rules)delete r.paths.dab;},{rebind:true,docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['DAB-REFINED-PBI.md']});
+ // Branch completeness: a Yes branch covered by the plugin does not cover the No branch.
+ const br=(s,y={},n={})=>{s.rules[0].branches=[{id:'BR-1.Y',condition:'User answers Yes',expected:'Status Actual; Master measurement replaced',cdms:'covered',dab:'missing',evidence:['EV-1'],acceptance:['AC-1','AC-2'],...y},
+  {id:'BR-1.N',condition:'User answers No',expected:'Status Actual; Master measurement unchanged',cdms:'missing',dab:'missing',acceptance:['AC-3'],risk:'Activation may run the replacing plugin',...n}];};
+ await c('branches tracked with an uncovered No path to implement',s=>{br(s);},{rebind:true,expect:'Development-Ready',codes:[]});
+ await c('reuse claimed while the No branch is missing in CDMS',s=>{br(s);s.rules[0].targetAction='reuse';s.rules[0].dab={layer:'handler',status:'missing'};},{rebind:true,expect:'Needs Evidence',codes:['BRANCH_NOT_COVERED',...OVER],refs:['BR-1.N/cdms']});
+ await c('DAB marked implemented while a DAB branch is missing',s=>{br(s,{dab:'covered',evidence:['EV-1','EV-5']});s.rules[0].dab={layer:'handler',status:'implemented'};},{rebind:true,expect:'Needs Evidence',codes:['DAB_BRANCH_GAP',...OVER],refs:['BR-1.N']});
+ await c('covered branch without code evidence',s=>{br(s,{evidence:[]});},{rebind:true,expect:'Needs Evidence',codes:['BRANCH_COVERAGE_UNPROVEN',...OVER],refs:['BR-1.Y/cdms']});
+ await c('covered branch of a plugin without activation evidence',s=>{br(s);s.rules[0].registration='unknown';s.rules[0].evidence=['EV-1'];},{rebind:true,expect:'Needs Evidence',codes:['REGISTRATION_UNKNOWN','BRANCH_COVERAGE_UNPROVEN',...OVER],refs:['BR-1.Y/cdms']});
+ await c('legacy code cannot cover a DAB branch',s=>{br(s,{dab:'covered'});s.evidence[0].system='legacy-crm';},{rebind:true,expect:'Needs Evidence',codes:['BRANCH_COVERAGE_UNPROVEN',...OVER],refs:['BR-1.Y/dab']});
+ await c('incomplete branches are drafts',s=>{br(s,{expected:''},{acceptance:['AC-5']});s.status='Draft';},{rebind:true,expect:'Draft',codes:['BRANCH_INCOMPLETE','BRANCH_INCOMPLETE'],refs:['BR-1.Y','BR-1.N']});
+ await c('conflicting branch needs its risk',s=>{br(s,{},{cdms:'conflicting',risk:''});s.status='Draft';},{rebind:true,expect:'Draft',codes:['BRANCH_INCOMPLETE'],refs:['BR-1.N']});
  await c('rule links an unknown dependency',s=>{s.rules[0].dependencies=['DEP-9'];s.status='Draft';},{rebind:true,expect:'Draft',codes:['DEPENDENCY_UNKNOWN']});
  await c('rule without negative coverage is a draft',s=>{s.acceptanceCriteria=s.acceptanceCriteria.filter(a=>a.id!=='AC-6');s.status='Draft';},{rebind:true,expect:'Draft',codes:['MISSING_COVERAGE']});
  await c('state of another PBI folder is rejected',s=>{s.pbi='pbi-999-elsewhere';},{expect:'Draft',codes:['STATE_PBI_MISMATCH',...OVER]});
@@ -133,7 +169,7 @@ async function load(P){
 // Writes a case as real files: PBI documents, state and evidence sources (null documents are not written).
 async function writeCase(P,root,folder,c){
  if(c.state!==null)await P.write(root,folder+'/pbi-state.json',JSON.stringify(c.state,null,2));
- for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
+ for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['cdmsRefined','CDMS-REFINED-PBI.md'],['dabRefined','DAB-REFINED-PBI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
  for(const [p,t] of Object.entries(c.sources))await P.write(root,p,t);
 }
 module.exports={PBI,load,writeCase};

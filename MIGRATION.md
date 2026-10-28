@@ -3,14 +3,16 @@
 ## From 3.1.0
 Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`.
 - Updated (with backups): the agent, `readiness-and-approval.md` and the other guides, the
-  template, README, config and the form. Added: `skills/guided-pbi-creation.md` and
-  `skills/crm-plugin-workflow-intelligence.md`.
+  template, README, config and the form. Added: `skills/guided-pbi-creation.md`,
+  `skills/crm-plugin-workflow-intelligence.md`, `skills/xrm-workflow-intelligence.md`,
+  `skills/business-rule-ownership.md` and `skills/business-rule-branch-completeness.md`. The PBI template gains an application line and
+  CDMS/DAB ownership columns.
 - PBI folders are not changed. pbi-state.json stays schemaVersion 2; existing approvals keep
   their fingerprints and stay valid (tested). New fields (question options and answers,
   evidence `system`, `evidenceScope`) are optional.
 - An edited agent or guide is reported as a conflict and nothing is written until you resolve it.
 - Rollback: restore from `playbook/pbi-builder/backups/<batch>/`, or install 3.1.0 again with
-  reviewed updates allowed; it also removes the two new guides if unchanged (backed up first).
+  reviewed updates allowed; it also removes the five new guides if unchanged (backed up first).
 
 # Migrating to 3.1.0
 

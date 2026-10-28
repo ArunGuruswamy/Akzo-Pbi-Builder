@@ -35,7 +35,9 @@ The installer respects your PowerShell execution policy and never bypasses it.
 If the policy blocks it, ask IT or use Option A. Do not change the policy yourself.
 
 CREATE A PBI
-In Copilot type "Create PBI", or use the New PBI tab of the form. You are guided
+In Copilot type "Create PBI", or use the New PBI tab of the form. Choose the
+application: CDMS, DAB or Both. There is no DAB plugin: DAB implements every
+applicable legacy rule in its own code, while CDMS reuses verified plugins. You are guided
 through six short steps; save a draft any time. Business questions come one at
 a time with selectable answers (VS Code) or numbered options, and can also be
 answered on the form's Continue tab. See docs/USER-GUIDE.md.
@@ -58,7 +60,8 @@ PBIs, decisions and history are untouched. See MIGRATION.md.
 DAILY USE
 In Copilot select the agent and type "Create PBI", "Resume PBI <number>",
 "Continue PBI <number or folder>" or "Refine PBI <number>: <what changed>".
-Other commands: Review, Edit, Show Decisions, Analyze Legacy, Show Technical
+Other commands: Review, Edit, Show Decisions, Analyze Legacy, Analyze Workflows,
+Extract Plugin Rules, Show Technical
 Flow, Generate Acceptance Criteria, Export and Validate PBI <number>. The form's New PBI and Continue PBI tabs
 remain available. Before final approval, run Check PBI readiness (form) or
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -Action CheckPbi -Pbi <folder>

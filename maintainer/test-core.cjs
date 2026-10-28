@@ -65,7 +65,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.deepEqual(applied.kept.sort(),[V21.CONCISE_AGENT,'.github/prompts/akzo-pbi-new-concise.prompt.md'].sort());
   await fs.rm(dir,{recursive:true,force:true});
  });
- await test('upgrade from actual 3.1.0 adds the two guides, keeps PBI data, and a 3.1-approved PBI stays Development-Ready',async()=>{
+ await test('upgrade from actual 3.1.0 adds the five guides, keeps PBI data, and a 3.1-approved PBI stays Development-Ready',async()=>{
   const {dir,root:r}=await tempRoot('akzo-upgrade31-');
   const a31={...assets,template:await fs.readFile(path.join(__dirname,'fixtures/baseline-v3.1.0-template.md'),'utf8')};
   const old=V31.setupFiles(raw,a31,'HTML 3.1');await V31.apply(r,await V31.plan(r,old.files,true));
@@ -73,7 +73,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.equal((await V31.checkPbi(r,folder)).computedStatus,'Development-Ready');
   const before={};for(const f of ['pbi-state.json','REFINED-PBI.md','REQUEST.md','DECISION-LOG.md'])before[f]=await P.read(r,folder+'/'+f);
   const rows=await P.plan(r,setup.files,true);assert.ok(!rows.some(x=>['conflict','retire','retire-conflict'].includes(x.state)));
-  assert.deepEqual(rows.filter(x=>x.state==='create').map(x=>x.path).sort(),[P.BASE+'/skills/crm-plugin-workflow-intelligence.md',P.BASE+'/skills/guided-pbi-creation.md']);
+  assert.deepEqual(rows.filter(x=>x.state==='create').map(x=>x.path).sort(),[P.BASE+'/skills/crm-plugin-workflow-intelligence.md',P.BASE+'/skills/guided-pbi-creation.md',P.BASE+'/skills/xrm-workflow-intelligence.md'].concat(P.BASE+'/skills/business-rule-ownership.md',P.BASE+'/skills/business-rule-branch-completeness.md').sort());
   await P.apply(r,rows,true);for(const [f,t] of Object.entries(before))assert.equal(await P.read(r,folder+'/'+f),t,f);
   const after=await P.checkPbi(r,folder);assert.equal(after.computedStatus,'Development-Ready',JSON.stringify(after.issues));
   await fs.rm(dir,{recursive:true,force:true});
@@ -148,7 +148,170 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
    /explicit requirement, approved business decision,\s+proposed interpretation, technical observation, unverified technical detail or\s+open business question/,/Legacy CRM plugin and workflow behavior is historical\s+context, never proof/,/do not challenge it again/])assert.match(a,re);
   for(const re of [/Step n of 6/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
   for(const re of [/visited list of methods; stop at\s+a method already visited \(cycle\)/,/registration\s+unverified/,/Simple explanation/,/Important difference/,/"system": "legacy-crm"/])assert.match(c,re);
+  // Plugin rules for DAB and the speed rules.
+  for(const re of [/Extract Plugin Rules <n> \[plugin, entity or operation\]/,/## Work fast/,/read\s+pbi-state.json first/,/PLUGIN-RULES.md: validations and business rules/])assert.match(a,re);
+  assert.match(g,/Extract Plugin Rules: read the plugin code/);
+  for(const re of [/Validation: a condition that throws/,/Default or calculation/,/Side effect/,/Guard: an early exit/,/async,\s+does not block/,/DAB has no plugin: it implements every applicable rule in\s+its own application code/,/Never\s+rely on the plugin for DAB/,/exact error message\s+copied from code/,/Data needed/,/dab reach evidence must come from the DAB code/,/PLUGIN-CATALOG.md/,/Never invent a rule, message, value or condition/])assert.match(c,re);
+  assert.match(setup.files[P.BASE+'/skills/repository-knowledge.md'],/PLUGIN-CATALOG.md lists each plugin/);
   const vs=P.setupFiles({...raw,ide:'visualstudio'},assets,html).files[P.AGENT];assert.match(vs,/tools: \["readfile", "code_search", "editfiles"\]/);
+ });
+ await test('XRM workflow guide: discovery, activation, branches, custom activities, termination, recursion, ownership, scopes, coverage matrix',async()=>{
+  const a=setup.files[P.AGENT],x=setup.files[P.BASE+'/skills/xrm-workflow-intelligence.md'];
+  for(const re of [/xrm-workflow-intelligence.md: before analyzing classic CRM workflows/,/Analyze Workflows <n> \[operation\]/,/PLUGIN-WORKFLOW-COVERAGE.md: each rule's CDMS owner/])assert.match(a,re);
+  for(const re of [/Power Automate cloud flows \(category 5/,/never\s+merge its findings with classic workflow findings/,/\*\.xaml\.data\.xml/,/TriggerOnUpdateAttributeList/,/Do not parse every workflow in the repository/,
+   /does not prove the workflow is active[\s\S]*"activation unverified"/,/ConditionSequence, ConditionBranch/,/Wait="True"/,/CodeActivity/,/StartChildWorkflow/,/In a real-time workflow,\s+Canceled shows the message to the user and rolls back/,
+   /In a background workflow it only ends the job/,/"possible recursion"/,/never invent an order between them/,/OWNER_MISATTRIBUTED/,/Implemented and verified/,/Source found, runtime unverified/,/Partially implemented/,/Missing in inspected sources/,
+   /A name match[\s\S]*is not evidence/,/no legacy plugin or workflow runs for DAB and there is no DAB plugin/,/Missing legacy evidence\s+is not a DAB blocker/,/A rule is\s+left out of DAB only when it does not apply/,
+   /\| Rule ID \| Business Rule \| CDMS Owner \| Plugin\/Workflow \| Trigger \| Conditions \| Evidence \| DAB Responsibility \|/,/Never paste XAML or long call stacks/,/never change, activate, deactivate, publish or import a workflow/])assert.match(x,re);
+  assert.match(setup.files[P.BASE+'/skills/readiness-and-approval.md'],/custom-activity, xrm-service[\s\S]*"component": cdms-api/);
+ });
+ await test('ownership guide: no DAB plugin, application choice, JavaScript/HTML/ribbon sources, one canonical rule, CDMS and DAB owners, documents',async()=>{
+  const o=setup.files[P.BASE+'/skills/business-rule-ownership.md'],a=setup.files[P.AGENT];
+  for(const re of [/## There is no DAB plugin/,/Never create a DAB plugin task,\s+contract, handoff or dependency/,/business-rule-ownership.md: for the application choice/,/application \(CDMS, DAB or Both\)/])assert.match(a,re);
+  for(const re of [/DAB_PLUGIN_ASSIGNED/,/CDMS, DAB or\s+Both, plus a custom answer/,/Never ask again\s+unless the user changes it/,/OnLoad, OnSave and OnChange/,/HTML web resources/,/RibbonDiffXml/,/Source\/Formula\/PaintSystem\/PaintSystem\//,/Source\/Formula\/CustomWorkflow\//,
+   /Source\/Formula\/ImitationRequest\//,/never infer a\s+rule from a file or method name/,/A client-side check is never server enforcement/,/Record one BR\s+with every source as evidence/,/never choose one silently/,
+   /Implementation owner: Existing CRM plugin\. Development action: already\s+handled by the plugin; no duplicate CDMS API implementation/,/If registration or runtime is unverified, say so/,
+   /function \(Azure Functions HTTP entry point\), handler \(application CQRS\s+command or query handler\), validator \(FluentValidation/,/Do not put every rule into FluentValidation/,/Never invent GraphQL operations, validators or DAB API behavior/,
+   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both\)/,/BUSINESS-RULE-OWNERSHIP\.md: one row per rule/,/CDMS-REFINED-PBI\.md and DAB-REFINED-PBI\.md/,/never two versions\s+of the same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
+  // The superseded "DAB relies on a plugin" wording is gone from every installed file.
+  const all=Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.endsWith('.html')).map(([,t])=>t).join('\n');
+  for(const re of [/plugin already runs for DAB/,/reuse when DAB already runs/,/already enforced, do not\s+duplicate/,/do not assign every legacy operation/])assert.doesNotMatch(all,re);
+ });
+ await test('PBI 305915 Adaptation in CDMS, DAB and Both: plugin, workflow and JavaScript rules, owners, no DAB plugin, final documents, decisions, questions',async()=>{
+  const PBI='pbi-305915-adaptation-imitation-request';
+  const ext=(id,level,system,component,summary)=>({id,level,kind:'external',source:system==='dab'?'../DAB/src/Application/ImitationRequests/CreateAdaptationHandler.cs':'../AN.ColorDMS.Customizations/Source/Formula/ImitationRequest/'+component+'.cs',location:'lines 1-40',revision:'main a1b2c3d',summary,system,component});
+  const RULES={'BR-1':'Block duplicate Adaptation requests for the same Industrial Market Color Instance, Product and Local/Global combination; allow different Industrial instances',
+   'BR-2':'When a Paint System becomes Actual, related Paint Systems become Historic','BR-3':'Reference Color is required when an Imitation Request is submitted'};
+  const AC=[['AC-1','BR-1','positive','Given a different Industrial instance, when an Adaptation is requested, then it is created'],['AC-2','BR-1','negative','Given the same instance, Product and Local/Global, when an Adaptation is requested again, then it is rejected'],
+   ['AC-3','BR-2','positive','Given a related Paint System, when another becomes Actual, then the related one becomes Historic'],['AC-4','BR-2','negative','Given an unrelated Paint System, when another becomes Actual, then it is unchanged'],
+   ['AC-5','BR-3','positive','Given a Reference Color, when the request is submitted, then it is accepted'],['AC-6','BR-3','negative','Given no Reference Color, when the request is submitted, then it is rejected']];
+  const legacy=[ext('EV-L1','code','legacy-crm','plugin','ImitationRequestPlugin.ValidateDuplicateAdaptation throws the duplicate error'),ext('EV-L2','registration','legacy-crm','plugin','Create step registered, enabled'),
+   ext('EV-L3','reach','legacy-crm','plugin','Form save sends Create through the step'),ext('EV-L4','code','legacy-crm','workflow','Set Historic workflow updates statuscode'),
+   ext('EV-L5','registration','legacy-crm','workflow','Workflow export: StateCode 1, real-time'),ext('EV-L6','code','legacy-crm','custom-activity','CheckRelatedPaintSystems activity'),
+   ext('EV-L7','code','legacy-crm','javascript','OnSave handler sets Reference Color required on submit'),ext('EV-L8','code','legacy-crm','javascript','OnSave handler blocks a duplicate Adaptation')];
+  const state=app=>{const cdms=app!=='DAB',dab=app!=='CDMS',s={schemaVersion:2,pbi:PBI,status:'Development-Ready',
+   paths:{cdms:cdms?{applies:true}:{applies:false,reason:'DAB-only PBI'},dab:dab?{applies:true}:{applies:false,reason:'CDMS-only PBI'}},
+   actors:[{id:'ACT-1',role:'Colorist',permissions:'Imitation request editor',identity:'caller',unauthorizedBehavior:'Access error'}],
+   // CDMS: today's legacy owner; DAB-only: the DAB-side owner, with legacy code as the rule source.
+   rules:[{id:'BR-1',rule:RULES['BR-1'],owner:cdms?{type:'multiple',types:['plugin','ui']}:{type:'application'},registration:'active',evidence:['EV-L1','EV-L2','EV-L8'],targetAction:cdms?'reuse':'implement'},
+    {id:'BR-2',rule:RULES['BR-2'],owner:cdms?{type:'multiple',types:['workflow','custom-activity']}:{type:'application'},registration:'active',evidence:['EV-L4','EV-L5','EV-L6'],targetAction:cdms?'reuse':'implement'},
+    {id:'BR-3',rule:RULES['BR-3'],owner:cdms?{type:'ui'}:{type:'application'},evidence:['EV-L7'],targetAction:'implement'}].map(r=>({rev:1,context:'Imitation request, Adaptation',decision:'confirmed',decisionRef:'DEC-1',paths:{},...r})),
+   acceptanceCriteria:AC.map(([id,r,type,criterion])=>({id,rev:1,rules:[r],type,criterion})),
+   evidence:[...legacy,ext('EV-D1','code','dab','dab','Existing Reference Color validator'),ext('EV-D2','reach','dab','dab','DAB writes SQL without the CRM pipeline')],
+   questions:[{id:'Q-1',blocking:true,owner:'po-ba',status:'answered',question:'Should an Adaptation request be allowed for another Industrial instance?',resolution:RULES['BR-1'],decisionRef:'DEC-1',answer:'A'}],
+   assumptions:[],decisions:[{id:'DEC-1',pbi:PBI,status:'approved',evidence:'PO answer in chat 2026-10-25: '+RULES['BR-1'],supersedes:''},{id:'DEC-2',pbi:PBI,status:'approved',evidence:'User chose application '+app,supersedes:''}],
+   dependencies:[{id:'DEP-1',repository:dab?'DAB':'CDMS',responsibility:'Implement the missing rules in application code'}],feasibility:{status:'reviewed',evidence:'Tech lead 2026-10-26'},
+   approvals:{poba:{status:'pending'},technical:{status:'pending'},user:{status:'pending'}},approvalHistory:[]};
+   for(const r of s.rules){if(cdms)r.paths.cdms={status:'reaches',evidence:['EV-L3']};if(dab){r.paths.dab={status:'bypasses',evidence:['EV-D2']};r.dab=r.id==='BR-3'?{layer:'validator',status:'implemented'}:{layer:r.id==='BR-1'?'handler':'domain-service',status:'missing'};}}
+   if(dab)s.rules[2].evidence.push('EV-D1');
+   return s;};
+  const doc=(s,head)=>[head,'Status: '+s.status,'',...s.rules.map(r=>'| '+r.id+' | '+r.rule+' |'),...s.acceptanceCriteria.map(a=>'| '+a.id+' | '+a.criterion+' |'),'- DEP-1',''].join('\n');
+  const docs=(s,final={})=>({request:'# PBI 305915\nCreation of Adaptation Imitation Request & Paint System\n',refined:null,files:{},decisionLog:'# Decision log\n'+s.decisions.map(d=>d.id+' '+d.evidence).join('\n')+'\n',draft:doc(s,'# PBI 305915'),...final});
+  const approve=async s=>{const r=await P.readiness(s,docs(s),PBI);for(const k of ['poba','technical','user'])s.approvals[k]={status:'approved',by:'Reviewer '+k,at:'2026-10-27',evidence:'Stated in chat',basis:r.review[k].basis};return s;};
+  const check=async(s,expect,codes,msg,final)=>{const r=await P.readiness(s,docs(s,final),PBI);assert.equal(r.computedStatus,expect,msg+': '+JSON.stringify(r.issues));assert.deepEqual(r.issues.map(i=>i.code),codes,msg);return r;};
+  for(const app of ['CDMS','DAB','Both']){
+   const s=await approve(state(app));
+   // Shared rule inventory, one decision, separate application documents.
+   const final={...(app!=='DAB'?{cdmsRefined:doc(s,'# PBI 305915 CDMS')}:{}),...(app!=='CDMS'?{dabRefined:doc(s,'# PBI 305915 DAB')}:{})};
+   await check(s,'Development-Ready',[],app+' baseline with its application documents',final);
+   assert.ok(s.decisions.every(d=>d.status==='approved'));assert.equal(s.decisions.filter(d=>d.evidence.includes(RULES['BR-1'])).length,1);
+   const q=P.questionProgress(s);assert.equal(q.next,null);assert.equal(q.answered,1);
+   const dup=structuredClone(s);dup.questions.push({id:'Q-9',blocking:false,owner:'po-ba',status:'unanswered',question:' Should an Adaptation request be allowed for  another Industrial instance? '});
+   await check(await approve(dup),'Ready for Review',['QUESTION_DUPLICATE','STATUS_OVERCLAIMED'],app+' repeated question');
+   const twice=structuredClone(s);twice.rules.push({...structuredClone(twice.rules[0]),id:'BR-4'});twice.acceptanceCriteria.push({id:'AC-7',rev:1,rules:['BR-4'],type:'positive',criterion:AC[0][3]+' (JS)'},{id:'AC-8',rev:1,rules:['BR-4'],type:'negative',criterion:AC[1][3]+' (JS)'});
+   await check(await approve(twice),'Ready for Review',['RULE_DUPLICATE','STATUS_OVERCLAIMED'],app+' same rule from plugin and JavaScript recorded twice');
+  }
+  // CDMS: plugin-owned rule needs registration; workflow rule is not credited to a plugin; the JavaScript source must be cited.
+  const noReg=state('CDMS');noReg.rules[0].registration='unknown';noReg.rules[0].evidence=['EV-L1','EV-L8'];await check(await approve(noReg),'Needs Evidence',['REGISTRATION_UNKNOWN','STATUS_OVERCLAIMED'],'missing plugin registration');
+  const wrong=state('CDMS');wrong.rules[1].owner={type:'plugin'};await check(await approve(wrong),'Needs Evidence',['OWNER_MISATTRIBUTED','STATUS_OVERCLAIMED'],'workflow rule claimed by a plugin');
+  const noJs=state('CDMS');noJs.rules[0].evidence=['EV-L1','EV-L2'];noJs.rules[0].owner={type:'multiple',types:['plugin','workflow']};await check(await approve(noJs),'Needs Evidence',['OWNER_MISATTRIBUTED','STATUS_OVERCLAIMED'],'second source not evidenced');
+  const dabDoc=state('CDMS');await check(await approve(dabDoc),'Ready for Review',['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],'DAB PBI for a CDMS-only PBI',{dabRefined:doc(dabDoc,'# DAB')});
+  // DAB: every legacy source is a requirement source; no plugin owner; missing behavior has a layer; legacy never proves the DAB path.
+  for(const app of ['DAB','Both']){
+   const plug=state(app);plug.rules[0].dab={layer:'plugin',status:'missing'};await check(await approve(plug),'Needs Evidence',['DAB_PLUGIN_ASSIGNED','STATUS_OVERCLAIMED'],app+' DAB plugin assignment');
+   const noLayer=state(app);noLayer.rules[1].dab={status:'missing'};await check(await approve(noLayer),'Needs Evidence',['DAB_OWNER_INVALID','STATUS_OVERCLAIMED'],app+' missing DAB behavior without a layer');
+   const viaLegacy=state(app);viaLegacy.rules[2].paths.dab={status:'reaches',evidence:['EV-L7']};await check(await approve(viaLegacy),'Needs Evidence',['LEGACY_NOT_TARGET_EVIDENCE','LEVEL_EVIDENCE_MISSING','STATUS_OVERCLAIMED'],app+' JavaScript cannot prove DAB');
+   assert.deepEqual(state(app).rules.map(r=>r.dab.status),['missing','missing','implemented']);
+  }
+  // An earlier evidence-scope exclusion is still honored until superseded.
+  const ex=state('DAB');ex.evidenceScope={exclude:['legacy-crm'],decisionRef:'DEC-3'};ex.decisions.push({id:'DEC-3',pbi:PBI,status:'approved',evidence:'Earlier direction: exclude legacy evidence',supersedes:''});
+  const exr=await P.readiness(await approve(ex),docs(ex),PBI);assert.ok(exr.issues.some(i=>i.code==='EVIDENCE_OUT_OF_SCOPE'));
+  // The installer writes only agent and playbook files, never application code.
+  assert.ok(Object.keys(setup.files).every(f=>f.startsWith('.github/')||f.startsWith(P.BASE+'/')),Object.keys(setup.files).join());
+ });
+ await test('branch completeness guide and fast-refinement instructions',async()=>{
+  const b=setup.files[P.BASE+'/skills/business-rule-branch-completeness.md'],a=setup.files[P.AGENT],k=setup.files[P.BASE+'/skills/repository-knowledge.md'];
+  for(const re of [/Mandatory for every PBI refinement/,/one branch in a plugin or workflow\s+never covers the rule/,/Failure and rollback/,/covered, partial, missing,\s+conflicting \(needs risk\), unverified or not-applicable/,/Legacy code never covers a\s+DAB branch/,
+   /Never call a branch safe because an API can perform the\s+operation/,/"Paint system does not have a measurement"/,/Do you want to replace the Market Color\s+Measurement with this Paint System measurement\?/,/BR-1\.N is a suspected CDMS gap/,
+   /For DAB both Yes and No are required behavior in DAB code/,/A technical gap is a development finding, not a business question/,/Export developer handoff/])assert.match(b,re);
+  for(const re of [/business-rule-branch-completeness.md: mandatory for every refinement/,/never ask for a path that is\s+configured and readable/,/never scan a whole repository for a PBI/,/update only the affected decision,\s+rules, branches, criteria and documents/,
+   /files read, searches run,\s+evidence index entries reused and refreshed/,/PBI scope: Both\. I found the Paint System measurement logic/,/business-rules.json: written by the form's Export\s+developer handoff button/])assert.match(a,re);
+  assert.match(k,/"confidence" \(verified-registration: source and execution registration;\s+verified-source; partial; inferred; unverified\)\. Never store credentials/);
+ });
+ await test('Paint System measurement (Developed): Yes covered by the plugin, No and rollback branches detected, side-effect risk, handoff, incremental update, cache',async()=>{
+  const {dir,root:r}=await tempRoot('akzo-branch-'),PBI='pbi-410001-paint-system-measurement',folder='playbook/pbis/'+PBI;
+  const ext=(id,level,system,component,summary)=>({id,level,kind:'external',source:system==='dab'?'../DAB/src/Application/PaintSystems/ActivatePaintSystemHandler.cs':'../AN.ColorDMS.Customizations/Source/Formula/PaintSystem/PaintSystem/PaintSystemPlugin.cs',location:'lines 10-80',revision:'main a1b2c3d',summary,system,component});
+  const RULE='A Developed Paint System needs a measurement to become Actual; the user chooses whether its measurement replaces the Industry Variant (Master) measurement and Color Point';
+  const ACS=[['AC-1','negative','Given no measurement, when activating, then "Paint system does not have a measurement" is shown and the status stays Incomplete'],['AC-2','positive','Given a measurement and Yes, when activating, then the status is Actual and the Master measurement and Color Point are replaced'],
+   ['AC-3','negative','Given Yes and a failing transition, when activating, then the status stays Incomplete and Master data is unchanged'],['AC-4','positive','Given a measurement and No, when activating, then the status is Actual and Master measurement and Color Point are unchanged']];
+  const state=()=>({schemaVersion:2,pbi:PBI,status:'Development-Ready',paths:{cdms:{applies:true},dab:{applies:true}},
+   actors:[{id:'ACT-1',role:'Colorist',permissions:'Paint System editor',identity:'caller',unauthorizedBehavior:'Access error'}],
+   rules:[{id:'BR-1',rev:1,rule:RULE,context:'Paint System, Kind of Formulation Developed, activation',owner:{type:'plugin',component:'PaintSystemPlugin'},registration:'active',evidence:['EV-1','EV-2'],
+    paths:{cdms:{status:'reaches',evidence:['EV-3']},dab:{status:'bypasses',evidence:['EV-4']}},targetAction:'extend',dab:{layer:'domain-service',status:'missing'},decision:'confirmed',decisionRef:'DEC-1',
+    branches:[{id:'BR-1.M',condition:'No measurement',expected:'Show "Paint system does not have a measurement"; status stays Incomplete',cdms:'covered',dab:'missing',evidence:['EV-1'],acceptance:['AC-1']},
+     {id:'BR-1.Y',condition:'Measurement exists and the user answers Yes',expected:'Status Actual, then Master measurement and Color Point replaced',cdms:'covered',dab:'missing',evidence:['EV-1'],acceptance:['AC-2']},
+     {id:'BR-1.YF',condition:'Yes and the transition fails',expected:'Status stays Incomplete; Master measurement and Color Point unchanged',cdms:'unverified',dab:'missing',acceptance:['AC-3']},
+     {id:'BR-1.N',condition:'Measurement exists and the user answers No',expected:'Status Actual; Master measurement and Color Point unchanged',cdms:'missing',dab:'missing',acceptance:['AC-4'],
+      risk:'Activating the Paint System may run the plugin that replaces the Master measurement',approach:'Pass the user choice to the operation and let the plugin skip replacement for No; prove Master data is unchanged'}]}],
+   acceptanceCriteria:ACS.map(([id,type,criterion])=>({id,rev:1,rules:['BR-1'],type,criterion})),
+   evidence:[ext('EV-1','code','legacy-crm','plugin','Activation checks the measurement and replaces Master measurement and Color Point'),ext('EV-2','registration','legacy-crm','plugin','Update of statuscode step, enabled'),
+    ext('EV-3','reach','legacy-crm','plugin','Activate sends Update through the step'),ext('EV-4','reach','dab','dab','DAB activation writes SQL without the CRM pipeline')],
+   questions:[{id:'Q-1',blocking:true,owner:'po-ba',status:'answered',question:'What happens to Master data when the user answers No?',resolution:'Unchanged',decisionRef:'DEC-1',answer:'A'},
+    {id:'Q-2',blocking:false,owner:'po-ba',status:'unanswered',question:'Should the confirmation also be shown for Kind of Formulation Matched?',options:[{key:'A',text:'Yes'},{key:'B',text:'No'}]}],
+   assumptions:[],decisions:[{id:'DEC-1',pbi:PBI,status:'approved',evidence:'PO 2026-10-27: No keeps Master data unchanged',supersedes:''}],
+   dependencies:[{id:'DEP-1',repository:'CDMS',responsibility:'Support the No path without measurement replacement'}],feasibility:{status:'reviewed',evidence:'Tech lead 2026-10-27'},
+   approvals:{poba:{status:'pending'},technical:{status:'pending'},user:{status:'pending'}},approvalHistory:[]});
+  const doc=s=>['# PBI 410001','Status: '+s.status,'',...s.rules.map(x=>'| '+x.id+' | '+x.rule+' |'),...s.acceptanceCriteria.map(x=>'| '+x.id+' | '+x.criterion+' |'),'- DEP-1',''].join('\n');
+  const docs=s=>({request:'# Request\n',draft:doc(s),refined:null,files:{},decisionLog:'# Decision log\nDEC-1 approved\n'});
+  const approve=async s=>{const x=await P.readiness(s,docs(s),PBI);for(const k of ['poba','technical','user'])s.approvals[k]={status:'approved',by:'Reviewer',at:'2026-10-28',evidence:'chat',basis:x.review[k].basis};return s;};
+  const codes=async s=>(await P.readiness(s,docs(s),PBI)).issues.map(i=>i.code+' '+i.ref);
+  // The Yes path in the plugin does not make the rule covered: reuse is rejected for the open No and rollback branches.
+  const reuse=state();reuse.rules[0].targetAction='reuse';assert.deepEqual(await codes(await approve(reuse)),['BRANCH_NOT_COVERED BR-1.YF/cdms','BRANCH_NOT_COVERED BR-1.N/cdms','STATUS_OVERCLAIMED Development-Ready']);
+  // Without activation evidence the plugin's Yes branch is unproven, and the handoff reports it as unverified.
+  const noReg=state();noReg.rules[0].registration='unknown';noReg.rules[0].evidence=['EV-1'];
+  assert.deepEqual(await codes(await approve(noReg)),['REGISTRATION_UNKNOWN BR-1','BRANCH_COVERAGE_UNPROVEN BR-1.M/cdms','BRANCH_COVERAGE_UNPROVEN BR-1.Y/cdms','STATUS_OVERCLAIMED Development-Ready']);
+  const hu=P.handoff(noReg,null);assert.equal(hu.rules[0].branches[1].effectiveCoverage.cdms,'unverified');assert.equal(hu.rules[0].branches[1].coverage.cdms,'covered');
+  // DAB cannot claim implemented while branches are open in DAB.
+  const dabImpl=state();dabImpl.rules[0].dab.status='implemented';assert.deepEqual((await codes(await approve(dabImpl))).filter(c=>c.startsWith('DAB_BRANCH_GAP')),['DAB_BRANCH_GAP BR-1.M','DAB_BRANCH_GAP BR-1.Y','DAB_BRANCH_GAP BR-1.YF','DAB_BRANCH_GAP BR-1.N']);
+  // The extend plan with gaps recorded is complete and exports an accurate handoff.
+  const ok=await approve(state());assert.deepEqual(await codes(ok),[]);
+  await P.write(r,folder+'/pbi-state.json',JSON.stringify(ok,null,2));await P.write(r,folder+'/REQUEST.md','# Request\n');await P.write(r,folder+'/DRAFT-PBI.md',doc(ok));await P.write(r,folder+'/DECISION-LOG.md','# Decision log\nDEC-1 approved\n');
+  const out=await P.exportHandoff(r,folder);assert.deepEqual(out.files,[folder+'/business-rules.json',folder+'/BRANCH-COVERAGE-MATRIX.md']);
+  const h=JSON.parse(await P.read(r,folder+'/business-rules.json'));
+  assert.equal(h.schemaVersion,1);assert.equal(h.pbi,PBI);assert.deepEqual(h.applications,['cdms','dab']);assert.equal(h.readiness.computedStatus,'Development-Ready');
+  assert.equal(h.rules[0].kind,'approved-requirement');assert.deepEqual(h.rules[0].branches.map(b=>b.id),['BR-1.M','BR-1.Y','BR-1.YF','BR-1.N']);
+  assert.deepEqual(h.rules[0].dab.layer,'domain-service');assert.equal(h.rules[0].cdms.targetAction,'extend');assert.equal(h.rules[0].evidence[0].system,'legacy-crm');
+  assert.deepEqual(h.gaps.map(g=>g.branch+'/'+g.application+'/'+g.coverage),['BR-1.M/dab/missing','BR-1.Y/dab/missing','BR-1.YF/cdms/unverified','BR-1.YF/dab/missing','BR-1.N/cdms/missing','BR-1.N/dab/missing']);
+  assert.match(h.gaps[4].risk,/may run the plugin that replaces/);assert.deepEqual(h.rules[0].branches[3].acceptanceCriteria,['AC-4']);
+  assert.ok(h.rules.every(x=>!/plugin/i.test(String(x.dab?.layer))),'no DAB plugin in the handoff');
+  const m=await P.read(r,folder+'/BRANCH-COVERAGE-MATRIX.md');assert.match(m,/\| BR-1 \| BR-1\.N \| approved-requirement \| Measurement exists and the user answers No \|[^\n]*\| missing \| missing \|/);assert.match(m,/## Open gaps\n- BR-1 \/ BR-1\.M \/ DAB \/ missing/);
+  // A technical finding is labelled separately from approved requirements.
+  const f=state();f.rules[0].branches[3].kind='finding';assert.equal(P.handoff(f,null).rules[0].branches[3].kind,'technical-finding');
+  const pending=state();pending.decisions[0].status='proposed';assert.equal(P.handoff(pending,null).rules[0].kind,'proposed-requirement');
+  // Incremental update: answering a question changes only the state and decision log (with history), never the request, draft or exported handoff.
+  const before={};for(const x of ['REQUEST.md','DRAFT-PBI.md','business-rules.json','BRANCH-COVERAGE-MATRIX.md'])before[x]=await P.read(r,folder+'/'+x);
+  await P.recordAnswer(r,folder,'Q-2',{option:'B',by:'PO',at:'2026-10-28'});
+  for(const [x,t] of Object.entries(before))assert.equal(await P.read(r,folder+'/'+x),t,x);
+  const after=JSON.parse(await P.read(r,folder+'/pbi-state.json'));assert.equal(after.questions[1].status,'answered');assert.deepEqual(after.rules,ok.rules);
+  assert.equal(P.questionProgress(after).next,null);
+  // Re-export keeps the earlier handoff in history/.
+  await P.exportHandoff(r,folder);const hist=(await fs.readdir(path.join(dir,folder,'history'))).filter(n=>n.startsWith('business-rules.'));assert.equal(hist.length,1);
+  // Evidence cache: extra index fields survive a refresh; a changed source is marked stale.
+  await P.write(r,'src/PaintSystemPlugin.cs','class P { void Activate(){} }');
+  await P.write(r,P.KNOWLEDGE,JSON.stringify({schemaVersion:1,entries:[{id:'K-1',path:'src/PaintSystemPlugin.cs',fact:'Activation replaces Master measurement',repository:'legacy',revision:'abc',method:'PaintSystemPlugin.Activate',entity:'paintsystem',trigger:'Update statuscode',rules:['BR-1'],confidence:'verified-source'}]}));
+  await P.refreshEvidence(r);await P.write(r,'src/PaintSystemPlugin.cs','class P { void Activate(){ /* changed */ } }');const rr=await P.refreshEvidence(r);
+  const idx=JSON.parse(await P.read(r,P.KNOWLEDGE)).entries[0];assert.deepEqual(rr.stale,['K-1']);assert.equal(idx.staleReason,'changed');assert.equal(idx.method,'PaintSystemPlugin.Activate');assert.deepEqual(idx.rules,['BR-1']);
+  await fs.rm(dir,{recursive:true,force:true});
  });
  await test('guided intake: title-only draft, criteria modes, attachments and target project (scenarios A, B, C, D, E)',async()=>{
   const cfg=setup.config,title='Creation of Adaptation Imitation Request & Paint System';

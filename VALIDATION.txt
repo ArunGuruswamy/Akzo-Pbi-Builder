@@ -17,12 +17,59 @@ HOST CAPABILITY CHECKED
   https://code.visualstudio.com/docs/agents/reference/tools-reference
   https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference
 
+REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copied)
+- rwilson504/agent-skills, dataverse-classic-workflow (MIT; skills MIT-0): XAML
+  activity names, trigger/mode/scope, real-time-only versus background-only
+  steps, recursion and wait-condition checks. Its edit, copy and publish skills
+  write to environments and were not used.
+- caschern/Dataverse-Process-Mapper: XrmToolBox plugin reading the workflow
+  table (category 0 XAML, category 5 cloud-flow JSON); structural walk that skips
+  unknown steps. No license file found, so no code or text was reused; it needs
+  a live connection, which this builder does not make.
+- DanielKerridge/claude-code-power-platform-skills, dataverse-plugins (MIT per
+  its SKILL.md): plugin development and deployment; only the pipeline facts
+  (stages, images, SharedVariables, InvalidPluginExecutionException) match
+  guidance already present.
+
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 30 checks on real temporary files. These are the 26 earlier
+- test-core.cjs: 35 checks on real temporary files. These are the 26 earlier
   checks (tool-list assertion updated) plus:
-  - 4.0 agent wording and the two new guides;
+  - 4.0 agent wording, the Extract Plugin Rules and speed instructions, and the
+    new guides;
+  - XRM workflow guide wording (discovery, activation unverified, branches,
+    custom activities, real-time versus background termination, recursion, no
+    invented ordering, coverage classes, scopes, coverage matrix columns);
+  - ownership guide wording (no DAB plugin, application choice, JavaScript,
+    HTML and ribbon sources, the ColorDMS source areas, one canonical rule, CDMS
+    and DAB owners and layers, documents); the superseded "plugin already runs
+    for DAB" wording is absent from every installed file;
+  - PBI 305915 (Adaptation; approved rule: block duplicates for the same
+    Industrial instance, Product and Local/Global, allow different instances) in
+    CDMS, DAB and Both: plugin-, workflow- and JavaScript-derived rules; each
+    approved baseline with its CDMS-/DAB-REFINED-PBI.md is Development-Ready;
+    one approved decision, not two; the answered question is not offered again
+    and a re-spaced copy is flagged; the same rule recorded twice is flagged;
+    missing plugin registration, a workflow rule credited to a plugin and an
+    uncited second source are not Development-Ready; a DAB plugin assignment and
+    missing DAB behavior without a layer are rejected; JavaScript evidence never
+    proves the DAB path; a DAB PBI for a CDMS-only PBI is reported; an earlier
+    evidence exclusion is still honored; setup writes no application files;
+  - branch completeness guide and fast-refinement instructions (configured
+    paths, targeted search, incremental updates, short summary, run metrics,
+    evidence index fields);
+  - Paint System measurement (Developed): Yes covered by the plugin; reuse is
+    rejected while the No and Yes-failure branches are open; without plugin
+    activation the Yes branch is unproven and the handoff reports it as
+    unverified; DAB cannot claim implemented with open DAB branches; the
+    extend plan is Development-Ready; business-rules.json lists the four
+    branches, six open gaps with the No-path risk, approved versus proposed
+    requirements and technical findings, no DAB plugin; the matrix shows them;
+    answering a question changes only the state and decision log (request,
+    draft and handoff byte-identical, rules unchanged, question not
+    re-offered); a re-export keeps the earlier handoff in history/; evidence
+    index fields survive a refresh and a changed source is marked stale;
   - guided intake (scenarios A, B, C, D, E): title-only draft, criteria modes,
     attachment names made safe, target project;
   - question engine (scenarios F, G, L, M): blocking question first, answered
@@ -30,13 +77,20 @@ PASSED
     skip only optional questions, custom answer, edit supersedes the earlier
     decision, DECISION-LOG entries, three history backups, broken JSON refused
     without writing;
-  - upgrade from a real 3.1.0 install: the two guides are created, PBI files are
+  - upgrade from a real 3.1.0 install: the five new guides are created, PBI files are
     byte-identical, and a 3.1-approved PBI is still Development-Ready.
-- 61 shared readiness scenarios with exact expected codes. The 11 new ones cover:
+- 90 shared readiness scenarios with exact expected codes. The 40 new ones cover:
   answered/deferred/unknown/not-applicable question statuses, duplicate and
   superseded questions, legacy CRM evidence on DAB versus CDMS paths, the
-  PBI 305915-style scope exclusion, an exclusion without a decision, and an
-  invalid evidence system.
+  PBI 305915-style scope exclusion, an exclusion without a decision, workflow,
+  custom activity, multiple and unknown owners, misattributed owners, an
+  invalid evidence system or component, DAB plugin assignment, DAB ownership
+  status and layer, CDMS reuse with DAB implementing, duplicate rule text,
+  JavaScript evidence, CDMS-/DAB-REFINED-PBI.md approval gate, content and
+  out-of-scope application, branch tracking with an open No path, reuse with
+  an open branch, DAB implemented with an open branch, covered branches
+  without code evidence, without plugin activation or with legacy evidence for
+  DAB, incomplete branches and conflicting branches without a risk.
 - test-ui.cjs: real form handlers with a simulated DOM.
   - The six-step wizard: progress, required title, Next/Back.
   - Attachments copied into attachments/; Save draft and Cancel.
@@ -45,16 +99,20 @@ PASSED
   - Existing PBI number: Resume offered, nothing saved (scenario H).
   - Question panel: options plus custom, name required, submit, skip optional,
     edit previous with a custom answer (DEC-2 replaces DEC-1), show decisions.
+  - Export developer handoff writes business-rules.json and the matrix.
+  - Application choice (Both) shown in Review and saved in REQUEST.md and
+    pbi.json; the start prompt says not to ask again.
 - test-ps.cjs: 7 checks with real Windows PowerShell, folders with spaces and
   Kannada characters.
   - Installer output byte-identical to core for both IDEs, including the new
     guides and the VS Code tool list.
   - Upgrades from 2.1 and 3.0.0 match the form; repair, rollback, uninstall and
     execution-policy behavior as before.
-  - CheckPbi JSON identical to core for all 61 scenarios and the four 3.0.0 gap
+  - CheckPbi JSON identical to core for all 90 scenarios and the four 3.0.0 gap
     states.
 - Mutation checks on a copy of the installer: removing the legacy-evidence rule,
-  counting deferred questions as resolved, or removing the duplicate check each
+  counting deferred questions as resolved, removing the duplicate check, or
+  removing the owner attribution check or the DAB plugin check each
   made the parity test fail.
 - docs/V4-DEMO.md: generated by maintainer/demo-v4.cjs, which runs Create PBI
   (draft, resume, start analysis with attachments) through answer, skip,
@@ -74,6 +132,14 @@ NOT VERIFIED HERE (need a team machine)
 - Scenario I (no legacy source available): instruction-level only.
 - Native browser file and folder dialogs and rendering; Visual Studio and VS Code
   agent discovery.
+- Performance: maintainer/benchmark.cjs (docs/PERFORMANCE.md) measures only the
+  deterministic operations; they are on par with 3.1.0 (differences are within
+  run-to-run noise). Agent analysis time, files read, searches and cache hit
+  rate need real Copilot runs (Compare old & new now has columns for them).
+- PowerShell has no handoff export; use the form's button.
+- Workflow analysis and Extract Plugin Rules on a real CRM solution: instructions
+  only; no model run read actual XAML or plugin code. Real-time/background
+  behavior statements come from platform documentation, not a test here.
 - Azure DevOps prefill: not implemented (no approved connection).
 - The installer's guided double-click mode; AllSigned/Restricted machines (unsigned
   installer is blocked by design).

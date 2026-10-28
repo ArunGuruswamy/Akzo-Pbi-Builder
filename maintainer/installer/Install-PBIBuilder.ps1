@@ -311,18 +311,28 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             if (-not (Test-Obj $v) -or -not ($ap -is [bool]) -or (-not $ap -and -not (Test-Str (Get-Prop $v 'reason')))) { & $add 'PATH_SCOPE_MISSING' 1 $k } elseif ($ap) { $applies.Add($k) }
         }
         $ruleIds = @($rules | Where-Object { (Test-Obj $_) -and (Test-Str (Get-Prop $_ 'id')) } | ForEach-Object { $_.id })
+        $ruleTexts = New-Object System.Collections.Generic.List[string]
         for ($i = 0; $i -lt $rules.Count; $i++) {
             $r = $rules[$i]; $rid = Get-Prop $r 'id'; $id = if ((Test-Obj $r) -and (Test-Str $rid)) { $rid } else { "rule $($i + 1)" }
             $owner = Get-Prop $r 'owner'; $cov = Get-Prop $r 'coverage'; $action = Get-Prop $r 'targetAction'
             $badCov = (Test-Has $r 'coverage') -and (-not ($cov -is [array]) -or @($cov | Where-Object { -not (Test-In $Spec.acTypes $_) }).Count)
             if (-not (Test-Obj $r) -or -not (Test-Str $rid) -or -not (Test-Rev (Get-Prop $r 'rev')) -or -not (Test-Str (Get-Prop $r 'context')) -or -not (Test-Obj $owner) -or -not (Test-In $Spec.owners (Get-Prop $owner 'type')) -or -not (Test-In $Spec.actions $action) -or $badCov) { & $add 'RULE_INCOMPLETE' 0 $id; continue }
+            $otype = Get-Prop $owner 'type'; $otypes = Get-Prop $owner 'types'
+            if ((Test-Same $otype 'multiple') -and (-not ($otypes -is [array]) -or $otypes.Count -lt 2 -or @($otypes | Where-Object { -not (Test-In $Spec.ownerParts $_) }).Count)) { & $add 'RULE_INCOMPLETE' 0 $id; continue }
             if (-not (Test-Meaningful (Get-Prop $r 'rule'))) { & $add 'CONTENT_MISSING' 0 $id }
-            $otype = Get-Prop $owner 'type'; $reg = Get-Prop $r 'registration'
-            $scripted = (Test-Same $otype 'plugin') -or (Test-Same $otype 'workflow')
+            $reg = Get-Prop $r 'registration'
+            $types = if (Test-Same $otype 'multiple') { $otypes } else { @($otype) }
+            $scripted = @($types | Where-Object { Test-In $Spec.scripted $_ }).Count -gt 0
             if ($scripted -and (-not (Test-In $Spec.registration $reg) -or (Test-Same $reg 'unknown'))) { & $add 'REGISTRATION_UNKNOWN' 1 $id }
-            $levels = New-Object System.Collections.ArrayList
-            foreach ($e in (Get-Arr (Get-Prop $r 'evidence'))) { $x = Find-Id $evidence $e; if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$(Get-Shown $e)" } elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$(Get-Shown $e)" } else { [void]$levels.Add((Get-Prop $x 'level')) } }
-            if (-not (Test-Same $otype 'none') -and -not (Test-In $levels 'code')) { & $add 'NO_EVIDENCE' 1 $id }
+            $levels = New-Object System.Collections.ArrayList; $comps = New-Object System.Collections.ArrayList
+            foreach ($e in (Get-Arr (Get-Prop $r 'evidence'))) {
+                $x = Find-Id $evidence $e
+                if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$(Get-Shown $e)" } elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$(Get-Shown $e)" }
+                else { [void]$levels.Add((Get-Prop $x 'level')); if ((Test-Same (Get-Prop $x 'level') 'code') -and (Test-Has $x 'component')) { [void]$comps.Add((Get-Prop $x 'component')) } }
+            }
+            if (Test-Same $otype 'unknown') { & $add 'OWNER_UNKNOWN' 1 $id } elseif (-not (Test-Same $otype 'none') -and -not (Test-In $levels 'code')) { & $add 'NO_EVIDENCE' 1 $id }
+            # Only judged when the code evidence names its component, so older states are unaffected.
+            if ($comps.Count) { foreach ($t in $types) { if ((Test-In $Spec.attributed $t) -and -not (Test-In $comps $t)) { & $add 'OWNER_MISATTRIBUTED' 1 "$id/$t" } } }
             if ($scripted -and ((Test-Same $reg 'active') -or (Test-Same $reg 'disabled') -or (Test-Same $reg 'missing')) -and -not (Test-In $levels 'registration')) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/registration" }
             if ((Test-Same (Get-Prop $r 'runtime') 'verified') -and -not (Test-In $levels 'runtime')) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/runtime" }
             $paths = Get-Prop $r 'paths'; if (-not (Test-Obj $paths)) { $paths = [pscustomobject]@{} }
@@ -343,8 +353,47 @@ function Get-Readiness($state, $docs, [string]$pbi) {
                 if (-not $reach) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/$k" }
             }
             if ((Test-Same $action 'resolve-gap') -or @((Get-Arr (Get-Prop $r 'gaps')) | Where-Object { -not (Test-Obj $_) -or -not (Test-Same (Get-Prop $_ 'status') 'resolved') }).Count) { & $add 'EVIDENCE_GAP' 1 $id }
-            $bypass = $false; foreach ($k in $applies) { $p = Get-Prop $paths $k; if ((Test-Has $paths $k) -and (Test-Obj $p) -and (Test-Same (Get-Prop $p 'status') 'bypasses')) { $bypass = $true } }
+            $bypass = $false; foreach ($k in $applies) { $p = Get-Prop $paths $k; if ((-not (Test-Same $k 'dab') -or -not (Test-Has $r 'dab')) -and (Test-Has $paths $k) -and (Test-Obj $p) -and (Test-Same (Get-Prop $p 'status') 'bypasses')) { $bypass = $true } }
             if ((Test-Same $action 'reuse') -and (($scripted -and ((Test-Same $reg 'disabled') -or (Test-Same $reg 'missing'))) -or $bypass)) { & $add 'REUSE_NOT_ENFORCED' 1 $id }
+            if (Test-Has $r 'dab') {
+                $b = Get-Prop $r 'dab'; $layer = Get-Prop $b 'layer'; $bst = Get-Prop $b 'status'
+                if ((Test-Obj $b) -and ($layer -is [string]) -and $layer -match '(?i)plugin') { & $add 'DAB_PLUGIN_ASSIGNED' 1 $id }
+                elseif (-not (Test-Obj $b) -or -not (Test-In $Spec.dabStatus $bst) -or $(if (Test-Same $bst 'not-applicable') { -not (Test-Str (Get-Prop $b 'reason')) } else { -not (Test-In $Spec.dabLayers $layer) })) { & $add 'DAB_OWNER_INVALID' 1 $id }
+            }
+            if (Test-Has $r 'branches') {
+                # Every material branch is tracked separately: one covered branch never covers the rule.
+                $apps = @($Spec.branchApps | Where-Object { $applies.Contains($_) })
+                $bad = New-Object System.Collections.Generic.List[string]; $open = New-Object System.Collections.Generic.List[string]; $bids = New-Object System.Collections.Generic.List[string]
+                $brs = Get-Prop $r 'branches'
+                if (-not ($brs -is [array]) -or $brs.Count -eq 0) { $bad.Add($id) }
+                else {
+                    foreach ($b in $brs) {
+                        $bidv = Get-Prop $b 'id'; $bid = if ((Test-Obj $b) -and (Test-Str $bidv)) { $bidv } else { "$id/branch" }
+                        $broken = -not (Test-Obj $b) -or -not (Test-Str $bidv)
+                        if (-not $broken) {
+                            $broken = $bids.Contains($bidv) -or -not (Test-Str (Get-Prop $b 'condition')) -or -not (Test-Str (Get-Prop $b 'expected'))
+                            foreach ($k in $apps) { if (-not (Test-In $Spec.branchCoverage (Get-Prop $b $k))) { $broken = $true } }
+                            $conf = $false; foreach ($k in $apps) { if (Test-Same (Get-Prop $b $k) 'conflicting') { $conf = $true } }
+                            if ($conf -and -not (Test-Str (Get-Prop $b 'risk'))) { $broken = $true }
+                            $acc = Get-Arr (Get-Prop $b 'acceptance'); if ($acc.Count -eq 0) { $broken = $true }
+                            foreach ($a in $acc) { $hit = $false; foreach ($x in $acs) { if ((Test-Obj $x) -and (Test-Same (Get-Prop $x 'id') $a) -and (Test-In (Get-Arr (Get-Prop $x 'rules')) $rid)) { $hit = $true } }; if (-not $hit) { $broken = $true } }
+                        }
+                        if ($broken) { $bad.Add($bid); continue }
+                        $bids.Add($bidv)
+                        $ev = @(); foreach ($e in (Get-Arr (Get-Prop $b 'evidence'))) { $x = Find-Id $evidence $e; if ($null -ne $x -and -not (Test-In $excluded (Get-Prop $x 'system')) -and (Test-Same (Get-Prop $x 'level') 'code')) { $ev += , $x } }
+                        if ((Test-Same (Get-Prop $b 'cdms') 'covered') -and $apps -contains 'cdms' -and ($ev.Count -eq 0 -or ($scripted -and -not (Test-Same $reg 'active')))) { & $add 'BRANCH_COVERAGE_UNPROVEN' 1 "$bidv/cdms" }
+                        if ((Test-Same (Get-Prop $b 'dab') 'covered') -and $apps -contains 'dab' -and @($ev | Where-Object { -not (Test-Same (Get-Prop $_ 'system') 'legacy-crm') }).Count -eq 0) { & $add 'BRANCH_COVERAGE_UNPROVEN' 1 "$bidv/dab" }
+                        foreach ($k in $apps) { $cv = Get-Prop $b $k; if (-not (Test-Same $cv 'covered') -and -not (Test-Same $cv 'not-applicable')) { $key = "${k}:$bidv"; if (-not $open.Contains($key)) { $open.Add($key) } } }
+                    }
+                }
+                foreach ($x in $bad) { & $add 'BRANCH_INCOMPLETE' 0 $x }
+                $hasDab = Test-Has $r 'dab'
+                if (Test-Same $action 'reuse') { foreach ($x in $open) { $k = $x.Substring(0, $x.IndexOf(':')); if ((Test-Same $k 'cdms') -or -not $hasDab) { & $add 'BRANCH_NOT_COVERED' 1 ($x.Substring($x.IndexOf(':') + 1) + '/' + $k) } } }
+                $dabv = Get-Prop $r 'dab'
+                if ((Test-Obj $dabv) -and (Test-Same (Get-Prop $dabv 'status') 'implemented')) { foreach ($x in $open) { if ($x.StartsWith('dab:', [System.StringComparison]::Ordinal)) { & $add 'DAB_BRANCH_GAP' 1 $x.Substring(4) } } }
+            }
+            $rt = Get-Prop $r 'rule'
+            if (Test-Str $rt) { $t = Get-Norm $rt; if ($ruleTexts.Contains($t)) { & $add 'RULE_DUPLICATE' 3 $id } else { $ruleTexts.Add($t) } }
             foreach ($d in (Get-Arr (Get-Prop $r 'dependencies'))) { if ($null -eq (Find-Id $deps $d)) { & $add 'DEPENDENCY_UNKNOWN' 0 "$id/$(Get-Shown $d)" } }
             $d = Find-Id $decisions (Get-Prop $r 'decisionRef')
             if (-not (Test-Same (Get-Prop $r 'decision') 'confirmed') -or $null -eq $d -or -not (Test-Same (Get-Prop $d 'status') 'approved')) { & $add 'DECISION_PENDING' 2 $id }
@@ -365,7 +414,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         for ($i = 0; $i -lt $evidence.Count; $i++) {
             $e = $evidence[$i]; $eid = Get-Prop $e 'id'; $id = if ((Test-Obj $e) -and (Test-Str $eid)) { $eid } else { "evidence $($i + 1)" }
             $kind = Get-Prop $e 'kind'; $src = Get-Prop $e 'source'
-            if (-not (Test-Obj $e) -or -not (Test-Str $eid) -or -not (Test-In $Spec.evidenceLevels (Get-Prop $e 'level')) -or -not (Test-In $Spec.evidenceKinds $kind) -or -not (Test-Str $src) -or -not (Test-Str (Get-Prop $e 'location')) -or -not (Test-Str (Get-Prop $e 'summary')) -or ((Test-Has $e 'system') -and -not (Test-In $Spec.evidenceSystems (Get-Prop $e 'system'))) -or ((Test-Same $kind 'repo-file') -and -not (Test-SafePath $src)) -or ((Test-Same $kind 'external') -and -not (Test-Str (Get-Prop $e 'revision')))) { & $add 'EVIDENCE_INCOMPLETE' 1 $id; continue }
+            if (-not (Test-Obj $e) -or -not (Test-Str $eid) -or -not (Test-In $Spec.evidenceLevels (Get-Prop $e 'level')) -or -not (Test-In $Spec.evidenceKinds $kind) -or -not (Test-Str $src) -or -not (Test-Str (Get-Prop $e 'location')) -or -not (Test-Str (Get-Prop $e 'summary')) -or ((Test-Has $e 'system') -and -not (Test-In $Spec.evidenceSystems (Get-Prop $e 'system'))) -or ((Test-Has $e 'component') -and -not (Test-In $Spec.evidenceComponents (Get-Prop $e 'component'))) -or ((Test-Same $kind 'repo-file') -and -not (Test-SafePath $src)) -or ((Test-Same $kind 'external') -and -not (Test-Str (Get-Prop $e 'revision')))) { & $add 'EVIDENCE_INCOMPLETE' 1 $id; continue }
             $stale = Get-Prop $e 'stale'; if (($stale -is [bool]) -and $stale) { & $add 'EVIDENCE_STALE' 1 $id }
             if (Test-Same $kind 'repo-file') {
                 $h = & $fileOf $src; $recorded = Get-Prop $e 'sha256'
@@ -445,23 +494,32 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             $diff = @(); foreach ($w in @(@('changed', $changed), @('added', $added), @('removed', $removed))) { if ($w[1].Count) { $diff += $w[0] + ' ' + ($w[1] -join ', ') } }
             if ($diff.Count) { & $add 'APPROVAL_STALE' 3 ("${k}: " + ($diff -join '; ')) }
         }
-        $doc = if ($null -ne $docs.refined) { $docs.refined } else { $docs.draft }
-        if ($null -eq $doc) { & $add 'DOC_MISSING' 0 $pbi }
-        else {
+        # $pre names an application-specific final document in the issue reference.
+        $checkDoc = {
+            param($doc, $pre)
             $m = [regex]::Match($doc, '(?m)^Status:\s*(.+?)\s*$')
-            if (-not $m.Success -or -not (Test-Same $m.Groups[1].Value (Get-Prop $state 'status'))) { & $add 'DOC_STATUS_MISMATCH' 3 $(if ($m.Success) { $m.Groups[1].Value } else { '(no Status line)' }) }
+            if (-not $m.Success -or -not (Test-Same $m.Groups[1].Value (Get-Prop $state 'status'))) { & $add 'DOC_STATUS_MISMATCH' 3 ($pre + $(if ($m.Success) { $m.Groups[1].Value } else { '(no Status line)' })) }
             $n = Get-DocNorm $doc; $done = New-Object System.Collections.Generic.List[string]
             $pairs = @(); foreach ($x in $rules) { $pairs += , @($x, (Get-Prop $x 'rule')) }; foreach ($x in $acs) { $pairs += , @($x, (Get-Prop $x 'criterion')) }; foreach ($x in $deps) { $pairs += , @($x, $null) }
             foreach ($pair in $pairs) {
                 $x = $pair[0]; $xid = Get-Prop $x 'id'
                 if (-not (Test-Obj $x) -or -not (Test-Str $xid) -or $done.Contains($xid)) { continue }; $done.Add($xid)
-                if (-not (Test-HasId $doc $xid)) { & $add 'DOC_MISSING_ID' 3 $xid }
-                elseif ((Test-Meaningful $pair[1]) -and -not $n.Contains((Get-DocNorm $pair[1]))) { & $add 'DOC_CONTENT_MISMATCH' 3 $xid }
+                if (-not (Test-HasId $doc $xid)) { & $add 'DOC_MISSING_ID' 3 ($pre + $xid) }
+                elseif ((Test-Meaningful $pair[1]) -and -not $n.Contains((Get-DocNorm $pair[1]))) { & $add 'DOC_CONTENT_MISMATCH' 3 ($pre + $xid) }
             }
+        }
+        $doc = if ($null -ne $docs.refined) { $docs.refined } else { $docs.draft }
+        if ($null -eq $doc) { & $add 'DOC_MISSING' 0 $pbi } else { & $checkDoc $doc '' }
+        foreach ($key in @('cdmsRefined', 'dabRefined')) {
+            $fd = Get-Prop $Spec.finalDocs $key
+            if ($null -ne $docs[$key]) { if (-not $applies.Contains($fd[0])) { & $add 'DOC_OUT_OF_SCOPE' 3 $fd[1] }; & $checkDoc $docs[$key] ($fd[1] + '/') }
         }
     }
     $capOf = { $c = 4; foreach ($x in $issues) { $j = [array]::IndexOf($S, $x.cap); if ($j -lt $c) { $c = $j } }; $c }
-    if ($valid -and $null -ne $docs.refined -and (& $capOf) -lt 4) { & $add 'FINAL_WITHOUT_APPROVAL' 3 $pbi }
+    if ($valid -and (& $capOf) -lt 4) {
+        if ($null -ne $docs.refined) { & $add 'FINAL_WITHOUT_APPROVAL' 3 $pbi }
+        foreach ($key in @('cdmsRefined', 'dabRefined')) { if ($null -ne $docs[$key]) { & $add 'FINAL_WITHOUT_APPROVAL' 3 (Get-Prop $Spec.finalDocs $key)[1] } }
+    }
     $claimed = if ($valid -and (Test-In $S (Get-Prop $state 'status'))) { $state.status } else { '' }
     if ($claimed -and [array]::IndexOf($S, $claimed) -gt (& $capOf)) { & $add 'STATUS_OVERCLAIMED' 3 $claimed }
     $computed = $S[(& $capOf)]
@@ -481,7 +539,7 @@ function Invoke-CheckPbi {
             $full = Get-Full $src; $files[$src] = if ([System.IO.File]::Exists($full)) { Get-Hash ([System.IO.File]::ReadAllBytes($full)) } else { $null }
         }
     }
-    $docs = @{ request = Read-Text "$folder/REQUEST.md"; draft = Read-Text "$folder/DRAFT-PBI.md"; refined = Read-Text "$folder/REFINED-PBI.md"; decisionLog = Read-Text "$folder/DECISION-LOG.md"; files = $files }
+    $docs = @{ request = Read-Text "$folder/REQUEST.md"; draft = Read-Text "$folder/DRAFT-PBI.md"; refined = Read-Text "$folder/REFINED-PBI.md"; cdmsRefined = Read-Text "$folder/CDMS-REFINED-PBI.md"; dabRefined = Read-Text "$folder/DAB-REFINED-PBI.md"; decisionLog = Read-Text "$folder/DECISION-LOG.md"; files = $files }
     $r = Get-Readiness $state $docs $folder.Split('/')[-1]
     if ($Json) { [Console]::Out.WriteLine((ConvertTo-Json -InputObject $r -Depth 6 -Compress)) }
     else {

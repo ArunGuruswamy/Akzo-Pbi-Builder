@@ -13,6 +13,52 @@
 - Commands: Resume, Review, Edit, Show Decisions, Analyze Legacy, Show Technical Flow,
   Generate Acceptance Criteria, Export and Validate PBI.
 
+### Branch completeness, developer handoff and speed
+- New mandatory guide `skills/business-rule-branch-completeness.md`: conditions, Yes/No
+  branches, success, validation failures, status transitions, side effects, failure and
+  rollback, compared per branch with verified implementation; side-effect risk when an
+  uncovered branch shares an operation with a covered one (worked example: Paint System
+  measurement, Yes replaces Master measurement and Color Point, No keeps them).
+- Rules may record `branches` with CDMS and DAB coverage (covered, partial, missing,
+  conflicting, unverified, not-applicable), evidence, risk, proposed approach and acceptance
+  criteria. Readiness: `BRANCH_INCOMPLETE`, `BRANCH_NOT_COVERED` (reuse claimed while a branch
+  such as No is open), `BRANCH_COVERAGE_UNPROVEN` (covered without code evidence, without plugin
+  activation, or with legacy evidence for DAB), `DAB_BRANCH_GAP`. Same results in PowerShell.
+- Form: Export developer handoff writes `business-rules.json` (schema 1: applications, rules,
+  branches, recorded and effective coverage, evidence, CDMS and DAB ownership, acceptance
+  criteria, decisions, open gaps; approved requirements, proposed requirements and technical
+  findings kept apart) and `BRANCH-COVERAGE-MATRIX.md`, from pbi-state.json only; earlier exports
+  go to history/.
+- Faster refinement instructions: configured paths are never asked for, search terms come from
+  the PBI, no whole-repository scans, only the needed guides, incremental updates after an
+  answer, a short default summary, and per-run metrics in EVIDENCE.md. The evidence index can
+  hold method, entity, trigger, conditions, rule IDs, calls and confidence.
+- Compare old & new: results.csv adds files_read, cache_entries_reused and cold_or_warm.
+  `maintainer/benchmark.cjs` measures the deterministic operations against 3.1.0
+  (docs/PERFORMANCE.md).
+
+### Business rule ownership (CDMS and DAB)
+- There is no DAB plugin. DAB implements every applicable legacy rule in its own code; the
+  earlier "the plugin already runs for DAB" and "assign only some legacy operations to DAB"
+  wording is removed. New guide `skills/business-rule-ownership.md`: application choice (CDMS,
+  DAB or Both, asked once and saved); rules read from plugins, workflows, custom activities,
+  JavaScript (OnLoad/OnSave/OnChange, ribbon), HTML web resources and helpers, with the
+  AN.ColorDMS.Customizations areas to search; UI logic restated as API requirements; one
+  canonical rule per outcome with every source as evidence; CDMS ownership (existing plugin
+  reused when verified, workflow and JavaScript rules included); DAB ownership by layer (Azure
+  Functions, CQRS handler, FluentValidation only for input rules, domain service, GraphQL,
+  response conventions); documents LEGACY-BUSINESS-RULE-CATALOG.md, SHARED-BUSINESS-RULES.md,
+  BUSINESS-RULE-OWNERSHIP.md, ACCEPTANCE-CRITERIA.md, CDMS-REFINED-PBI.md, DAB-REFINED-PBI.md.
+- Readiness: a rule may record `dab` {layer, status}; a plugin as DAB layer is
+  `DAB_PLUGIN_ASSIGNED`, an incomplete one `DAB_OWNER_INVALID`. With a `dab` record, a CDMS
+  `reuse` of a plugin is no longer flagged because DAB bypasses it. Identical rule text is
+  `RULE_DUPLICATE`. CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md are gated and checked like
+  REFINED-PBI.md, and `DOC_OUT_OF_SCOPE` when their application does not apply. Evidence
+  components javascript, web-resource and ribbon.
+- Form: the New PBI wizard asks the application (CDMS, DAB, Both, not decided) and saves it in
+  REQUEST.md and pbi.json; the start prompt tells the agent not to ask again.
+- PBI template: application line and CDMS/DAB ownership columns.
+
 ### Business questions
 - The agent acts as a Business Analyst. It never asks business users about registration,
   pipelines, DI, middleware, builds, repository paths, GraphQL generation or deployment;
@@ -38,6 +84,26 @@
   evidence cannot prove a DAB/OCP/GraphQL path (`LEGACY_NOT_TARGET_EVIDENCE`). A PBI may record
   `evidenceScope` (for example excluding legacy-crm, as directed for PBI 305915) backed by an
   approved decision; excluded evidence is rejected.
+- "Extract Plugin Rules <n>": the agent reads the plugin code once and writes PLUGIN-RULES.md,
+  a DAB implementation handoff. Each rule is classed as validation, default/calculation, side
+  effect or guard, with the trigger, condition as pseudocode, exact error message, data
+  needed, CDMS and DAB status, Given/When/Then tests and source lines. DAB need is decided
+  from the DAB write path: Web API/SDK writes already run the plugin; direct database writes
+  must implement the rule. One business question confirms which rules carry over.
+- New guide `skills/xrm-workflow-intelligence.md` and command "Analyze Workflows <n>": classic
+  CRM (WF4/XAML) workflows and custom workflow activities, kept apart from Power Automate cloud
+  flows. Targeted discovery from the operation's entity (.xaml.data.xml first), trigger, mode,
+  scope, activation ("activation unverified" when not shown), branches, actions, child
+  workflows, custom activity code, real-time versus background termination, downstream
+  triggers with cycle and depth limits, no invented ordering. Writes PLUGIN-WORKFLOW-COVERAGE.md
+  (rule, CDMS owner, plugin/workflow, trigger, conditions, evidence, DAB responsibility) with an
+  operation graph, and separate business and technical views. CDMS, DAB and Both scopes.
+- Rule owners: custom-activity, xrm-service, multiple (with types) and unknown; evidence may name
+  its `component`. `OWNER_MISATTRIBUTED` when an owner is not backed by code evidence from that
+  component (a workflow rule cited only with plugin code); `OWNER_UNKNOWN` blocks
+  Development-Ready. Custom activities need activation evidence like plugins and workflows.
+- Faster: a "Work fast" section (targeted searches, line ranges, pbi-state.json first on
+  resume) and knowledge/PLUGIN-CATALOG.md so a plugin read for one PBI is reused by the next.
 
 ### Compatibility
 - pbi-state.json stays schemaVersion 2. A PBI approved under 3.1.0 stays Development-Ready after

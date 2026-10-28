@@ -39,6 +39,8 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  const shared=require('./fixtures/readiness-cases.cjs'),{cases}=await shared.load(ctx.PBI),pending=cases.find(c=>c.name.startsWith('pending approvals'));
  await shared.writeCase(ctx.PBI,root,'playbook/pbis/'+shared.PBI,pending);ids.existingPbi.value='';ids.manualPbi.value='playbook/pbis/'+shared.PBI;
  await ids.checkReadiness.onclick();assert.match(ids.message.textContent,/Computed status: Ready for Review[\s\S]*Approval basis[\s\S]*poba \(fingerprint [0-9a-f]{16}\): \{"AC-1":"[0-9a-f]{16}"/);
+ await ids.exportHandoff.onclick();assert.match(ids.message.textContent,/Wrote playbook\/pbis\/[^\n]*business-rules\.json and [^\n]*BRANCH-COVERAGE-MATRIX\.md\nReadiness: Ready for Review · rules: 2 · branches: 0/);
+ assert.equal(JSON.parse(await ctx.PBI.read(root,'playbook/pbis/'+shared.PBI+'/business-rules.json')).rules.length,2);
  // Guided Create PBI wizard: title, description, criteria, attachments, draft, resume, review, start analysis.
  const file=(name,text)=>({name,size:text.length,arrayBuffer:async()=>new TextEncoder().encode(text).buffer});
  // As in browsers, resetting a file input's value clears its selected files.
@@ -56,9 +58,9 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  ids.wizardCancel.onclick();assert.equal(ids.pbiTitle.value,'');
  await click('refresh');ids.existingPbi.value=draftDir;await click('loadDraft');
  assert.equal(ids.pbiTitle.value,'Creation of Adaptation Imitation Request & Paint System');assert.equal(ids.customProject.value,'DAB API');assert.match(ids.wizardProgress.textContent,/Step 4 of 6/);assert.match(ids.attachmentList.textContent,/Spec v2\.pdf \(already saved\)/);
- ids.wizardNext.onclick();ids.changeType.value='migrate';ids.wizardNext.onclick();
- assert.match(ids.reviewSummary.textContent,/PBI title: Creation of Adaptation[\s\S]*PBI number: 305915[\s\S]*Target project: DAB API[\s\S]*Acceptance criteria: In an attachment[\s\S]*Attachments: Spec v2\.pdf, screen\.png[\s\S]*Migrates legacy/);
- await click('saveNew');meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.equal(meta.wizard.status,'ready-for-analysis');assert.equal(meta.attachments.length,2);
+ ids.application.value='both';ids.wizardNext.onclick();ids.changeType.value='migrate';ids.wizardNext.onclick();
+ assert.match(ids.reviewSummary.textContent,/PBI title: Creation of Adaptation[\s\S]*PBI number: 305915[\s\S]*Target project: DAB API[\s\S]*Application: Both \(CDMS and DAB\)[\s\S]*Acceptance criteria: In an attachment[\s\S]*Attachments: Spec v2\.pdf, screen\.png[\s\S]*Migrates legacy/);
+ await click('saveNew');meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.equal(meta.wizard.status,'ready-for-analysis');assert.equal(meta.application,'both');assert.match(await ctx.PBI.read(root,draftDir+'/REQUEST.md'),/## Application\n\nBoth \(CDMS and DAB\)/);assert.match(ids.promptText.value,/Application: Both \(CDMS and DAB\), chosen by the user[\s\S]*do not ask again/);assert.equal(meta.attachments.length,2);
  assert.match(ids.promptText.value,new RegExp('Read '+draftDir.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/REQUEST.md[\\s\\S]*report any you cannot open'));
  const hist=(await ctx.PBI.listPbis(root)).find(x=>x.folder===draftDir);assert.ok(hist);
  ids.existingPbi.value=draftDir;await ids.loadDraft.onclick();assert.match(ids.message.textContent,/already sent for analysis/);
