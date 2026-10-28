@@ -155,6 +155,11 @@ async function load(P){
  await c('legacy code cannot cover a DAB branch',s=>{br(s,{dab:'covered'});s.evidence[0].system='legacy-crm';},{rebind:true,expect:'Needs Evidence',codes:['BRANCH_COVERAGE_UNPROVEN',...OVER],refs:['BR-1.Y/dab']});
  await c('incomplete branches are drafts',s=>{br(s,{expected:''},{acceptance:['AC-5']});s.status='Draft';},{rebind:true,expect:'Draft',codes:['BRANCH_INCOMPLETE','BRANCH_INCOMPLETE'],refs:['BR-1.Y','BR-1.N']});
  await c('conflicting branch needs its risk',s=>{br(s,{},{cdms:'conflicting',risk:''});s.status='Draft';},{rebind:true,expect:'Draft',codes:['BRANCH_INCOMPLETE'],refs:['BR-1.N']});
+ // Evidence priority: bundled historical reports are navigation aids, never proof.
+ const REF='playbook/pbi-builder/references/CRM-END-TO-END-TECHNICAL-ANALYSIS.md',refSrc={[REF]:'# CRM analysis\nPS-09 PaintSystemValidator.cs:118\n'};
+ await c('historical report alone does not prove a rule',s=>{Object.assign(s.evidence[0],{source:REF,location:'PS-09 row'});},{rebind:true,sources:refSrc,expect:'Needs Evidence',codes:['NO_EVIDENCE','HISTORICAL_NOT_PROOF',...OVER],refs:['BR-1']});
+ await c('historical report beside current source is supporting context',s=>{s.evidence.push({id:'EV-7',level:'code',kind:'repo-file',source:REF,location:'PS-09 row',summary:'Earlier analysis of the same rule'});s.rules[0].evidence.push('EV-7');},{rebind:true,sources:refSrc,expect:'Development-Ready',codes:[]});
+ await c('evidence flagged historical does not count',s=>{s.evidence[2].historical=true;},{rebind:true,expect:'Needs Evidence',codes:['LEVEL_EVIDENCE_MISSING',...OVER],refs:['BR-1/cdms']});
  await c('rule links an unknown dependency',s=>{s.rules[0].dependencies=['DEP-9'];s.status='Draft';},{rebind:true,expect:'Draft',codes:['DEPENDENCY_UNKNOWN']});
  await c('rule without negative coverage is a draft',s=>{s.acceptanceCriteria=s.acceptanceCriteria.filter(a=>a.id!=='AC-6');s.status='Draft';},{rebind:true,expect:'Draft',codes:['MISSING_COVERAGE']});
  await c('state of another PBI folder is rejected',s=>{s.pbi='pbi-999-elsewhere';},{expect:'Draft',codes:['STATE_PBI_MISMATCH',...OVER]});

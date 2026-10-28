@@ -111,3 +111,39 @@ requirements, proposed requirements and technical findings, and lists every open
 
 Legacy code tells the agent what DAB must do; it never proves what DAB already does. If an
 earlier decision left legacy evidence out of a PBI, it stays until you change it.
+
+## Visual Studio: what the agent can read
+In Visual Studio, Copilot's agent file tools read only files in the open solution, or in the
+opened folder and its subfolders (Microsoft: "Use Agent Mode", FAQ). A repository next to it, such
+as `..\AN.ColorDMS.Customizations`, is out of reach unless the folder you open contains it. The
+agent checks this before every analysis, reports a source it cannot read as "configured but
+inaccessible" (never as missing), and says which conclusions stay unverified.
+
+Repository-level agents are found in the `.github\agents` folder of the repository you open.
+
+| Analysis | Install the Builder into | Role / sources | Open in Visual Studio |
+| --- | --- | --- | --- |
+| Legacy only | the legacy repository | role `legacy`, legacy source `.` | File > Open > Folder on the repository root (a `.sln` in a subfolder would leave the root, and the Builder's `playbook\` folder, outside the agent's reach) |
+| DAB only | the DAB repository | role `dab`, DAB source `.` | the repository root folder |
+| CDMS only | the CDMS repository | role `cdms`, CDMS source `.` | the repository root folder |
+| Several repositories | the repository you work in; other sources as relative paths (`../Legacy`) | as above | a common parent folder that contains every clone. Not verified yet: whether Visual Studio still lists an agent stored in a child repository when the opened folder is the parent. Check it with the list below; if the agent does not appear, analyse from each repository in turn |
+
+Never copy application source into the Builder's folders; the Builder reads it where it is.
+
+**Discover sources** (Continue tab of the form) writes `playbook\pbi-builder\knowledge\SOURCE-MAP.md`:
+solutions, projects, project references, target frameworks, markers (CRM SDK, workflows, Web
+Forms, Azure Functions, GraphQL, FluentValidation, data access) and whether each configured source
+could be read. It reads only solution and project files and counts the rest; it never copies
+code or configuration values. Run it again when projects change.
+
+### Visual Studio check (once per team machine)
+1. Install the Builder (form or `Install-PBIBuilder.cmd`) into the repository, then open the folder
+   as in the table.
+2. Copilot Chat > agent picker: "Akzo SDD PBI Builder - <project>" is listed (Visual Studio 18.4 or
+   later).
+3. Select it, open the **Tools** panel and confirm `readfile`, `code_search`, `find_references` and
+   `editfiles` are available and enabled (Microsoft notes that custom-agent tool groups can start
+   disabled; re-enable them there).
+4. Ask: "Check source access." It should name each source as readable, configured but inaccessible
+   or not configured, quoting one file it actually read.
+5. For several repositories, repeat steps 2 to 4 with the parent folder open.

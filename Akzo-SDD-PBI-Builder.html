@@ -26,7 +26,7 @@
 <div id="step5" class="wizstep hidden"><label for="changeType">Is there anything else the agent should know?</label><select id="changeType"><option value="new">This is a new feature</option><option value="enhance">This enhances existing functionality</option><option value="fix">This fixes an existing issue</option><option value="migrate">This migrates legacy functionality</option><option value="unsure" selected>I am not sure</option></select><label for="pbiNotes">Notes (optional)</label><textarea id="pbiNotes"></textarea><details><summary>Add business details (optional)</summary><label for="businessReason">Business reason</label><textarea id="businessReason"></textarea><label for="businessExample">One real example</label><textarea id="businessExample"></textarea><label for="businessUnit">Business Unit / Sub-BU</label><input id="businessUnit"></details></div>
 <div id="step6" class="wizstep hidden"><h3>Review</h3><pre id="reviewSummary"></pre><p class="muted">Start analysis saves the intake and prepares the prompt for Copilot. Save draft keeps it to finish later.</p></div>
 <div class="buttons"><button id="wizardBack" class="secondary">Back</button><button id="wizardNext">Next</button><button id="saveDraft" class="secondary">Save draft</button><button id="saveNew">Start analysis</button><button id="wizardCancel" class="secondary">Cancel</button><button id="newZip" class="secondary">Download intake ZIP</button></div><label class="inline"><input type="checkbox" id="separateDraft"> Create a separate draft even if this PBI number already exists</label></div><aside class="card"><h3>Or just type “Create PBI”</h3><p>After installation, select your project’s PBI Builder in Copilot and type:</p><pre>Create PBI</pre><p class="muted">The agent walks through the same steps. In VS Code it shows selectable answers; elsewhere it numbers the options. Then it reads relevant evidence and asks one unresolved business question at a time.</p><div class="note">Use a new folder for a new requirement. To change an existing PBI, use Continue PBI. A saved draft can be resumed there or with “Resume PBI &lt;number&gt;”.</div><h3>What gets saved?</h3><p class="muted">The original request (REQUEST.md, pbi.json) and copies of your attachments. During refinement, Copilot creates the refined PBI, open questions, decision log and evidence document.</p></aside></div></section>
-<section id="continue" class="panel" role="tabpanel"><div class="grid"><div class="card"><h2>Continue or refine a PBI</h2><p class="muted">Resume in the same folder. Earlier decisions and drafts stay available.</p><div class="buttons"><button id="refresh" class="secondary">Find PBIs in selected project</button></div><label for="existingPbi">Existing PBI</label><select id="existingPbi"><option value="">Select a project and find PBIs</option></select><div class="status" id="pbiDetails"></div><label for="manualPbi">PBI folder (for ZIP-only use)</label><input id="manualPbi" placeholder="playbook/pbis/pbi-300186-improved-formula-..."><label for="changes">What changed, or what should we continue? *</label><textarea id="changes" placeholder="Example: Continue from the next unresolved question. Or: add the confirmed Local/Global requirement and revise affected acceptance criteria."></textarea><div class="buttons"><button id="saveRefine">Save refinement &amp; prepare prompt</button><button id="refineZip" class="secondary">Download refinement ZIP</button></div><h3>Readiness and evidence</h3><p class="muted">Check PBI readiness applies the deterministic rules to the selected PBI's pbi-state.json, documents and local evidence files. When the PBI is ready for review it also shows the approval basis that the agent records with each approval. It checks completeness and consistency, not business correctness or who approved. Refresh evidence fingerprints marks reusable knowledge stale when its source file changed.</p><div class="buttons"><button id="checkReadiness" class="secondary">Check PBI readiness</button><button id="exportHandoff" class="secondary">Export developer handoff</button><button id="refreshEvidence" class="secondary">Refresh evidence fingerprints</button><button id="loadDraft" class="secondary">Resume draft in New PBI</button></div><h3>Answer business questions</h3><p class="muted">Answers are saved straight into this PBI’s pbi-state.json and DECISION-LOG.md; earlier versions go to its history folder. The agent reads them and does not ask again. Each answer approves that one decision, not the whole PBI.</p><div class="buttons"><button id="loadQuestions" class="secondary">Load questions</button><button id="showDecisions" class="secondary">Show decisions</button></div><div id="questionBox" class="hidden"><p class="muted" id="questionProgress" aria-live="polite"></p><h4 id="questionText"></h4><details><summary>Why this matters</summary><p id="questionWhy"></p></details><label for="answerOption">Your answer</label><select id="answerOption"></select><label for="customAnswer">Custom answer (when you choose it)</label><textarea id="customAnswer"></textarea><label for="answeredBy">Your name *</label><input id="answeredBy" maxlength="120"><div class="buttons"><button id="submitAnswer">Submit answer</button><button id="editPrevious" class="secondary">Edit previous answer</button><button id="skipQuestion" class="secondary">Skip (optional questions only)</button></div></div></div><aside class="card"><h3>Next time in Copilot</h3><pre>Continue PBI 300186</pre><p>Or:</p><pre>Refine PBI 300186: [what changed]</pre><p class="muted">The agent reads the saved documents, summarizes the current status and resumes the next decision. If more than one PBI matches, it asks which one.</p><div class="note">A proposed change does not automatically replace an approved decision. The workflow records the change and asks for business confirmation where needed.</div></aside></div></section>
+<section id="continue" class="panel" role="tabpanel"><div class="grid"><div class="card"><h2>Continue or refine a PBI</h2><p class="muted">Resume in the same folder. Earlier decisions and drafts stay available.</p><div class="buttons"><button id="refresh" class="secondary">Find PBIs in selected project</button></div><label for="existingPbi">Existing PBI</label><select id="existingPbi"><option value="">Select a project and find PBIs</option></select><div class="status" id="pbiDetails"></div><label for="manualPbi">PBI folder (for ZIP-only use)</label><input id="manualPbi" placeholder="playbook/pbis/pbi-300186-improved-formula-..."><label for="changes">What changed, or what should we continue? *</label><textarea id="changes" placeholder="Example: Continue from the next unresolved question. Or: add the confirmed Local/Global requirement and revise affected acceptance criteria."></textarea><div class="buttons"><button id="saveRefine">Save refinement &amp; prepare prompt</button><button id="refineZip" class="secondary">Download refinement ZIP</button></div><h3>Readiness and evidence</h3><p class="muted">Check PBI readiness applies the deterministic rules to the selected PBI's pbi-state.json, documents and local evidence files. When the PBI is ready for review it also shows the approval basis that the agent records with each approval. It checks completeness and consistency, not business correctness or who approved. Refresh evidence fingerprints marks reusable knowledge stale when its source file changed.</p><div class="buttons"><button id="checkReadiness" class="secondary">Check PBI readiness</button><button id="exportHandoff" class="secondary">Export developer handoff</button><button id="refreshEvidence" class="secondary">Refresh evidence fingerprints</button><button id="discoverSources" class="secondary">Discover sources</button><button id="loadDraft" class="secondary">Resume draft in New PBI</button></div><h3>Answer business questions</h3><p class="muted">Answers are saved straight into this PBI’s pbi-state.json and DECISION-LOG.md; earlier versions go to its history folder. The agent reads them and does not ask again. Each answer approves that one decision, not the whole PBI.</p><div class="buttons"><button id="loadQuestions" class="secondary">Load questions</button><button id="showDecisions" class="secondary">Show decisions</button></div><div id="questionBox" class="hidden"><p class="muted" id="questionProgress" aria-live="polite"></p><h4 id="questionText"></h4><details><summary>Why this matters</summary><p id="questionWhy"></p></details><label for="answerOption">Your answer</label><select id="answerOption"></select><label for="customAnswer">Custom answer (when you choose it)</label><textarea id="customAnswer"></textarea><label for="answeredBy">Your name *</label><input id="answeredBy" maxlength="120"><div class="buttons"><button id="submitAnswer">Submit answer</button><button id="editPrevious" class="secondary">Edit previous answer</button><button id="skipQuestion" class="secondary">Skip (optional questions only)</button></div></div></div><aside class="card"><h3>Next time in Copilot</h3><pre>Continue PBI 300186</pre><p>Or:</p><pre>Refine PBI 300186: [what changed]</pre><p class="muted">The agent reads the saved documents, summarizes the current status and resumes the next decision. If more than one PBI matches, it asks which one.</p><div class="note">A proposed change does not automatically replace an approved decision. The workflow records the change and asks for business confirmation where needed.</div></aside></div></section>
 <section id="compare" class="panel" role="tabpanel">
 <div class="grid"><div class="card"><h2>Compare the same requirement</h2><p class="muted">Create identical starting requests for a pinned baseline agent and the current agent. Each run saves its own documents.</p>
 <label for="comparisonBaseline">Baseline *</label><select id="comparisonBaseline"><option value="2.1-concise">v2.1 Concise (previous daily agent)</option><option value="2.0-original">v2.0 Original</option></select>
@@ -52,7 +52,7 @@ const AGENT='.github/agents/akzo-sdd-pbi-builder.agent.md', AGENT_PREFIX='Akzo S
 const KNOWLEDGE=BASE+'/knowledge/evidence-index.json';
 // Pre-3.0 file names. Retired when the old manifest owns them unchanged; otherwise reported and kept.
 const LEGACY_FILES=['.github/agents/akzo-sdd-pbi-dynamic.agent.md','.github/agents/akzo-sdd-pbi-dynamic-concise.agent.md','.github/prompts/akzo-pbi-new-concise.prompt.md','.github/prompts/akzo-pbi-refine-concise.prompt.md'];
-const IDE={visualstudio:{TOOLS:'["readfile", "code_search", "editfiles"]',BASE_TOOLS:'["readfile", "code_search", "editfiles"]',IDE_LABEL:'Visual Studio 2026 (18.4 or later)'},vscode:{TOOLS:'["read", "search", "edit", "vscode/askQuestions"]',BASE_TOOLS:'["read", "search", "edit"]',IDE_LABEL:'VS Code (GitHub Copilot)'}};
+const IDE={visualstudio:{TOOLS:'["readfile", "code_search", "find_references", "editfiles"]',BASE_TOOLS:'["readfile", "code_search", "editfiles"]',IDE_LABEL:'Visual Studio 2026 (18.4 or later)'},vscode:{TOOLS:'["read", "search", "edit", "vscode/askQuestions"]',BASE_TOOLS:'["read", "search", "edit"]',IDE_LABEL:'VS Code (GitHub Copilot)'}};
 const enc=new TextEncoder();
 const yaml=s=>JSON.stringify(String(s));
 const esc=s=>yaml(s).slice(1,-1);
@@ -114,6 +114,17 @@ Read each guide in ${BASE}/skills/ when its step starts, not before:
 - business-rule-branch-completeness.md: mandatory for every refinement, before
   deciding whether a rule is covered (Yes/No branches, failures, rollback, side
   effects, gaps).
+
+## Source access before analysis
+Before investigating a PBI, follow "Source access and discovery" in
+repository-knowledge.md: read ${BASE}/knowledge/SOURCE-MAP.md if present, classify
+each configured source as readable, configured but inaccessible, or not
+configured by reading a real source file, map solutions and projects, and write
+SOURCE-DISCOVERY.md in the PBI folder. Never call an inaccessible repository
+missing and never invent a solution path: name the limitation, list the
+conclusions it leaves unverified, and ask for the solution root when needed.
+Current source code outranks configuration, tests, repository documentation and,
+last, the bundled historical reports.
 
 ## Work fast
 Read only what the current step needs. Search for exact identifiers first and
@@ -1293,6 +1304,54 @@ reread the relevant source section and update the entry. Remove "stale" only
 after rereading. External repositories cannot be fingerprinted from here; mark
 facts from them with the revision you read and reverify when it matters.
 
+## Source access and discovery
+The repository that holds this agent is not necessarily the application under
+analysis; sources.yaml says which repositories matter.
+1. Read ${KNOWLEDGE.replace('evidence-index.json','SOURCE-MAP.md')} when present (the form's Discover sources
+   button writes it): solutions, projects, project references, frameworks,
+   markers (CRM SDK, workflow, Web Forms, Azure Functions, GraphQL,
+   FluentValidation, Entity Framework) and each source's access status. It is a
+   navigation aid; refresh it when projects change.
+2. For each source in sources.yaml, prove access by reading one real source file
+   under its path. Classify: readable; configured but inaccessible (path set,
+   no file readable); not configured (empty path).
+3. In Visual Studio, agent file tools reach only files in the open solution or
+   the opened folder and its subfolders; terminal commands are not used by this
+   agent. A sibling repository such as ../Legacy is therefore inaccessible unless
+   the opened folder contains it. Report that, do not call the repository
+   missing, list the conclusions that stay unverified, and ask the user to open a
+   folder that contains it or to give the solution root. Never invent a path.
+4. Map what is readable: .sln/.slnx (projects listed), .csproj/.vbproj
+   (TargetFramework or TargetFrameworkVersion, ProjectReference, package and
+   assembly references), and the source folders relevant to the PBI.
+5. Trace each requirement through the real code: UI or entry point (form
+   script, ribbon command, ASPX page and code-behind, API function or handler)
+   -> service or plugin -> validation -> business rule -> persistence (data
+   access class, query, stored procedure) -> side effects (other records,
+   plugins, workflows, integrations). Use code_search for exact names and
+   messages, find_references for callers when it is available, and readfile for
+   the matching line ranges. Legacy code may include .NET Framework, ASP.NET Web
+   Forms, CRM plugins, workflows, JavaScript web resources, validators,
+   data-access classes, SQL and stored procedures, and configuration.
+6. Never record connection strings, keys or other secrets from configuration.
+
+## Evidence priority
+1. Current source code. 2. Current configuration and registrations. 3. Current
+tests. 4. Current repository documentation. 5. Historical reports bundled under
+${BASE}/references/. Historical reports are navigation aids: the readiness check
+never counts them as evidence (HISTORICAL_NOT_PROOF when a rule has nothing
+else). When current source contradicts a historical report, the source wins:
+record the difference in EVIDENCE.md and never base a conclusion on the report.
+
+## SOURCE-DISCOVERY.md (in the PBI folder, before the refined PBI)
+Active solution or folder (only when a tool or the user shows it), readable
+repository roots, projects found, relevant source directories, entry points,
+existing implementation locations (repository, file, class, method, line
+range), inaccessible sources with the conclusions they leave unverified, and
+unverified assumptions. Record the same access result in pbi-state.json as
+"sourceAccess": [{"source", "path", "status", "checkedFile" or "reason"}]; the
+developer handoff carries it.
+
 ## Retrieval
 - Search for exact identifiers, messages, entity and attribute names first.
 - Read the relevant section of a file, not the whole file, unless the decision
@@ -1336,7 +1395,9 @@ folder and starts without decisions; refinement preserves the PBI and its decisi
 ## Forms and installers
 Optional form: open ${BASE}/PBI-Builder.html in desktop Edge or Chrome and select
 this repository folder each session. It saves intake/refinement briefs, prepares
-short prompts, checks readiness and refreshes evidence fingerprints. It does not
+short prompts, checks readiness, refreshes evidence fingerprints, discovers
+sources (solutions, projects and which sources are readable) and exports the
+developer handoff. It does not
 perform AI analysis. Windows alternative: Install-PBIBuilder.cmd from the package
 installs, verifies, repairs and uninstalls the same files. Both produce identical
 setup files for the same settings.
@@ -1357,7 +1418,9 @@ If a write fails, the installer restores every touched file and reports any
 restore failure. File operations are not a multi-file transaction.
 
 The agent applies to this repository and may need the solution reopened to be
-discovered. Check the Tools panel for the read/search/edit tools. Copilot
+discovered. Check the Tools panel for the read/search/edit tools. In Visual Studio the
+agent reads only the open solution or opened folder and its subfolders; open a folder
+that contains every repository listed in sources.yaml, or analyse from each one. Copilot
 sign-in, entitlement, model availability and IDE policies remain required.
 The installer cannot prove agent discovery or the quality of model output.
 Bundled ColorDMS analysis is historical, not current verified source behavior.
@@ -1617,6 +1680,7 @@ function templates(assets){
  const t=[{path:AGENT,template:AGENT_TEMPLATE},{path:BASE+'/COMPARISON-GUIDE.md',text:comparisonGuide()},{path:CONFIG,template:'{{PBI:CONFIG_JSON}}\n'},
   {path:BASE+'/sources.yaml',template:`version: 1
 pathResolution: "Relative paths are relative to the repository root; dot means the current repository."
+ideAccess: "Visual Studio agent tools read only the open solution or opened folder and its subfolders; open a folder that contains every repository you need, or analyse from that repository."
 project:
   name: "{{PBI:PROJECT_ESC}}"
   repositoryPath: "."
@@ -1830,6 +1894,7 @@ function handoff(state,report){
    evidence:ev(r.evidence),branches,acceptanceCriteria:acs.filter(x=>a(x.rules).includes(r.id)).map(x=>({id:x.id,type:x.type,criterion:x.criterion}))};});
  return {schemaVersion:1,pbi:s.pbi??null,generatedFrom:'pbi-state.json',applications:apps,
   readiness:report?{computedStatus:report.computedStatus,finalAllowed:report.finalAllowed,issues:report.issues.map(i=>i.code+' '+i.ref)}:null,
+  sourceAccess:a(s.sourceAccess).filter(o),dependencies:a(s.dependencies).filter(o),
   rules,decisions:decisions.map(d=>({id:d.id,status:d.status,evidence:d.evidence??null,supersedes:d.supersedes||null})),gaps};
 }
 function branchMatrix(h){
@@ -1858,6 +1923,8 @@ const READINESS={
  // DAB implements every rule in its own code; there is no DAB plugin.
  dabLayers:['function','handler','validator','domain-service','graphql','response','other'],dabStatus:['implemented','partial','missing','not-applicable'],
  branchCoverage:['covered','partial','missing','conflicting','unverified','not-applicable'],branchApps:['cdms','dab'],
+ // Bundled reference reports describe past code; they never count as evidence levels.
+ historicalPaths:[BASE+'/references/',BASE+'/REFERENCES-INDEX.md'],
  finalDocs:{cdmsRefined:['cdms','CDMS-REFINED-PBI.md'],dabRefined:['dab','DAB-REFINED-PBI.md']},registration:['active','disabled','missing','unknown'],
  pathStatus:['reaches','bypasses','unknown','not-applicable'],actions:['reuse','verify','extend','implement','resolve-gap'],
  acTypes:['positive','negative','boundary','permission'],identities:['caller','impersonated','service','unknown'],approvals:['poba','technical','user'],
@@ -1885,6 +1952,7 @@ const READINESS={
   DAB_BRANCH_GAP:'DAB is marked implemented, but a branch is not covered in DAB.',
   RULE_DUPLICATE:'The same rule text is recorded twice; keep one canonical rule and cite every source as evidence.',
   DOC_OUT_OF_SCOPE:'An application-specific PBI exists for an application this PBI does not apply to.',
+  HISTORICAL_NOT_PROOF:'Only historical reference reports support this rule; they are navigation aids, so read and cite the current source.',
   OWNER_UNKNOWN:'The owner of the rule is unknown; find which component enforces it.',
   OWNER_MISATTRIBUTED:'The owner is not backed by code evidence from that component (for example a workflow rule cited only with plugin code).',
   PATH_SCOPE_MISSING:'PBI execution-path scope missing or invalid: record cdms and dab (and any other path) as applies true, or false with a reason.',
@@ -1946,6 +2014,7 @@ async function readiness(state,docs,pbi){
   if(!Array.isArray(state.dependencies))add('NO_DEPENDENCIES',0,pbi);
   // Approval fingerprints are keyed by ID, so IDs must be unique across every list.
   const seen=[];for(const n of R.lists)for(const x of L[n]){const id=obj(x)?x.id:undefined;if(!str(id))continue;if(seen.includes(id))add('DUPLICATE_ID',0,id);else seen.push(id);}
+  const historical=x=>x.historical===true||(x.kind==='repo-file'&&typeof x.source==='string'&&R.historicalPaths.some(p=>p.endsWith('/')?x.source.startsWith(p):x.source===p));
   const evScope=obj(state.evidenceScope)?state.evidenceScope:{},excluded=arr(evScope.exclude).filter(x=>typeof x==='string');
   if(excluded.length&&byId(decisions,evScope.decisionRef)?.status!=='approved')add('SCOPE_DECISION_MISSING',2,pbi);
   const scope=obj(state.paths)?state.paths:{},applies=[];
@@ -1958,8 +2027,10 @@ async function readiness(state,docs,pbi){
    if(!meaningful(r.rule))add('CONTENT_MISSING',0,id);
    const types=r.owner.type==='multiple'?r.owner.types:[r.owner.type],scripted=types.some(t=>R.scripted.includes(t)),levels=[],comps=[];
    if(scripted&&(!R.registration.includes(r.registration)||r.registration==='unknown'))add('REGISTRATION_UNKNOWN',1,id);
-   for(const e of arr(r.evidence)){const x=byId(evidence,e);if(!x)add('EVIDENCE_UNKNOWN',1,id+'/'+show(e));else if(excluded.includes(x.system))add('EVIDENCE_OUT_OF_SCOPE',1,id+'/'+show(e));else{levels.push(x.level);if(x.level==='code'&&x.component!==undefined)comps.push(x.component);}}
+   let hist=false;
+   for(const e of arr(r.evidence)){const x=byId(evidence,e);if(!x)add('EVIDENCE_UNKNOWN',1,id+'/'+show(e));else if(excluded.includes(x.system))add('EVIDENCE_OUT_OF_SCOPE',1,id+'/'+show(e));else if(historical(x))hist=true;else{levels.push(x.level);if(x.level==='code'&&x.component!==undefined)comps.push(x.component);}}
    if(r.owner.type==='unknown')add('OWNER_UNKNOWN',1,id);else if(r.owner.type!=='none'&&!levels.includes('code'))add('NO_EVIDENCE',1,id);
+   if(hist&&!levels.includes('code'))add('HISTORICAL_NOT_PROOF',1,id);
    // Only judged when the code evidence names its component, so older states are unaffected.
    if(comps.length)for(const t of types)if(R.attributed.includes(t)&&!comps.includes(t))add('OWNER_MISATTRIBUTED',1,id+'/'+t);
    if(scripted&&['active','disabled','missing'].includes(r.registration)&&!levels.includes('registration'))add('LEVEL_EVIDENCE_MISSING',1,id+'/registration');
@@ -1970,7 +2041,7 @@ async function readiness(state,docs,pbi){
     if(!applies.includes(k)){if(st==='reaches'||st==='bypasses')add('PATH_CONFLICT',1,id+'/'+k);continue;}
     if(!R.pathStatus.includes(st)||st==='unknown'||(st==='not-applicable'&&!str(p.reason))){add('PATH_UNKNOWN',1,id+'/'+k);continue;}
     if(st==='not-applicable')continue;
-    let reach=false;for(const e of arr(p.evidence)){const x=byId(evidence,e);if(!x)add('EVIDENCE_UNKNOWN',1,id+'/'+k+'/'+show(e));else if(excluded.includes(x.system))add('EVIDENCE_OUT_OF_SCOPE',1,id+'/'+k+'/'+show(e));else if(x.system==='legacy-crm'&&k!=='cdms')add('LEGACY_NOT_TARGET_EVIDENCE',1,id+'/'+k+'/'+show(e));else if(x.level==='reach')reach=true;}
+    let reach=false;for(const e of arr(p.evidence)){const x=byId(evidence,e);if(!x)add('EVIDENCE_UNKNOWN',1,id+'/'+k+'/'+show(e));else if(excluded.includes(x.system))add('EVIDENCE_OUT_OF_SCOPE',1,id+'/'+k+'/'+show(e));else if(x.system==='legacy-crm'&&k!=='cdms')add('LEGACY_NOT_TARGET_EVIDENCE',1,id+'/'+k+'/'+show(e));else if(x.level==='reach'&&!historical(x))reach=true;}
     if(!reach)add('LEVEL_EVIDENCE_MISSING',1,id+'/'+k);}
    if(r.targetAction==='resolve-gap'||arr(r.gaps).some(g=>!obj(g)||g.status!=='resolved'))add('EVIDENCE_GAP',1,id);
    if(r.targetAction==='reuse'&&((scripted&&['disabled','missing'].includes(r.registration))||applies.some(k=>(k!=='dab'||r.dab===undefined)&&has(paths,k)&&obj(paths[k])&&paths[k].status==='bypasses')))add('REUSE_NOT_ENFORCED',1,id);
@@ -1984,7 +2055,7 @@ async function readiness(state,docs,pbi){
     else for(const b of r.branches){const bid=obj(b)&&str(b.id)?b.id:id+'/branch';
      if(!obj(b)||!str(b.id)||bids.includes(b.id)||!str(b.condition)||!str(b.expected)||apps.some(k=>!R.branchCoverage.includes(b[k]))||(apps.some(k=>b[k]==='conflicting')&&!str(b.risk))
       ||!arr(b.acceptance).length||arr(b.acceptance).some(a=>!acs.some(x=>obj(x)&&x.id===a&&arr(x.rules).includes(r.id)))){bad.push(bid);continue;}
-     bids.push(b.id);const ev=arr(b.evidence).map(e=>byId(evidence,e)).filter(x=>x&&!excluded.includes(x.system)&&x.level==='code');
+     bids.push(b.id);const ev=arr(b.evidence).map(e=>byId(evidence,e)).filter(x=>x&&!excluded.includes(x.system)&&!historical(x)&&x.level==='code');
      if(b.cdms==='covered'&&apps.includes('cdms')&&(!ev.length||(scripted&&r.registration!=='active')))add('BRANCH_COVERAGE_UNPROVEN',1,b.id+'/cdms');
      if(b.dab==='covered'&&apps.includes('dab')&&!ev.some(x=>x.system!=='legacy-crm'))add('BRANCH_COVERAGE_UNPROVEN',1,b.id+'/dab');
      for(const k of apps)if(!['covered','not-applicable'].includes(b[k]))open.add(k+':'+b.id);}
@@ -2140,7 +2211,60 @@ function zip(files){const local=[],central=[];let offset=0,centralSize=0;const u
  const e=new Uint8Array(22),v=new DataView(e.buffer),count=central.length;u32(v,0,0x06054b50);u16(v,8,count);u16(v,10,count);u32(v,12,centralSize);u32(v,16,offset);
  return new Blob([...local,...central,e],{type:'application/zip'});
 }
-const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,hash,read,write,plan,apply,listPbis,zip};
+// Source discovery: maps solutions, projects, references and file kinds of the selected folder, and checks each configured
+// source by reading a real file. It reads only .sln/.slnx/.csproj/.vbproj contents; other files are counted, never copied.
+const SOURCE_MAP=BASE+'/knowledge/source-map.json',SOURCE_MAP_MD=BASE+'/knowledge/SOURCE-MAP.md';
+const SKIP_DIRS=['.git','.vs','.github','bin','obj','node_modules','packages','TestResults','.angular','dist','playbook'];
+const FILE_KINDS={'.cs':'csharp','.vb':'vbnet','.js':'javascript','.ts':'typescript','.html':'html','.htm':'html','.aspx':'webforms','.ascx':'webforms','.asmx':'webforms','.master':'webforms',
+ '.sql':'sql','.xaml':'workflow','.graphql':'graphql','.config':'config','.json':'json','.xml':'xml','.resx':'resources'};
+const MARKERS=[['Microsoft.Xrm.Sdk.Workflow','crm-workflow'],['System.Activities','crm-workflow'],['Microsoft.Xrm.Sdk','crm-sdk'],['Microsoft.CrmSdk','crm-sdk'],['Microsoft.Crm.Sdk','crm-sdk'],
+ ['Microsoft.PowerPlatform.Dataverse.Client','dataverse'],['Microsoft.Azure.Functions.Worker','azure-functions'],['StrawberryShake','graphql'],['FluentValidation','fluentvalidation'],
+ ['System.Web','aspnet-webforms'],['EntityFramework','entity-framework'],['Microsoft.EntityFrameworkCore','entity-framework'],['MediatR','cqrs'],['Dapper','data-access']];
+const MAX_FILES=60000;
+function joinRel(dir,rel){const out=dir?dir.split('/'):[];for(const part of rel.replace(/\\/g,'/').split('/')){if(!part||part==='.')continue;if(part==='..'){if(!out.length)return null;out.pop();}else out.push(part);}return out.join('/');}
+function parseProject(path,text){
+ const dir=path.split('/').slice(0,-1).join('/'),m=(re)=>[...text.matchAll(re)].map(x=>x[1]);
+ const frameworks=[...m(/<TargetFrameworks?>([^<]+)<\/TargetFrameworks?>/g).flatMap(v=>v.split(';')),...m(/<TargetFrameworkVersion>([^<]+)<\/TargetFrameworkVersion>/g).map(v=>'.NET Framework '+v.replace(/^v/,''))].map(v=>v.trim()).filter(Boolean);
+ const refs=m(/<ProjectReference\s+Include="([^"]+)"/g).map(r=>joinRel(dir,r)??r.replace(/\\/g,'/'));
+ const packages=[...m(/<PackageReference\s+Include="([^"]+)"/g),...m(/<Reference\s+Include="([^",]+)/g)];
+ const tags=[...new Set(MARKERS.filter(([k])=>packages.some(p=>p===k||p.startsWith(k+'.'))).map(([,t])=>t))];
+ return {path,dir,sdk:(/<Project\s+Sdk="([^"]+)"/.exec(text)||[])[1]||null,frameworks:[...new Set(frameworks)],projectReferences:refs,markers:packages.filter(p=>MARKERS.some(([k])=>p===k||p.startsWith(k+'.'))).sort(),tags,files:{}};
+}
+async function discoverSources(root,config){
+ const files=[],state={truncated:false};
+ async function walk(dir,rel){for await(const [name,h] of dir.entries()){const p=rel?rel+'/'+name:name;
+  if(h.kind==='directory'){if(!SKIP_DIRS.includes(name.toLowerCase())||(rel&&name.toLowerCase()==='playbook'))await walk(h,p);}
+  else if(files.length<MAX_FILES)files.push(p);else{state.truncated=true;return;}}}
+ await walk(root,'');
+ const ext=f=>{const i=f.lastIndexOf('.');return i>f.lastIndexOf('/')?f.slice(i).toLowerCase():'';};
+ const solutions=[],projects=[];
+ for(const f of files.filter(f=>/\.(sln|slnx)$/i.test(f)).sort()){const text=await read(root,f),dir=f.split('/').slice(0,-1).join('/');
+  const listed=/\.slnx$/i.test(f)?[...text.matchAll(/<Project\s+Path="([^"]+)"/g)].map(x=>x[1]):[...text.matchAll(/^Project\("\{[^}]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.(?:cs|vb)proj)"/gm)].map(x=>x[1]);
+  solutions.push({path:f,projects:listed.map(r=>joinRel(dir,r)??r.replace(/\\/g,'/'))});}
+ for(const f of files.filter(f=>/\.(cs|vb)proj$/i.test(f)).sort())projects.push(parseProject(f,await read(root,f)));
+ const totals={};
+ for(const f of files){const k=FILE_KINDS[ext(f)];if(!k)continue;totals[k]=(totals[k]||0)+1;
+  const owner=projects.filter(x=>!x.dir||f.startsWith(x.dir+'/')).sort((a,b)=>b.dir.length-a.dir.length)[0];if(owner)owner.files[k]=(owner.files[k]||0)+1;}
+ // A source is readable only when a real file under it was read; a path outside the selected folder cannot be checked here.
+ const sources=[];
+ for(const key of ['legacy','dab','cdms']){const path=String(config?.sources?.[key]??'').trim();
+  if(!path){sources.push({key,path:'',status:'not-configured',reason:'No path in sources.yaml.'});continue;}
+  const prefix=path==='.'?'':path.replace(/\\/g,'/').replace(/\/+$/,'');
+  if(prefix&&(!isSafe(prefix))){sources.push({key,path,status:'configured-inaccessible',reason:'Outside the selected folder. In Visual Studio, agent file tools reach only the open solution folder or folder; open a common parent folder or analyse from that repository.'});continue;}
+  const probe=files.find(f=>(!prefix||f.startsWith(prefix+'/'))&&FILE_KINDS[ext(f)]&&!/\.(json|xml|config|resx)$/i.test(f));
+  const text=probe?await read(root,probe):null;
+  sources.push(text!==null?{key,path,status:'readable',checkedFile:probe}:{key,path,status:'configured-inaccessible',reason:'No readable source file found under this path in the selected folder.'});}
+ const map={schemaVersion:1,generatedAt:new Date().toISOString(),filesScanned:files.length,truncated:state.truncated,sources,solutions,projects,fileKinds:totals};
+ const md=['# Source map','','Generated by the PBI Builder form from the selected folder. It is a navigation aid: read the source before relying on it.',
+  'Refresh it after projects change (Continue tab > Discover sources).','','## Configured sources','| Source | Path | Status | Checked file or reason |','| --- | --- | --- | --- |',
+  ...sources.map(x=>`| ${x.key} | ${x.path||'(none)'} | ${x.status} | ${x.checkedFile||x.reason} |`),'','## Solutions',...(solutions.length?solutions.map(x=>'- '+x.path+': '+(x.projects.join(', ')||'no projects listed')):['None found.']),
+  '','## Projects','| Project | Frameworks | Markers | References | Files |','| --- | --- | --- | --- | --- |',
+  ...projects.map(x=>`| ${x.path} | ${x.frameworks.join(', ')||'?'} | ${x.tags.join(', ')} | ${x.projectReferences.join(', ')} | ${Object.entries(x.files).map(([k,n])=>k+' '+n).join(', ')} |`),
+  '','## File kinds (whole folder)',Object.entries(totals).sort().map(([k,n])=>k+' '+n).join(', ')||'None.',state.truncated?'\nStopped after '+MAX_FILES+' files; the map is incomplete.':'',''].join('\n');
+ await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
+ return map;
+}
+const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,listPbis,zip};
 global.PBI=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 </script>
@@ -2267,6 +2391,7 @@ action('cleanupComparison',async()=>{needRoot();const r=await PBI.cleanupCompari
 function selectedPbi(){const folder=$('existingPbi').value||$('manualPbi').value.trim();if(!folder)throw Error('Find and select an existing PBI first.');return folder;}
 action('exportHandoff',async()=>{needRoot();const r=await PBI.exportHandoff(root,selectedPbi()),h=r.handoff;msg('Wrote '+r.files.join(' and ')+'\nReadiness: '+r.report.computedStatus+' · rules: '+h.rules.length+' · branches: '+h.rules.reduce((n,x)=>n+x.branches.length,0)+' · open gaps: '+h.gaps.length+'\nGive business-rules.json to the development agent. Earlier exports were copied to history/.');});
 action('checkReadiness',async()=>{needRoot();const r=await PBI.checkPbi(root,selectedPbi());msg('Readiness for '+r.pbi+'\nComputed status: '+r.computedStatus+(r.claimedStatus?' (claimed: '+r.claimedStatus+')':'')+'\nFinal REFINED-PBI.md allowed: '+(r.finalAllowed?'yes':'no')+'\n\n'+(r.issues.map(x=>'['+x.cap+'] '+x.code+' '+x.ref+': '+x.message).join('\n')||'No issues found.')+(PBI.READINESS.statuses.indexOf(r.computedStatus)>=3?'\n\nApproval basis: give the agent the block for each approval it records, unchanged.\n'+Object.entries(r.review).map(([k,v])=>k+' (fingerprint '+v.fingerprint+'): '+JSON.stringify(v.basis)).join('\n'):'')+'\n\nThis checks completeness and consistency only, not business correctness or who approved.',!r.finalAllowed);});
+action('discoverSources',async()=>{needRoot();const m=await PBI.discoverSources(root,needConfig());msg(['Wrote '+PBI.SOURCE_MAP.replace('source-map.json','SOURCE-MAP.md')+' ('+m.filesScanned+' files scanned'+(m.truncated?', stopped early':'')+').','Solutions: '+m.solutions.length+' · projects: '+m.projects.length,...m.sources.map(s=>s.key+': '+s.status+(s.checkedFile?' (read '+s.checkedFile+')':s.reason?' ('+s.reason+')':''))].join('\n'),m.sources.some(s=>s.status==='configured-inaccessible'));});
 action('refreshEvidence',async()=>{needRoot();const r=await PBI.refreshEvidence(root);msg(r.checked||r.skipped.length?'Checked '+r.checked+' evidence entries. Newly fingerprinted: '+r.fingerprinted.length+'. Stale: '+(r.stale.join(', ')||'none')+'.'+(r.skipped.length?' Outside this repository (not fingerprinted): '+r.skipped.join(', ')+'.':'')+(r.written?' Index updated.':' No changes.'):'No evidence index found at '+PBI.KNOWLEDGE+'. The agent creates it when it records reusable knowledge.',r.stale.length>0);});
 </script>
 </body></html>

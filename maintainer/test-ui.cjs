@@ -41,6 +41,8 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  await ids.checkReadiness.onclick();assert.match(ids.message.textContent,/Computed status: Ready for Review[\s\S]*Approval basis[\s\S]*poba \(fingerprint [0-9a-f]{16}\): \{"AC-1":"[0-9a-f]{16}"/);
  await ids.exportHandoff.onclick();assert.match(ids.message.textContent,/Wrote playbook\/pbis\/[^\n]*business-rules\.json and [^\n]*BRANCH-COVERAGE-MATRIX\.md\nReadiness: Ready for Review · rules: 2 · branches: 0/);
  assert.equal(JSON.parse(await ctx.PBI.read(root,'playbook/pbis/'+shared.PBI+'/business-rules.json')).rules.length,2);
+ await ids.discoverSources.onclick();assert.match(ids.message.textContent,/Wrote playbook\/pbi-builder\/knowledge\/SOURCE-MAP\.md \(\d+ files scanned\)\.\nSolutions: \d+ · projects: \d+\nlegacy: readable \(read [^)]+\)/);
+ assert.ok(await ctx.PBI.read(root,ctx.PBI.SOURCE_MAP));
  // Guided Create PBI wizard: title, description, criteria, attachments, draft, resume, review, start analysis.
  const file=(name,text)=>({name,size:text.length,arrayBuffer:async()=>new TextEncoder().encode(text).buffer});
  // As in browsers, resetting a file input's value clears its selected files.

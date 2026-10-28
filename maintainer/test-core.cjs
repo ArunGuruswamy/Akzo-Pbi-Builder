@@ -153,7 +153,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.match(g,/Extract Plugin Rules: read the plugin code/);
   for(const re of [/Validation: a condition that throws/,/Default or calculation/,/Side effect/,/Guard: an early exit/,/async,\s+does not block/,/DAB has no plugin: it implements every applicable rule in\s+its own application code/,/Never\s+rely on the plugin for DAB/,/exact error message\s+copied from code/,/Data needed/,/dab reach evidence must come from the DAB code/,/PLUGIN-CATALOG.md/,/Never invent a rule, message, value or condition/])assert.match(c,re);
   assert.match(setup.files[P.BASE+'/skills/repository-knowledge.md'],/PLUGIN-CATALOG.md lists each plugin/);
-  const vs=P.setupFiles({...raw,ide:'visualstudio'},assets,html).files[P.AGENT];assert.match(vs,/tools: \["readfile", "code_search", "editfiles"\]/);
+  const vs=P.setupFiles({...raw,ide:'visualstudio'},assets,html).files[P.AGENT];assert.match(vs,/tools: \["readfile", "code_search", "find_references", "editfiles"\]/);
  });
  await test('XRM workflow guide: discovery, activation, branches, custom activities, termination, recursion, ownership, scopes, coverage matrix',async()=>{
   const a=setup.files[P.AGENT],x=setup.files[P.BASE+'/skills/xrm-workflow-intelligence.md'];
@@ -311,6 +311,62 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   await P.write(r,P.KNOWLEDGE,JSON.stringify({schemaVersion:1,entries:[{id:'K-1',path:'src/PaintSystemPlugin.cs',fact:'Activation replaces Master measurement',repository:'legacy',revision:'abc',method:'PaintSystemPlugin.Activate',entity:'paintsystem',trigger:'Update statuscode',rules:['BR-1'],confidence:'verified-source'}]}));
   await P.refreshEvidence(r);await P.write(r,'src/PaintSystemPlugin.cs','class P { void Activate(){ /* changed */ } }');const rr=await P.refreshEvidence(r);
   const idx=JSON.parse(await P.read(r,P.KNOWLEDGE)).entries[0];assert.deepEqual(rr.stale,['K-1']);assert.equal(idx.staleReason,'changed');assert.equal(idx.method,'PaintSystemPlugin.Activate');assert.deepEqual(idx.rules,['BR-1']);
+  await fs.rm(dir,{recursive:true,force:true});
+ });
+ await test('Visual Studio tool compatibility: only documented Visual Studio tool names, no terminal, VS Code names kept apart, pinned baselines unchanged',async()=>{
+  // Tool names documented for Visual Studio custom agents (learn.microsoft.com/visualstudio/ide/copilot-specialized-agents).
+  const VS_DOCUMENTED=['code_search','readfile','editfiles','find_references','runcommandinterminal','getwebpages'];
+  const tools=t=>JSON.parse(/^tools: (\[.*\])$/m.exec(t)[1]);
+  const vs=tools(P.setupFiles({...raw,ide:'visualstudio'},assets,html).files[P.AGENT]),code=tools(P.setupFiles({...raw,ide:'vscode'},assets,html).files[P.AGENT]);
+  assert.ok(vs.every(t=>VS_DOCUMENTED.includes(t)),vs.join());assert.ok(!vs.includes('runcommandinterminal'));assert.ok(!vs.some(t=>code.includes(t)));
+  assert.deepEqual(code,['read','search','edit','vscode/askQuestions']);
+  const vsCfg=P.setupFiles({...raw,ide:'visualstudio'},assets,html).config;
+  for(const key of Object.keys(P.BASELINES))assert.match(P.baselineAgent(vsCfg,key),/tools: \["readfile", "code_search", "editfiles"\]/);
+ });
+ await test('installed into a legacy repository: role legacy, source ".", access check, evidence priority and discovery report instructions',async()=>{
+  const legacy=P.setupFiles({projectName:'ColorDMS legacy',ide:'visualstudio',role:'legacy',sources:{legacy:'.',dab:'../DAB',cdms:''}},assets,html);
+  const y=legacy.files[P.BASE+'/sources.yaml'],a=legacy.files[P.AGENT],k=legacy.files[P.BASE+'/skills/repository-knowledge.md'];
+  assert.match(y,/role: "legacy"[\s\S]*legacy:\n    repositoryPath: "\."[\s\S]*dab:\n    repositoryPath: "\.\.\/DAB"/);assert.match(y,/ideAccess: "Visual Studio agent tools read only the open solution or opened folder/);
+  for(const re of [/## Source access before analysis/,/readable, configured but inaccessible, or not\s+configured by reading a real source file/,/Never call an inaccessible repository\s+missing and never invent a solution path/,/SOURCE-DISCOVERY\.md/])assert.match(a,re);
+  for(const re of [/not necessarily the application under\s+analysis/,/agent file tools reach only files in the open solution or\s+the opened folder/,/Never invent a path/,/\.sln\/\.slnx \(projects listed\), \.csproj\/\.vbproj/,
+   /UI or entry point[\s\S]*-> service or plugin -> validation -> business rule -> persistence[\s\S]*-> side effects/,/ASP\.NET Web\s+Forms/,/stored procedures/,/Never record connection strings, keys or other secrets/,
+   /1\. Current source code\. 2\. Current configuration and registrations\. 3\. Current\s+tests\. 4\. Current repository documentation\. 5\. Historical reports/,/the source wins/,/"sourceAccess": \[\{"source", "path", "status"/])assert.match(k,re);
+  assert.ok(Object.keys(legacy.files).every(f=>f.startsWith('.github/')||f.startsWith(P.BASE+'/')),'nothing outside agent and playbook files');
+ });
+ await test('source discovery: legacy solution mapping, project references, frameworks, markers, access classification, no source copied',async()=>{
+  const {dir,root:r}=await tempRoot('akzo-discover-');
+  const files={
+   'Legacy.sln':'Microsoft Visual Studio Solution File, Format Version 12.00\r\nProject("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Plugins", "Source\\Plugins\\Plugins.csproj", "{1}"\r\nEndProject\r\nProject("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Source\\Common\\Common.csproj", "{2}"\r\nEndProject\r\nProject("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{3}"\r\nEndProject\r\n',
+   'Source/Plugins/Plugins.csproj':'<Project ToolsVersion="15.0"><PropertyGroup><TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion></PropertyGroup><ItemGroup><Reference Include="Microsoft.Xrm.Sdk, Version=9.0.0.0" /><Reference Include="Microsoft.Xrm.Sdk.Workflow, Version=9.0.0.0" /><Reference Include="System.Data" /></ItemGroup><ItemGroup><ProjectReference Include="..\\Common\\Common.csproj" /></ItemGroup></Project>',
+   'Source/Plugins/PaintSystemValidator.cs':'public class PaintSystemValidator { void Validate() { throw new InvalidPluginExecutionException("Paint system does not have a measurement."); } }',
+   'Source/Plugins/Workflows/SetHistoric.xaml':'<Activity />','Source/Common/Common.csproj':'<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net48</TargetFramework></PropertyGroup><ItemGroup><PackageReference Include="Dapper" Version="2.0" /></ItemGroup></Project>',
+   'Source/Common/Data/PaintSystemRepository.cs':'class PaintSystemRepository {}','Source/Common/Data/usp_GetPaintSystem.sql':'CREATE PROCEDURE usp_GetPaintSystem AS SELECT 1',
+   'Web/Web.slnx':'<Solution><Project Path="Portal/Portal.csproj" /></Solution>','Web/Portal/Portal.csproj':'<Project><PropertyGroup><TargetFrameworkVersion>v4.8</TargetFrameworkVersion></PropertyGroup><ItemGroup><Reference Include="System.Web" /><ProjectReference Include="..\\..\\Source\\Common\\Common.csproj" /></ItemGroup></Project>',
+   'Web/Portal/Measurement.aspx':'<%@ Page %>','Web/Portal/Measurement.aspx.cs':'public partial class Measurement {}','Web/Portal/Web.config':'<configuration><connectionStrings><add name="db" connectionString="Server=secret;Password=hunter2"/></connectionStrings></configuration>',
+   'WebResources/PaintSystemLib.js':'function onSave(ctx){}','EmptyArea/readme.txt':'nothing to read',
+   'Source/Plugins/bin/Debug/Plugins.dll':'binary','node_modules/x/index.js':'x','playbook/pbis/pbi-1/REQUEST.md':'# r','.github/agents/a.agent.md':'---'};
+  for(const [p,t] of Object.entries(files))await P.write(r,p,t);
+  const before=new Set(Object.keys(files));
+  const m=await P.discoverSources(r,{sources:{legacy:'.',dab:'../DAB',cdms:'EmptyArea'}});
+  assert.deepEqual(m.solutions.map(s=>[s.path,s.projects]),[['Legacy.sln',['Source/Plugins/Plugins.csproj','Source/Common/Common.csproj']],['Web/Web.slnx',['Web/Portal/Portal.csproj']]]);
+  const byPath=Object.fromEntries(m.projects.map(x=>[x.path,x]));
+  assert.deepEqual(Object.keys(byPath),['Source/Common/Common.csproj','Source/Plugins/Plugins.csproj','Web/Portal/Portal.csproj']);
+  const plug=byPath['Source/Plugins/Plugins.csproj'],web=byPath['Web/Portal/Portal.csproj'],common=byPath['Source/Common/Common.csproj'];
+  assert.deepEqual(plug.frameworks,['.NET Framework 4.6.2']);assert.deepEqual(plug.projectReferences,['Source/Common/Common.csproj']);assert.deepEqual(plug.tags,['crm-workflow','crm-sdk']);assert.deepEqual(plug.files,{csharp:1,workflow:1});
+  assert.deepEqual(common.frameworks,['net48']);assert.equal(common.sdk,'Microsoft.NET.Sdk');assert.deepEqual(common.tags,['data-access']);assert.deepEqual(common.files,{csharp:1,sql:1});
+  assert.deepEqual(web.projectReferences,['Source/Common/Common.csproj']);assert.deepEqual(web.tags,['aspnet-webforms']);assert.deepEqual(web.files,{webforms:1,csharp:1,config:1});
+  assert.equal(m.fileKinds.javascript,1);assert.ok(!m.fileKinds.html);
+  assert.deepEqual(m.sources.map(s=>s.key+':'+s.status),['legacy:readable','dab:configured-inaccessible','cdms:configured-inaccessible']);
+  assert.match(m.sources[1].reason,/Outside the selected folder\. In Visual Studio/);assert.match(m.sources[2].reason,/No readable source file/);assert.ok(m.sources[0].checkedFile);
+  const md=await P.read(r,P.BASE+'/knowledge/SOURCE-MAP.md');assert.match(md,/\| dab \| \.\.\/DAB \| configured-inaccessible \|/);assert.match(md,/\| Source\/Plugins\/Plugins\.csproj \| \.NET Framework 4\.6\.2 \| crm-workflow, crm-sdk \| Source\/Common\/Common\.csproj \|/);
+  const json=await P.read(r,P.SOURCE_MAP);assert.ok(!/hunter2|InvalidPluginExecutionException|function onSave/.test(json+md),'no source or secret copied');
+  const notConfigured=await P.discoverSources(r,{sources:{legacy:'',dab:'',cdms:''}});assert.deepEqual(notConfigured.sources.map(s=>s.status),['not-configured','not-configured','not-configured']);
+  // Only the two map files were added; nothing else in the repository changed.
+  const all=[];const walk=async(d,rel)=>{for(const e of await fs.readdir(d,{withFileTypes:true})){const p=rel?rel+'/'+e.name:e.name;if(e.isDirectory())await walk(path.join(d,e.name),p);else all.push(p);}};await walk(dir,'');
+  assert.deepEqual(all.filter(p=>!before.has(p)).sort(),[P.BASE+'/knowledge/SOURCE-MAP.md',P.SOURCE_MAP].sort());
+  // The handoff keeps source access and repository dependencies for the development agent.
+  const h=P.handoff({sourceAccess:[{source:'dab',path:'../DAB',status:'configured-inaccessible',reason:'outside'}],dependencies:[{id:'DEP-1',repository:'DAB',responsibility:'Implement'}]},null);
+  assert.deepEqual(h.sourceAccess[0].status,'configured-inaccessible');assert.equal(h.dependencies[0].repository,'DAB');
   await fs.rm(dir,{recursive:true,force:true});
  });
  await test('guided intake: title-only draft, criteria modes, attachments and target project (scenarios A, B, C, D, E)',async()=>{

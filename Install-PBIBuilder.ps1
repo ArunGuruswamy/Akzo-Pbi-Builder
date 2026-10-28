@@ -301,6 +301,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         if (-not ((Get-Prop $state 'dependencies') -is [array])) { & $add 'NO_DEPENDENCIES' 0 $pbi }
         $seen = New-Object System.Collections.Generic.List[string]
         foreach ($n in $Spec.lists) { foreach ($x in $Lists[$n]) { $id = Get-Prop $x 'id'; if (-not (Test-Str $id)) { continue }; if ($seen.Contains($id)) { & $add 'DUPLICATE_ID' 0 $id } else { $seen.Add($id) } } }
+        $isHist = { param($x) if ((Get-Prop $x 'historical') -eq $true -and (Get-Prop $x 'historical') -is [bool]) { return $true }; $src = Get-Prop $x 'source'; if (-not (Test-Same (Get-Prop $x 'kind') 'repo-file') -or -not ($src -is [string])) { return $false }; foreach ($p in $Spec.historicalPaths) { if ($p.EndsWith('/')) { if ($src.StartsWith($p, [System.StringComparison]::Ordinal)) { return $true } } elseif (Test-Same $src $p) { return $true } }; return $false }
         $evScope = Get-Prop $state 'evidenceScope'; $excluded = @((Get-Arr (Get-Prop $evScope 'exclude')) | Where-Object { $_ -is [string] })
         if ($excluded.Count -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $evScope 'decisionRef')) 'status') 'approved')) { & $add 'SCOPE_DECISION_MISSING' 2 $pbi }
         $scope = Get-Prop $state 'paths'; if (-not (Test-Obj $scope)) { $scope = [pscustomobject]@{} }
@@ -325,12 +326,15 @@ function Get-Readiness($state, $docs, [string]$pbi) {
             $scripted = @($types | Where-Object { Test-In $Spec.scripted $_ }).Count -gt 0
             if ($scripted -and (-not (Test-In $Spec.registration $reg) -or (Test-Same $reg 'unknown'))) { & $add 'REGISTRATION_UNKNOWN' 1 $id }
             $levels = New-Object System.Collections.ArrayList; $comps = New-Object System.Collections.ArrayList
+            $hist = $false
             foreach ($e in (Get-Arr (Get-Prop $r 'evidence'))) {
                 $x = Find-Id $evidence $e
                 if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$(Get-Shown $e)" } elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$(Get-Shown $e)" }
+                elseif (& $isHist $x) { $hist = $true }
                 else { [void]$levels.Add((Get-Prop $x 'level')); if ((Test-Same (Get-Prop $x 'level') 'code') -and (Test-Has $x 'component')) { [void]$comps.Add((Get-Prop $x 'component')) } }
             }
             if (Test-Same $otype 'unknown') { & $add 'OWNER_UNKNOWN' 1 $id } elseif (-not (Test-Same $otype 'none') -and -not (Test-In $levels 'code')) { & $add 'NO_EVIDENCE' 1 $id }
+            if ($hist -and -not (Test-In $levels 'code')) { & $add 'HISTORICAL_NOT_PROOF' 1 $id }
             # Only judged when the code evidence names its component, so older states are unaffected.
             if ($comps.Count) { foreach ($t in $types) { if ((Test-In $Spec.attributed $t) -and -not (Test-In $comps $t)) { & $add 'OWNER_MISATTRIBUTED' 1 "$id/$t" } } }
             if ($scripted -and ((Test-Same $reg 'active') -or (Test-Same $reg 'disabled') -or (Test-Same $reg 'missing')) -and -not (Test-In $levels 'registration')) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/registration" }
@@ -348,7 +352,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
                     if ($null -eq $x) { & $add 'EVIDENCE_UNKNOWN' 1 "$id/$k/$(Get-Shown $e)" }
                     elseif (Test-In $excluded (Get-Prop $x 'system')) { & $add 'EVIDENCE_OUT_OF_SCOPE' 1 "$id/$k/$(Get-Shown $e)" }
                     elseif ((Test-Same (Get-Prop $x 'system') 'legacy-crm') -and -not (Test-Same $k 'cdms')) { & $add 'LEGACY_NOT_TARGET_EVIDENCE' 1 "$id/$k/$(Get-Shown $e)" }
-                    elseif (Test-Same (Get-Prop $x 'level') 'reach') { $reach = $true }
+                    elseif ((Test-Same (Get-Prop $x 'level') 'reach') -and -not (& $isHist $x)) { $reach = $true }
                 }
                 if (-not $reach) { & $add 'LEVEL_EVIDENCE_MISSING' 1 "$id/$k" }
             }
@@ -380,7 +384,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
                         }
                         if ($broken) { $bad.Add($bid); continue }
                         $bids.Add($bidv)
-                        $ev = @(); foreach ($e in (Get-Arr (Get-Prop $b 'evidence'))) { $x = Find-Id $evidence $e; if ($null -ne $x -and -not (Test-In $excluded (Get-Prop $x 'system')) -and (Test-Same (Get-Prop $x 'level') 'code')) { $ev += , $x } }
+                        $ev = @(); foreach ($e in (Get-Arr (Get-Prop $b 'evidence'))) { $x = Find-Id $evidence $e; if ($null -ne $x -and -not (Test-In $excluded (Get-Prop $x 'system')) -and -not (& $isHist $x) -and (Test-Same (Get-Prop $x 'level') 'code')) { $ev += , $x } }
                         if ((Test-Same (Get-Prop $b 'cdms') 'covered') -and $apps -contains 'cdms' -and ($ev.Count -eq 0 -or ($scripted -and -not (Test-Same $reg 'active')))) { & $add 'BRANCH_COVERAGE_UNPROVEN' 1 "$bidv/cdms" }
                         if ((Test-Same (Get-Prop $b 'dab') 'covered') -and $apps -contains 'dab' -and @($ev | Where-Object { -not (Test-Same (Get-Prop $_ 'system') 'legacy-crm') }).Count -eq 0) { & $add 'BRANCH_COVERAGE_UNPROVEN' 1 "$bidv/dab" }
                         foreach ($k in $apps) { $cv = Get-Prop $b $k; if (-not (Test-Same $cv 'covered') -and -not (Test-Same $cv 'not-applicable')) { $key = "${k}:$bidv"; if (-not $open.Contains($key)) { $open.Add($key) } } }

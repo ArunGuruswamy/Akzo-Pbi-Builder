@@ -7,6 +7,8 @@ Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`
   `skills/crm-plugin-workflow-intelligence.md`, `skills/xrm-workflow-intelligence.md`,
   `skills/business-rule-ownership.md` and `skills/business-rule-branch-completeness.md`. The PBI template gains an application line and
   CDMS/DAB ownership columns.
+- The Visual Studio agent gains the `find_references` tool; sources.yaml gains an `ideAccess`
+  note (a sources.yaml you edited is reported as a conflict, as before).
 - PBI folders are not changed. pbi-state.json stays schemaVersion 2; existing approvals keep
   their fingerprints and stay valid (tested). New fields (question options and answers,
   evidence `system`, `evidenceScope`) are optional.

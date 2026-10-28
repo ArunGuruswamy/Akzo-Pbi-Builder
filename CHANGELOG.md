@@ -13,6 +13,27 @@
 - Commands: Resume, Review, Edit, Show Decisions, Analyze Legacy, Show Technical Flow,
   Generate Acceptance Criteria, Export and Validate PBI.
 
+### Visual Studio source access and discovery
+- Checked against Microsoft's Visual Studio documentation: custom agents live in
+  `.github/agents/*.agent.md` (Visual Studio 18.4+); documented tool names include `readfile`,
+  `code_search`, `editfiles` and `find_references`; agent file tools reach only the open
+  solution or opened folder and its subfolders. The Visual Studio agent now also has
+  `find_references` (read-only caller tracing); no terminal tool. Pinned comparison agents keep
+  their original tools.
+- Agent and repository-knowledge guide: source access check before every analysis (readable,
+  configured but inaccessible, not configured, proven by a real file read; never "missing"),
+  solution and project mapping, tracing from entry point to persistence and side effects for
+  legacy .NET Framework, Web Forms, plugins, workflows, web resources, SQL and configuration (no
+  secrets recorded), evidence priority (current source first, bundled reports last), and
+  SOURCE-DISCOVERY.md per PBI; pbi-state.json may record `sourceAccess`.
+- Readiness: bundled reports under playbook/pbi-builder/references/ (or evidence marked
+  `historical`) never count as evidence; `HISTORICAL_NOT_PROOF` when a rule has nothing else.
+- Form: Discover sources writes knowledge/SOURCE-MAP.md and source-map.json (solutions, projects,
+  references, frameworks, markers, file kinds, access per source); reads only solution and project
+  files. The developer handoff now carries `sourceAccess` and `dependencies`.
+- sources.yaml states the Visual Studio access rule; user guide: setups for legacy, DAB, CDMS and
+  several repositories, and a Visual Studio check.
+
 ### Branch completeness, developer handoff and speed
 - New mandatory guide `skills/business-rule-branch-completeness.md`: conditions, Yes/No
   branches, success, validation failures, status transitions, side effects, failure and
