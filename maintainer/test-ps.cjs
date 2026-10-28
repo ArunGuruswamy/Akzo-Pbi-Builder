@@ -32,7 +32,7 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
    let r;
    if(i===0){// Quotes in a command-line argument are unreliable in PowerShell 5.1, so this case starts from an existing config.json.
     await fs.mkdir(path.join(b,'playbook/pbi-builder'),{recursive:true});await fs.copyFile(path.join(a,P.CONFIG),path.join(b,P.CONFIG));r=ps(pkg,['-RepoPath',b]);}
-   else r=ps(pkg,['-RepoPath',b,'-ProjectName',cfg.projectName,'-Ide',cfg.ide,'-Role',cfg.role,'-LegacySource',cfg.sources.legacy,'-DabSource',cfg.sources.dab,'-CdmsSource',cfg.sources.cdms,...(cfg.includeReferences?[]:['-NoReferences'])]);
+   else r=ps(pkg,['-RepoPath',b,'-ProjectName',cfg.projectName,'-Ide',cfg.ide,'-Role',cfg.role,'-LegacySource',cfg.sources.legacy,'-DabSource',cfg.sources.dab,'-CdmsSource',cfg.sources.cdms,...(cfg.includeReferences?['-IncludeReferences']:['-NoReferences'])]);
    assert.equal(r.code,0,r.err+r.out);
    assert.deepEqual(await tree(b),await tree(a),cfg.projectName);
    assert.match(r.out,new RegExp('select Akzo SDD PBI Builder - '));
@@ -138,7 +138,7 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
   const setup=args=>ps(pkg,['-NoGui','-HomeRoot',home,...args],'PBI-Builder-Setup.ps1');
   const version=async d=>(await loose(path.join(d,P.MANIFEST))).packageVersion;
   const a=await repo();let r=setup(['-Action','Install','-Repo',a,'-Ide','vscode','-Role','dab']);assert.equal(r.code,0,r.out+r.err);
-  assert.equal(await version(a),P.VERSION);assert.equal((await loose(path.join(a,P.CONFIG))).role,'dab');assert.deepEqual((await fs.readFile(reg,'utf8')).trim().split(/\r?\n/),[a]);
+  assert.equal(await version(a),P.VERSION);assert.equal((await loose(path.join(a,P.CONFIG))).role,'dab');assert.equal((await loose(path.join(a,P.CONFIG))).includeReferences,false,'historical reports are opt-in');await assert.rejects(fs.access(path.join(a,P.BASE,'references')));assert.deepEqual((await fs.readFile(reg,'utf8')).trim().split(/\r?\n/),[a]);
   r=setup(['-Action','Install','-Repo',a]);assert.equal(r.code,0);assert.match(r.out,/Already up to date/);
   // Two 3.0.0 installations; one has an edited agent. Upgrade all upgrades the clean one, keeps its settings and reports the other.
   const a30={...assets,template:await fs.readFile(path.join(__dirname,'fixtures/baseline-v3.0.0-template.md'),'utf8')};

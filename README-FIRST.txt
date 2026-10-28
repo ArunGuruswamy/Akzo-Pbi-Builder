@@ -36,6 +36,8 @@ reported); replaced files are backed up first. Or run the installer with
 parameters, for example:
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -ProjectName "My Repo" -Ide vscode -Role dab -Preview
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -AllowUpdates
+  (the older ColorDMS analysis documents are not installed unless you add -IncludeReferences;
+  the agent investigates the repository directly and never needs them)
   powershell -File PBI-Builder-Setup.ps1 -NoGui -Action Upgrade   (all listed repositories)
 Actions: -Action Install (default), Verify, Repair, Uninstall, CheckPbi,
 RefreshEvidence. -Preview shows changes without writing. Uninstall-PBIBuilder.cmd
@@ -46,12 +48,14 @@ If the policy blocks it, ask IT or use Option A. Do not change the policy yourse
 
 CREATE A PBI
 Open a NEW Copilot chat for every new PBI, so nothing from an earlier PBI is
-carried over. In Copilot type "Create PBI", or use the New PBI tab of the form. Choose the
-application: CDMS, DAB or Both. There is no DAB plugin: DAB implements every
-applicable legacy rule in its own code, while CDMS reuses verified plugins. You are guided
-through six short steps; save a draft any time. Business questions come one at
-a time with selectable answers (VS Code) or numbered options, and can also be
-answered on the form's Continue tab. See docs/USER-GUIDE.md.
+carried over. In Copilot type "Create PBI", or use the New PBI tab of the form. The
+agent asks, in one message, only for what is missing: the PBI number or title, the
+requirement, and optionally the investigation scope. It then investigates the source
+on its own and asks only genuine business decisions, each with a recommendation,
+numbered choices and a ready-to-use answer (Business Decision Advisor skill). There
+is no DAB plugin: DAB implements every applicable legacy rule in its own code, while
+CDMS reuses verified plugins. Answers can also be given on the form's Continue tab.
+See docs/USER-GUIDE.md.
 
 UPGRADING FROM 3.1.0
 Install as above and allow reviewed updates (in the setup window: Install /

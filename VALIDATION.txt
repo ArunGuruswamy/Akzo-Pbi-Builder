@@ -34,7 +34,22 @@ REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copi
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 40 checks on real temporary files. These are the 26 earlier
+- test-core.cjs: 42 checks on real temporary files.
+  - repository first: the agent never requires, creates or trusts an end-to-end
+    analysis document; no installed instruction asks for SOURCE-DISCOVERY.md or
+    for opening reference documents first; the lightweight PBI files stay
+    required; no readiness message requires an analysis document; new
+    installations leave the historical reports out, an existing choice keeps them;
+  - compact intake, autonomous investigation and the Business Decision Advisor: the
+    PBI 277355 regression expectations checked against the installed instructions
+    (intake, no permission questions, sibling solutions and web resources, no
+    premature missing claim, end-to-end trace, field values, scope, separate rules,
+    preserved decisions, numbered recommendation with ready-to-use answer, evidence
+    matrix, real tools only); skill frontmatter valid; no PBI-specific facts in the
+    reusable agent; scope recorded in REQUEST.md and the start prompt;
+  - Discover sources lists folders, including JavaScript outside every project.
+  This checks instructions, not model behavior: see docs/REGRESSION-277355.md for the
+  live check in Visual Studio. These are the 26 earlier
   checks (tool-list assertion updated) plus:
   - 4.0 agent wording, the Extract Plugin Rules and speed instructions, and the
     new guides;
@@ -87,7 +102,7 @@ PASSED
     apart, pinned comparison agents unchanged;
   - installed into a legacy repository (role legacy, source "."): sources.yaml
     access note, access check, evidence priority, tracing chain, no secrets,
-    SOURCE-DISCOVERY.md and sourceAccess instructions; only agent and playbook
+    Source access section of EVIDENCE.md and sourceAccess instructions; only agent and playbook
     files are written;
   - source discovery on a real temporary legacy repository: classic .sln and
     .slnx parsing, old-style and SDK projects, .NET Framework and net48,
@@ -145,7 +160,8 @@ PASSED
     the chosen area; a rerun is already up to date; Status lists up to date and
     update available; Upgrade all upgrades a 3.0.0 installation (settings kept,
     backups made) and skips one whose agent was edited (nothing written there,
-    reported); Verify; Uninstall forgets the repository; no ExecutionPolicy
+    reported); a new installation leaves the historical reports out; Verify;
+    Uninstall forgets the repository; no ExecutionPolicy
     override in the launcher or the window script.
   - The window itself was opened on this machine and its controls listed through
     UI Automation (title, repository list, Add repository, Install / Upgrade,

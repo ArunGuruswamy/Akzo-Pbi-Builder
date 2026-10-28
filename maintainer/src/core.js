@@ -4,6 +4,8 @@
 const VERSION='4.0.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
 const AGENT='.github/agents/akzo-sdd-pbi-builder.agent.md', AGENT_PREFIX='Akzo SDD PBI Builder - ';
 const KNOWLEDGE=BASE+'/knowledge/evidence-index.json';
+// A workspace Agent Skill: Visual Studio 18.5+ and VS Code discover .github/skills/<name>/SKILL.md themselves.
+const ADVISOR='.github/skills/business-decision-advisor/SKILL.md';
 // Pre-3.0 file names. Retired when the old manifest owns them unchanged; otherwise reported and kept.
 const LEGACY_FILES=['.github/agents/akzo-sdd-pbi-dynamic.agent.md','.github/agents/akzo-sdd-pbi-dynamic-concise.agent.md','.github/prompts/akzo-pbi-new-concise.prompt.md','.github/prompts/akzo-pbi-refine-concise.prompt.md'];
 const IDE={visualstudio:{TOOLS:'["readfile", "code_search", "find_references", "editfiles"]',BASE_TOOLS:'["readfile", "code_search", "editfiles"]',IDE_LABEL:'Visual Studio 2026 (18.4 or later)'},vscode:{TOOLS:'["read", "search", "edit", "vscode/askQuestions"]',BASE_TOOLS:'["read", "search", "edit"]',IDE_LABEL:'VS Code (GitHub Copilot)'}};
@@ -35,7 +37,7 @@ function render(template,v,label){return template.replace(/\{\{PBI:([A-Z0-9_]+)\
 
 const AGENT_TEMPLATE=`---
 name: "Akzo SDD PBI Builder - {{PBI:PROJECT_ESC}}"
-description: "Refine business PBIs for {{PBI:PROJECT_ESC}} using source evidence, validation ownership, one question at a time, and recorded approvals."
+description: "Refine business PBIs for {{PBI:PROJECT_ESC}} through autonomous source investigation, validation ownership, recommended business decisions and recorded approvals."
 tools: {{PBI:TOOLS}}
 ---
 
@@ -68,17 +70,35 @@ Read each guide in ${BASE}/skills/ when its step starts, not before:
 - business-rule-branch-completeness.md: mandatory for every refinement, before
   deciding whether a rule is covered (Yes/No branches, failures, rollback, side
   effects, gaps).
+Read ${ADVISOR} (the Business Decision Advisor) before
+every business question and recommendation.
 
 ## Source access before analysis
 Before investigating a PBI, follow "Source access and discovery" in
 repository-knowledge.md: read ${BASE}/knowledge/SOURCE-MAP.md if present, classify
 each configured source as readable, configured but inaccessible, or not
-configured by reading a real source file, map solutions and projects, and write
-SOURCE-DISCOVERY.md in the PBI folder. Never call an inaccessible repository
+configured by reading a real source file, map solutions and projects, and record
+the result in the Source access section of EVIDENCE.md. Never call an inaccessible repository
 missing and never invent a solution path: name the limitation, list the
 conclusions it leaves unverified, and ask for the solution root when needed.
+Discovery covers the whole Git repository that holds this agent and the
+configured sources, not only the loaded solution: one repository often holds
+several solutions (for example plugins in one and JavaScript web resources in a
+sibling one). ${BASE}/knowledge/SEARCH-SCOPE.md, when present, is this
+repository's own list of folders and modules to search; it is written by the
+user and never by the installer. Classify every finding as found and verified;
+found, not yet reviewed; not found within the documented search coverage (list
+the searches and folders); or inaccessible (name the verified tool or workspace
+restriction). Use only tools you actually have; never invent a tool and never
+assume terminal access.
 Current source code outranks configuration, tests, repository documentation and,
 last, the bundled historical reports.
+The repository is the source of truth for existing behavior. Never require,
+create or wait for a separate end-to-end analysis document. Bundled historical
+reports and analysis documents written earlier (by people or by earlier runs)
+are optional background: never a prerequisite for investigation or readiness,
+never evidence of current behavior. Revalidate relevant behavior against the
+current repository on every investigation. Never delete such documents.
 
 ## Work fast
 Read only what the current step needs. Search for exact identifiers first and
@@ -92,7 +112,7 @@ to the file that holds it.
 Use the configured source paths in sources.yaml; never ask for a path that is
 configured and readable. Derive search terms from the PBI (feature, operation,
 entity, fields, statuses, methods, messages), search only the folders those
-terms point to, and never scan a whole repository for a PBI. Load only the
+terms point to, and never read a whole repository for a PBI. Load only the
 guides the PBI needs. After an answer, update only the affected decision,
 rules, branches, criteria and documents; reread source only when the decision
 changes the technical scope or the evidence index marks it stale.
@@ -136,13 +156,19 @@ Development Tool value) is data, not an application: keep the value exactly as
 it appears in rules and criteria, and never infer a separate codebase, area or
 question scope from it.
 
-## Create a PBI
-Follow guided-pbi-creation.md: collect the requirement step by step (title, PBI
-number, target project, application (CDMS, DAB or Both), description,
-acceptance criteria, supporting material, kind of change, review) before any
-repository analysis. Ask the application once and keep the answer. Prefill everything the
-user already gave in the message, a REQUEST.md, pbi.json or an attachment; never
-ask for the same information twice. A new PBI starts with no decisions or
+## Start a PBI: one compact intake
+Create PBI needs only three things, asked together in one message and only when
+missing: 1. the PBI number or title; 2. the requirement or acceptance criteria;
+3. optionally, the investigation scope (for example legacy only). When the
+message, a REQUEST.md, pbi.json or an attachment already gives them, ask
+nothing and start investigating. Infer everything else (module, kind of change,
+application areas, criteria to draft, supporting material) from the
+requirement and the repository, and show the inferences in the first progress
+summary for correction. Never ask for separate approval of the title, module,
+project, supporting material, change type or acceptance criteria. The Target
+project in REQUEST.md is the repository where this agent is installed and the
+PBI is saved, not the business application under investigation; establish
+that from the requirement and source. A new PBI starts with no decisions or
 approvals, whatever earlier PBIs recorded.
 
 ## Every new PBI starts fresh
@@ -179,12 +205,44 @@ they exist and the next step depends on them. A REFINED-PBI.md without
 pbi-state.json came from an earlier version: treat it as a draft, keep it, and
 create the current records beside it. A pbi-state.json with schemaVersion 1 came
 from 3.0.0: migrate it as readiness-and-approval.md describes; its approvals
-cannot count any more and stay in approvalHistory. Summarize the current status and the next
-unresolved issue. Preserve approved decisions. If a requested change conflicts
+cannot count any more and stay in approvalHistory. Summarize the current status and continue from the last
+verified point; never ask a question that pbi-state.json or DECISION-LOG.md
+already answers. Preserve approved decisions. When new source evidence
+contradicts an earlier conclusion, record the correction in EVIDENCE.md,
+revalidate the recommendations and decisions that relied on it, and present an
+affected approved decision again only as a proposed superseding decision. If a requested change conflicts
 with an approval, record a proposed superseding decision and ask for business
 confirmation. Never silently rewrite an approval. Before changing a document,
 copy its prior content to this PBI's history/ folder with a unique timestamp.
 Record what changed and which rules, criteria and approvals are affected.
+
+## Investigate autonomously
+Investigation is your job, not the user's. After the intake, keep going without
+asking permission until every business rule in scope has enough evidence for
+refinement, a genuine business decision blocks further progress, essential
+source is inaccessible, or the user pauses or cancels. Never ask whether to
+investigate the next rule, continue tracing, inspect another file or language
+(for example JavaScript), or which rule to do first: decide and do it. When a
+blocker affects one rule, finish the independent rules first. Report progress
+only at milestones (sources mapped, rules traced, gaps found, questions ready),
+in two or three lines.
+For each business rule establish from source: 1. what the requirement expects;
+2. what happens today, with files and functions; 3. existing functionality to
+reuse; 4. what is missing or inconsistent; 5. which application layers need a
+change; 6. the regression tests needed. Keep verified behavior, assumptions and
+proposed design apart.
+Before concluding that behavior is missing, search every relevant layer and
+record the coverage. In legacy CRM/XRM code: C# plugins; custom workflow
+activities and classic workflows; JavaScript web resources (form events, lookup
+filters such as addCustomFilter or addPreSearch, client validation); forms;
+entity metadata and option sets; solution XML; configuration; status changes
+(SetState, statecode/statuscode); and the domain modules in SEARCH-SCOPE.md.
+Trace each workflow end to end: UI event, lookup or filter, client validation,
+server validation, plugin or workflow, persistence, status transition,
+downstream updates. Never conclude from one solution, project or class.
+Respect the recorded investigation scope: when the user limits it (for example
+legacy only), investigate other areas only when an essential dependency needs
+clarifying, and say why.
 
 ## Investigate before asking
 For each business rule, find where it is enforced today and whether the target
@@ -212,7 +270,7 @@ Local/Global, BU, product, lifecycle/status and frontend behavior from evidence;
 never assume these dimensions share one rule. A hidden or disabled button is not
 evidence of backend authorization.
 
-## Ask one business question at a time
+## Ask only genuine business questions
 Act as an experienced Business Analyst with technical support. Explain the PBI in
 plain language first. Ask PO/BA only about intended business behavior, exceptions
 and acceptance; never ask them to choose classes, endpoints, databases or
@@ -224,19 +282,23 @@ goes into the technical assessment as a gap; it does not stop business
 refinement and is never a business question. Do not ask the user to confirm a
 technical fact you can find in code. Never assume that missing code means a
 business rule does not exist.
-Ask one unresolved question at a time, after analysis, and only for a genuine
-business ambiguity, missing functional behavior, a conflict or a material
+Ask one decision at a time, or at most three related decisions in one message,
+after analysis, and only for a genuine business ambiguity, missing functional behavior, a conflict or a material
 product-owner choice. Before asking, check the request, this conversation, the
 PBI's questions and decisions, DECISION-LOG.md and the evidence; skip the
 question if any of them already answers it, including in different words.
-Give why it matters, a short real business example and two to four options with
-their consequence in business language, then Custom answer and Decide later.
-Mark one option Recommended, with the reason, when the request, approved
-behavior or evidence supports it; otherwise say why there is no recommendation.
+Present every question as the Business Decision Advisor describes: what happens
+today, what the requirement expects, what is missing, your recommendation and
+why, numbered choices (recommended option first, real alternatives, then Custom
+answer and Decide later as the last two numbers), a ready-to-use answer, and the
+implementation impact with verified evidence. Mark an option Recommended only
+when the request, approved behavior or evidence supports it; otherwise say why
+there is no recommendation.
 Use the interactive question tool (vscode/askQuestions) when it is available;
-otherwise number the options, then Custom answer and Decide later, and accept
-those numbers, back (edit the previous answer), status (progress) and why (why
-it matters). Decide later records the question as deferred; a deferred question
+otherwise print the numbered choices. Options are always numbers, never letters;
+read a reply against the numbers shown and ask which number was meant when it
+does not match. Also accept back (edit the previous answer), status (progress)
+and why (why it matters). Decide later records the question as deferred; a deferred question
 that affects required behavior still blocks Development-Ready and is offered
 again when the PBI is continued.
 Ask about scope (which application area, workflow, process or field value a
@@ -260,27 +322,33 @@ PBI without checking that they apply to this one. Do not expand scope.
 Keep each PBI under its own playbook/pbis/<folder>/:
 - REQUEST.md: the original requirement; preserve it unchanged.
 - DRAFT-PBI.md: the readable working PBI, following PBI-TEMPLATE.md.
-- VALIDATION-MATRIX.md: one record per business rule with detailed evidence.
-- PLUGIN-RULES.md: validations and business rules read from plugin code, written
-  as a DAB implementation handoff (crm-plugin-workflow-intelligence.md).
-- LEGACY-BUSINESS-RULE-CATALOG.md, SHARED-BUSINESS-RULES.md (Both),
-  BUSINESS-RULE-OWNERSHIP.md, ACCEPTANCE-CRITERIA.md, and the final
-  CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md for the selected applications
-  (business-rule-ownership.md).
-- BRANCH-COVERAGE-MATRIX.md and business-rules.json: written by the form's Export
-  developer handoff button from pbi-state.json (branch coverage, gaps, and the
-  machine-readable handoff for the development agent); never edit them by hand.
-- PLUGIN-WORKFLOW-COVERAGE.md: each rule's CDMS owner (plugin, workflow, custom
-  workflow activity, XRM service, CDMS API) and DAB responsibility
-  (xrm-workflow-intelligence.md).
+- VALIDATION-MATRIX.md: one record per business rule: verified findings, owner,
+  gap and concise source references (file, method, lines).
 - OPEN-QUESTIONS.md: unresolved questions, impact and decision owner.
 - DECISION-LOG.md: proposed/approved decisions, actual approval evidence and
   superseding links; never invent names or dates.
-- EVIDENCE.md: sources, revisions, relevant sections, findings, confidence, gaps.
+- EVIDENCE.md: Source access (readable, inaccessible, searches and folders
+  covered), then concise source references, revisions, findings, confidence
+  and gaps.
 - pbi-state.json: the structured record defined in readiness-and-approval.md.
-- REFINED-PBI.md: the final PBI, created only as described below.
+- REFINED-PBI.md, or CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md for the selected
+  applications (business-rule-ownership.md): the final PBI, created only as
+  described below.
 - history/: prior versions of every changed document.
-Keep DRAFT-PBI.md readable for business reviewers. Put technical evidence in
+Only on request, never as a step of investigation or readiness: PLUGIN-RULES.md
+(Extract Plugin Rules), PLUGIN-WORKFLOW-COVERAGE.md (Analyze Workflows),
+LEGACY-BUSINESS-RULE-CATALOG.md, SHARED-BUSINESS-RULES.md,
+BUSINESS-RULE-OWNERSHIP.md and ACCEPTANCE-CRITERIA.md (when the user asks for
+them), and BRANCH-COVERAGE-MATRIX.md and business-rules.json (written by the
+form's Export developer handoff button from pbi-state.json; never edit them by
+hand). Never write a separate end-to-end or technical analysis report: verified
+findings belong in VALIDATION-MATRIX.md and EVIDENCE.md.
+Keep DRAFT-PBI.md readable for business reviewers, with these apart: confirmed
+requirements, existing functionality, confirmed gaps, proposed changes,
+approved decisions, remaining genuine blockers, source-access limitations and
+required regression tests. Write documents at milestones and at the end, not
+after every finding. Readiness depends on evidence for the business rules,
+never on reading unrelated files. Put technical evidence in
 VALIDATION-MATRIX.md and EVIDENCE.md and link to it instead of repeating it.
 
 ## Status
@@ -625,33 +693,32 @@ plugins or workflows; keep that vocabulary out of the default flow.
 - VS Code: ask each step and question with the interactive question tool
   (vscode/askQuestions): one question per call, short label, options as
   choices, free text for custom answers and long descriptions.
-- Where that tool is not available (for example Visual Studio): show the same
-  step as text with numbered options. The last two numbers are always
-  "Custom answer" and "Decide later"; also accept next, back, skip (optional
-  intake steps only), save (save draft), status, why and cancel.
+- Where that tool is not available (for example Visual Studio): show the
+  question as text with numbered options. The last two numbers are always
+  "Custom answer" and "Decide later"; also accept back, save (save draft),
+  status, why and cancel. Never use letters for options.
 - The offline PBI Builder form offers the same intake (New PBI tab, with a real
   file picker) and an Answer questions panel; answers saved there are already
   in pbi-state.json and DECISION-LOG.md. Read them; never ask them again.
 - Never show buttons, upload controls or progress bars that do not exist, and
   never say a file was processed unless you actually opened and read it.
 
-## Create PBI: steps
-Show "Step n of 6" each time. Prefill any step already answered by the user's
-message, a REQUEST.md or pbi.json, or an attachment, and skip it; at the end
-the review shows everything for correction.
-1. Basic information: title (required); PBI number (optional); target project,
-   chosen from config.json projectName and the configured sources in
-   sources.yaml, or a custom project; application: CDMS, DAB or Both (or a
-   custom answer), asked once and saved; module if known.
-2. Requirement: "What do you want the application to do? Describe it in your
-   own words; you do not need technical terms." Accept any length, pasted Azure
-   DevOps text, Markdown, rules or code. Offer one short sample on request.
-3. Acceptance criteria: A enter them; B draft them from the description for
-   review; C they are in an attachment; D skip for now (not a blocker yet).
-   Drafted criteria are Given/When/Then, each traced to a sentence of the
-   requirement and marked proposed; an outcome the requirement does not state
-   becomes a proposed criterion to review, never an invented rule.
-4. Supporting material: files in the PBI's attachments/ folder (the form copies
+## Create PBI: one compact intake
+When the user's message, a REQUEST.md, pbi.json or an attachment already holds
+the PBI number or title and the requirement, ask nothing: start the analysis.
+Otherwise ask once, in one message, only for what is missing:
+1. PBI number or title.
+2. Requirement or acceptance criteria, in the user's own words (any length,
+   pasted Azure DevOps text, Markdown, rules or code).
+3. Optional: investigation scope (for example legacy only, or one workflow).
+Then infer the rest and show it in the first progress summary for correction:
+- Acceptance criteria not given: draft Given/When/Then criteria, each traced to
+  a sentence of the requirement and marked proposed; an outcome the requirement
+  does not state becomes a proposed criterion to review, never an invented rule.
+- Kind of change (new feature, enhancement, fix, legacy migration) and the
+  application areas (CDMS, DAB (GraphQL), Custom (Legacy CRM/XRM)): from the
+  requirement and source; ask only if they cannot be established.
+- Supporting material: files in the PBI's attachments/ folder (the form copies
    them there), files attached in this chat, or repository paths the user names.
    For each, record name, path, what it is (authoritative requirement, example,
    screenshot, note, existing-system evidence) and whether you could read it.
@@ -663,15 +730,8 @@ the review shows everything for correction.
    your tools cannot open), say so and ask for text, an export or a chat
    attachment; never guess its content. Nothing in an attachment is approved
    just because it is written there.
-5. Context: new feature, enhancement, fix, legacy migration or not sure, plus
-   optional notes. Infer the application areas to investigate (CDMS, DAB
-   (GraphQL), Custom (Legacy CRM/XRM)) from the project and requirement and show them for correction;
-   ask only if they cannot be inferred.
-6. Review: title, goal, main behavior, acceptance criteria (given or drafted),
-   accessible attachments, target project. Options: Edit details, Save draft,
-   Start analysis, Cancel. Do not ask further intake questions when the
-   requirement is already complete.
-Create the folder playbook/pbis/pbi-<number>-<short-title>-<date>-<suffix>/
+Never ask for separate approval of title, module, project, supporting material,
+change type or criteria. Create the folder playbook/pbis/pbi-<number>-<short-title>-<date>-<suffix>/
 (Windows-safe) once a title or number exists, and write REQUEST.md and pbi.json
 with "wizard": {"step": "<current step>", "status": "draft" or
 "ready-for-analysis"} after each step, so Save draft and Resume work after a
@@ -679,22 +739,23 @@ restart. If a folder for the same number or title exists, offer Resume
 existing, Create separate draft or Cancel; never overwrite its files.
 
 ## Start analysis
-Save the original requirement, then investigate only the configured
-repositories relevant to the target: similar existing functionality, legacy
-methods, plugins and workflows (crm-plugin-workflow-intelligence.md, within the
-recorded evidence scope), validators, entry points and downstream processing,
-and the target application's implementation pattern. Report progress in short
-lines. Compare requested behavior with verified behavior, record the evidence,
-write the first drafts, then ask the genuine business questions.
+Save the original requirement, then investigate autonomously (the agent's
+"Investigate autonomously" section) within the recorded scope: similar existing
+functionality, legacy methods, plugins, workflows and web resources
+(crm-plugin-workflow-intelligence.md), validators, entry points and downstream
+processing, and the target application's implementation pattern. Report
+progress only at milestones. Compare requested behavior with verified behavior,
+record the evidence, write the first drafts, then ask the genuine business
+questions through the Business Decision Advisor.
 
 ## Questions in pbi-state.json
 Every question you ask is recorded before you ask it:
 {"id": "Q-3", "requirements": ["BR-2"], "category": "duplicates", "blocking": true,
  "owner": "po-ba", "status": "unanswered", "question": "...", "why": "...",
- "example": "...", "options": [{"key": "A", "text": "..."}, {"key": "B", "text": "..."}],
- "recommended": "A", "recommendedReason": "...", "allowCustom": true}
+ "example": "...", "options": [{"key": "1", "text": "..."}, {"key": "2", "text": "..."}],
+ "recommended": "1", "recommendedReason": "...", "readyAnswer": "...", "allowCustom": true}
 Statuses: unanswered, answered, approved, deferred, superseded, not-applicable.
-After an answer: "status": "answered", "answer": {"option": "A" or "custom",
+After an answer: "status": "answered", "answer": {"option": "1" or "custom",
 "text": "..."}, "resolution", "answeredBy", "answeredAt", and "decisionRef" to a
 new approved decision whose evidence says who chose what, when and where. Write a
 backup of pbi-state.json to history/ before each change. Editing an answer marks
@@ -705,7 +766,7 @@ same meaning: before adding one, compare it with every existing question by
 meaning, not only wording; the check flags identical text.
 
 ## What each command does
-- Create PBI: the steps above.
+- Create PBI: the compact intake above, then autonomous investigation.
 - Resume PBI / Continue PBI: read the folder, show the wizard step or the next
   unresolved question, continue from there.
 - Review PBI: summarize status, open questions, decisions and the readiness
@@ -1016,8 +1077,10 @@ it as paths.cdms and paths.dab "applies" in pbi-state.json.
   left out of DAB only when it does not apply (for example form presentation),
   with the reason.
 
-## PLUGIN-WORKFLOW-COVERAGE.md
-Write it in the PBI folder (copy any earlier version to history/ first):
+## PLUGIN-WORKFLOW-COVERAGE.md (Analyze Workflows or on request)
+Write it only for Analyze Workflows or when the user asks (copy any earlier
+version to history/ first); otherwise record owners and evidence in
+VALIDATION-MATRIX.md and EVIDENCE.md:
 | Rule ID | Business Rule | CDMS Owner | Plugin/Workflow | Trigger | Conditions | Evidence | DAB Responsibility |
 |---|---|---|---|---|---|---|---|
 One row per BR from pbi-state.json, the same IDs and text. CDMS Owner uses the
@@ -1035,7 +1098,7 @@ Business view, in chat and DRAFT-PBI.md: short sentences such as "When the Paint
 System becomes Actual, the existing workflow checks related Paint Systems and
 applies the Historic status rules", only after the implementation is verified;
 otherwise say what was found and what is unverified. Technical view, in
-PLUGIN-WORKFLOW-COVERAGE.md and EVIDENCE.md: the workflow, step, condition,
+EVIDENCE.md (and PLUGIN-WORKFLOW-COVERAGE.md when requested): the workflow, step, condition,
 custom activity and source references. Never paste XAML or long call stacks into
 a business conversation.
 
@@ -1063,9 +1126,10 @@ write passes through the CRM pipeline, record that as a technical observation
 (possible double enforcement); it does not change DAB's responsibility.
 
 ## Application selection
-Ask once, in Create PBI step 1 or at the first step that needs it: CDMS, DAB or
-Both, plus a custom answer (use vscode/askQuestions when available). Record the
-answer as an approved decision and as paths.cdms and paths.dab "applies" in
+Infer it from the requirement and source (the areas whose code implements or
+must implement the rules) and state it in the first progress summary. Ask once,
+only when they cannot establish it: CDMS, DAB or Both, plus a custom answer.
+Record the answer as an approved decision and as paths.cdms and paths.dab "applies" in
 pbi-state.json (with a reason for the one that does not apply). Never ask again
 unless the user changes it.
 
@@ -1158,13 +1222,18 @@ recorded earlier stays in force; if it stops you from extracting rules DAB must
 implement, say so once and offer to supersede it.
 
 ## Documents (only those that apply to the selected application)
+Required: REQUEST.md, DRAFT-PBI.md, VALIDATION-MATRIX.md, DECISION-LOG.md,
+EVIDENCE.md, pbi-state.json and the final document(s) below. The catalog,
+shared rules, ownership and acceptance criteria documents are written only when
+the user asks for them; their content otherwise lives in VALIDATION-MATRIX.md,
+pbi-state.json and DRAFT-PBI.md.
 - REQUEST.md: unchanged original requirement.
-- LEGACY-BUSINESS-RULE-CATALOG.md: every rule found, with source type, file,
+- LEGACY-BUSINESS-RULE-CATALOG.md (on request): every rule found, with source type, file,
   class.method or handler, lines, trigger and conditions, message and confidence.
-- SHARED-BUSINESS-RULES.md (Both): user story, functional requirements,
+- SHARED-BUSINESS-RULES.md (Both, on request): user story, functional requirements,
   business rules, validations, approved decisions and common acceptance
   criteria, once.
-- BUSINESS-RULE-OWNERSHIP.md: one row per rule: Rule ID, business rule, legacy
+- BUSINESS-RULE-OWNERSHIP.md (on request): one row per rule: Rule ID, business rule, legacy
   source type, source path and method, trigger and conditions, CDMS owner, CDMS
   implementation status, CDMS development action, DAB implementation owner
   (layer), DAB implementation status, DAB development action, acceptance
@@ -1174,8 +1243,8 @@ implement, say so once and offer to supersede it.
   an application document for an application not in scope). Each contains
   every rule and criterion text and the shared decision IDs; never two versions
   of the same decision. Keep CDMS and DAB technical scopes separate.
-- VALIDATION-MATRIX.md, ACCEPTANCE-CRITERIA.md, DECISION-LOG.md, EVIDENCE.md and
-  pbi-state.json as usual. DRAFT-PBI.md remains the working document; with a
+- VALIDATION-MATRIX.md, DECISION-LOG.md, EVIDENCE.md and pbi-state.json as
+  usual; ACCEPTANCE-CRITERIA.md on request. DRAFT-PBI.md remains the working document; with a
   single application the final document is REFINED-PBI.md or that application's
   document.
 
@@ -1345,13 +1414,14 @@ analysis; sources.yaml says which repositories matter.
 ## Evidence priority
 1. Current source code. 2. Current configuration and registrations. 3. Current
 tests. 4. Current repository documentation. 5. Historical reports bundled under
-${BASE}/references/. Historical reports are navigation aids: the readiness check
+${BASE}/references/. Historical reports, including any end-to-end technical analysis, are optional
+background and navigation aids, never a prerequisite: the readiness check
 never counts them as evidence (HISTORICAL_NOT_PROOF when a rule has nothing
 else). When current source contradicts a historical report, the source wins:
 record the difference in EVIDENCE.md and never base a conclusion on the report.
 
-## SOURCE-DISCOVERY.md (in the PBI folder, before the refined PBI)
-Active solution or folder (only when a tool or the user shows it), readable
+## Source access record (the Source access section of EVIDENCE.md)
+Keep it short. Active solution or folder (only when a tool or the user shows it), readable
 repository roots, projects found, relevant source directories, entry points,
 existing implementation locations (repository, file, class, method, line
 range), inaccessible sources with the conclusions they leave unverified, and
@@ -1364,10 +1434,82 @@ developer handoff carries it.
 - Read the relevant section of a file, not the whole file, unless the decision
   depends on the whole file. Expand the read whenever the excerpt is insufficient.
 - Do not reread unchanged material without a reason.
-- Reference documents are large historical navigation aids. Use
+- Reference documents are large, optional historical navigation aids; open one
+  only when a search leaves you without a starting point. Use
   ${BASE}/REFERENCES-INDEX.md to find the relevant heading and line, read only
   that section, then verify decisive facts against the current checkout.
   Never paste whole reference documents into the conversation.
+`;
+
+const SKILL_ADVISOR=`---
+name: business-decision-advisor
+description: "Business Decision Advisor for the Akzo SDD PBI Builder. Use whenever a PBI needs a genuine business decision from the PO/BA: explains today's behavior, the requirement and the gap in business language, recommends one option with reasons, offers numbered choices with a ready-to-use answer, and records only approved answers."
+---
+
+# Business Decision Advisor
+
+Act as an experienced Business Analyst and Solution Architect. Use this only for
+a genuine business decision: intended behavior, an exception, a scope that the
+source and requirement cannot settle, a conflict or acceptance. Never use it for
+a technical fact that source can establish; investigate that instead.
+
+## Before asking
+- Check the request, its attachments, this conversation, the questions and
+  decisions in pbi-state.json and DECISION-LOG.md. Skip the question if any of
+  them already answers it, even in other words.
+- Finish investigating independent rules first. Ask one decision at a time, or
+  at most three related decisions in one message.
+- Check every option before recommending it:
+  1. Does it satisfy the explicit acceptance criteria?
+  2. Does it conflict with an approved decision?
+  3. Is it supported by verified evidence?
+  4. Does it introduce a change nobody needs?
+  5. Does it preserve unrelated existing business behavior?
+  6. Does it combine separate business rules that should stay separate?
+- Never recommend legacy behavior only because it exists, and never ask the
+  user to approve a technical conclusion that source evidence already settles.
+- If two business interpretations remain and the evidence supports neither
+  strongly, explain the uncertainty instead of inventing confidence.
+- Options name only applications, processes and values that the source or the
+  requirement establishes.
+
+## Format
+Numbers only, never letters. Write it for a business user, not only a developer.
+
+**Q-n (BR-x): the business question in one sentence**
+What happens today: verified behavior in business words, or "not found within"
+the searched coverage.
+What the requirement expects: the requirement text or criterion it rests on.
+What is missing: the gap.
+My recommendation: Option 1.
+Why I recommend it: one to three reasons tied to criteria, decisions and evidence.
+Choose your answer:
+1. The recommended option (recommended)
+2. An alternative option (add further real alternatives here)
+3. Custom answer
+4. Decide later
+Ready-to-use answer: "the exact sentence the PO/BA can approve for option 1".
+Implementation impact: affected layers and components, per option when they differ.
+Evidence: file and lines, each marked found and verified, found but not yet
+reviewed, not found within the documented coverage, or inaccessible.
+
+Custom answer and Decide later are always the last two numbers. In VS Code use
+the interactive question tool (vscode/askQuestions) with the same numbered
+choices when it is available; otherwise print them. Accept a number, a custom
+text, back, status and why. A reply that does not match the numbers shown (for
+example a letter) is ambiguous: ask which number was meant.
+
+## After the answer
+- A clear number or custom answer approves that one decision: record the
+  question as answered, with the answer, who answered and when, and a new
+  approved decision in pbi-state.json and DECISION-LOG.md.
+- Never record a recommendation the user did not choose as a decision.
+- Decide later sets the question to deferred; a deferred blocking question
+  still blocks Development-Ready and is offered again when the PBI resumes.
+- Never change an approved decision silently: a change is a proposed
+  superseding decision that needs confirmation.
+- If later evidence contradicts the basis of a recommendation or decision,
+  record the correction in EVIDENCE.md and present the affected decision again.
 `;
 
 const README_TEMPLATE=`# Akzo SDD PBI Builder ${VERSION} for {{PBI:PROJECT}}
@@ -1376,12 +1518,13 @@ Open this repository in {{PBI:IDE_LABEL}}, then select this agent in Copilot Cha
 ${AGENT_PREFIX}{{PBI:PROJECT}}
 
 First-time check: ask "Check this PBI Builder setup. Read ${BASE}/config.json
-and sources.yaml, open the available reference documents, read one relevant source
-file, and report missing sources. Do not modify files."
+and sources.yaml, read one relevant source file, and report missing sources.
+Do not modify files."
 
-Every new PBI: select the agent and type "New PBI". It asks for the title and
-short description, analyses evidence and asks one unresolved business question at
-a time. To resume: "Continue PBI <number, title or folder>". To request changes:
+Every new PBI: select the agent and type "Create PBI". It asks only for what is
+missing (number or title, requirement, optional investigation scope),
+investigates the source on its own and asks only genuine business decisions,
+each with a recommendation and numbered choices. To resume: "Continue PBI <number, title or folder>". To request changes:
 "Refine PBI <number, title or folder>: <what changed>". A new PBI gets a new
 folder and starts without decisions; refinement preserves the PBI and its decisions.
 
@@ -1698,10 +1841,11 @@ analysisDocuments:{{PBI:ANALYSIS_DOCS}}
 `},
   {path:BASE+'/PBI-TEMPLATE.md',text:assets.template},
   {path:BASE+'/skills/execution-path-analysis.md',text:SKILL_EXECUTION},{path:BASE+'/skills/readiness-and-approval.md',text:SKILL_READINESS},{path:BASE+'/skills/repository-knowledge.md',text:SKILL_KNOWLEDGE},{path:BASE+'/skills/guided-pbi-creation.md',text:SKILL_GUIDED},{path:BASE+'/skills/crm-plugin-workflow-intelligence.md',text:SKILL_CRM},{path:BASE+'/skills/xrm-workflow-intelligence.md',text:SKILL_XRM},{path:BASE+'/skills/business-rule-ownership.md',text:SKILL_OWNERSHIP},{path:BASE+'/skills/business-rule-branch-completeness.md',text:SKILL_BRANCH},
+  {path:ADVISOR,text:SKILL_ADVISOR},
   {path:BASE+'/README.md',template:README_TEMPLATE},{path:BASE+'/PBI-Builder.html',source:'html'}];
  for(const [name,text] of Object.entries(assets.references)){safePath(name);t.push({path:BASE+'/references/'+name,text,when:'includeReferences'});}
  t.push({path:BASE+'/REFERENCES-INDEX.md',text:referencesIndex(assets),when:'includeReferences'});
- for(const mode of ['new','refine'])t.push({path:`.github/prompts/akzo-pbi-${mode}.prompt.md`,template:`---\nname: akzo-pbi-${mode}\ndescription: ${yaml(mode==='new'?'Start a new PBI with guided intake.':'Continue an existing PBI using saved decisions.')}\nagent: "${AGENT_PREFIX}{{PBI:PROJECT_ESC}}"\n---\n\n${mode==='new'?'Start a new PBI. Ask for the title and short description if missing, then follow your installed workflow.':'Refine an existing PBI. Ask for its number, title or folder if missing; resolve it, read saved documents and ask what changed.'}\n`});
+ for(const mode of ['new','refine'])t.push({path:`.github/prompts/akzo-pbi-${mode}.prompt.md`,template:`---\nname: akzo-pbi-${mode}\ndescription: ${yaml(mode==='new'?'Start a new PBI with a compact intake.':'Continue an existing PBI using saved decisions.')}\nagent: "${AGENT_PREFIX}{{PBI:PROJECT_ESC}}"\n---\n\n${mode==='new'?'Start a new PBI. In one message, ask only for what is missing: the PBI number or title, the requirement, and optionally the investigation scope. Then investigate autonomously following your installed workflow.':'Refine an existing PBI. Ask for its number, title or folder if missing; resolve it, read saved documents and ask what changed.'}\n`});
  return t;
 }
 function setupFiles(raw,assets,html){const c=normalizeConfig(raw),v=values(c,Object.keys(assets.references)),files={};
@@ -1804,22 +1948,23 @@ function newPbi(c,data){
  folder=folder||'playbook/pbis/'+(number?'pbi-'+number+'-':'pbi-')+slug(title)+'-'+stamp()+'-'+uid();
  const attachments=[],taken=kept.map(x=>x.path);for(const n of names){const at=attachmentPath(folder,n,taken);taken.push(at);attachments.push(at);}
  const all=[...kept,...attachments.map((path,i)=>({name:names[i],path}))];
- const request={schemaVersion:1,title,number,project,application,description,changeType,notes:String(data.notes??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
+ const request={schemaVersion:1,title,number,project,application,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
   attachments:all,businessReason:String(data.businessReason??'').trim(),businessExample:String(data.businessExample??'').trim(),businessUnit:String(data.businessUnit??'').trim(),
   createdAt:new Date().toISOString(),wizard:{step:draft?String(data.step??'review'):'analysis',status:draft?'draft':'ready-for-analysis'},status:draft?'Draft intake — not sent for analysis':'Intake — AI refinement not started'};
  const list=all.length?all.map(x=>'- '+x.name+' → '+x.path.slice(folder.length+1)).join('\n'):'None';
  const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
-  ['Acceptance criteria',acMode==='enter'?acceptanceCriteria:AC_MODES[acMode]],['Attachments (not yet reviewed)',list],['Additional notes',request.notes||'None'],
+  ['Acceptance criteria',acMode==='enter'?acceptanceCriteria:AC_MODES[acMode]],['Attachments (not yet reviewed)',list],['Investigation scope',request.scope||'Not limited'],['Additional notes',request.notes||'None'],
   ['Business reason',request.businessReason||'Not known yet'],['Business example',request.businessExample||'Not known yet'],['Business Unit / Sub-BU',request.businessUnit||'Not known yet']];
  const md='# Original PBI request\n\n'+fields.map(([k,v])=>'## '+k+'\n\n'+v).join('\n\n')+'\n\nStatus: '+request.status+'. No approvals recorded.\n';
  const prompt=draft?`Resume PBI ${number||yaml(title)}.\nThe intake in ${folder}/ is a saved draft; review REQUEST.md with me and ask only for missing essentials before analysis.\nDo not change application code or publish a work item.`
   :`Start PBI preparation for ${yaml(title)}.\nRead ${folder}/REQUEST.md and pbi.json and follow your installed PBI Builder workflow (guide: guided-pbi-creation.md).\n`
   +(all.length?`Read the attachments listed there; report any you cannot open instead of guessing their content.\n`:'')
-  +(application==='unsure'?`Ask once whether this PBI is for CDMS, DAB or Both and record the answer.
+  +(request.scope?`Investigation scope, chosen by the user: ${request.scope}. Stay within it unless an essential dependency needs clarifying.\n`:'')
+  +(application==='unsure'?`Infer whether this PBI is for CDMS, DAB or Both from the requirement and source; ask once only if they cannot establish it.
 `:`Application: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again.
 `)
   +(acMode==='draft'?`Draft Given/When/Then acceptance criteria from the description, each traced to the text and marked proposed for review.\n`:'')
-  +`Save this PBI's documents in ${folder}/. Investigate the target project's evidence first, then ask one unresolved business question at a time.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
+  +`Save this PBI's documents in ${folder}/. Investigate autonomously, without asking permission, until the rules have evidence or a genuine business decision blocks progress; then ask through the Business Decision Advisor.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
  return {folder,request,prompt,attachments,files:{[folder+'/REQUEST.md']:md,[folder+'/pbi.json']:JSON.stringify(request,null,2)+'\n',[folder+'/START-PROMPT.txt']:prompt+'\n'}};
 }
 function refinePbi(folder,changes){safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');
@@ -2253,9 +2398,11 @@ async function discoverSources(root,config){
   const listed=/\.slnx$/i.test(f)?[...text.matchAll(/<Project\s+Path="([^"]+)"/g)].map(x=>x[1]):[...text.matchAll(/^Project\("\{[^}]+\}"\)\s*=\s*"[^"]*",\s*"([^"]+\.(?:cs|vb)proj)"/gm)].map(x=>x[1]);
   solutions.push({path:f,projects:listed.map(r=>joinRel(dir,r)??r.replace(/\\/g,'/'))});}
  for(const f of files.filter(f=>/\.(cs|vb)proj$/i.test(f)).sort())projects.push(parseProject(f,await read(root,f)));
- const totals={};
+ const totals={},folders={};
  for(const f of files){const k=FILE_KINDS[ext(f)];if(!k)continue;totals[k]=(totals[k]||0)+1;
-  const owner=projects.filter(x=>!x.dir||f.startsWith(x.dir+'/')).sort((a,b)=>b.dir.length-a.dir.length)[0];if(owner)owner.files[k]=(owner.files[k]||0)+1;}
+  const owner=projects.filter(x=>!x.dir||f.startsWith(x.dir+'/')).sort((a,b)=>b.dir.length-a.dir.length)[0];if(owner)owner.files[k]=(owner.files[k]||0)+1;
+  // Folders two levels deep, so files outside every project (web resources, solution XML) are visible too.
+  const dir=f.split('/').slice(0,-1).slice(0,2).join('/')||'.';(folders[dir]??={})[k]=(folders[dir][k]||0)+1;}
  // A source is readable only when a real file under it was read; a path outside the selected folder cannot be checked here.
  const sources=[];
  for(const key of ['legacy','dab','cdms']){const path=String(config?.sources?.[key]??'').trim();
@@ -2265,12 +2412,13 @@ async function discoverSources(root,config){
   const probe=files.find(f=>(!prefix||f.startsWith(prefix+'/'))&&FILE_KINDS[ext(f)]&&!/\.(json|xml|config|resx)$/i.test(f));
   const text=probe?await read(root,probe):null;
   sources.push(text!==null?{key,path,status:'readable',checkedFile:probe}:{key,path,status:'configured-inaccessible',reason:'No readable source file found under this path in the selected folder.'});}
- const map={schemaVersion:1,generatedAt:new Date().toISOString(),filesScanned:files.length,truncated:state.truncated,sources,solutions,projects,fileKinds:totals};
+ const map={schemaVersion:1,generatedAt:new Date().toISOString(),filesScanned:files.length,truncated:state.truncated,sources,solutions,projects,folders,fileKinds:totals};
  const md=['# Source map','','Generated by the PBI Builder form from the selected folder. It is a navigation aid: read the source before relying on it.',
   'Refresh it after projects change (Continue tab > Discover sources).','','## Configured sources','| Application area | Path | Status | Checked file or reason |','| --- | --- | --- | --- |',
   ...sources.map(x=>`| ${AREAS[x.key]} | ${x.path||'(none)'} | ${x.status} | ${x.checkedFile||x.reason} |`),'','## Solutions',...(solutions.length?solutions.map(x=>'- '+x.path+': '+(x.projects.join(', ')||'no projects listed')):['None found.']),
   '','## Projects','| Project | Frameworks | Markers | References | Files |','| --- | --- | --- | --- | --- |',
   ...projects.map(x=>`| ${x.path} | ${x.frameworks.join(', ')||'?'} | ${x.tags.join(', ')} | ${x.projectReferences.join(', ')} | ${Object.entries(x.files).map(([k,n])=>k+' '+n).join(', ')} |`),
+  '','## Source folders (two levels)','| Folder | Files |','| --- | --- |',...Object.keys(folders).sort().map(d=>`| ${d} | ${Object.entries(folders[d]).sort().map(([k,n])=>k+' '+n).join(', ')} |`),
   '','## File kinds (whole folder)',Object.entries(totals).sort().map(([k,n])=>k+' '+n).join(', ')||'None.',state.truncated?'\nStopped after '+MAX_FILES+' files; the map is incomplete.':'',''].join('\n');
  await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
  return map;

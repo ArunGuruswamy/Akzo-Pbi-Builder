@@ -65,7 +65,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.deepEqual(applied.kept.sort(),[V21.CONCISE_AGENT,'.github/prompts/akzo-pbi-new-concise.prompt.md'].sort());
   await fs.rm(dir,{recursive:true,force:true});
  });
- await test('upgrade from actual 3.1.0 adds the five guides, keeps PBI data, and a 3.1-approved PBI stays Development-Ready',async()=>{
+ await test('upgrade from actual 3.1.0 adds the five guides and the advisor skill, keeps PBI data, and a 3.1-approved PBI stays Development-Ready',async()=>{
   const {dir,root:r}=await tempRoot('akzo-upgrade31-');
   const a31={...assets,template:await fs.readFile(path.join(__dirname,'fixtures/baseline-v3.1.0-template.md'),'utf8')};
   const old=V31.setupFiles(raw,a31,'HTML 3.1');await V31.apply(r,await V31.plan(r,old.files,true));
@@ -73,7 +73,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.equal((await V31.checkPbi(r,folder)).computedStatus,'Development-Ready');
   const before={};for(const f of ['pbi-state.json','REFINED-PBI.md','REQUEST.md','DECISION-LOG.md'])before[f]=await P.read(r,folder+'/'+f);
   const rows=await P.plan(r,setup.files,true);assert.ok(!rows.some(x=>['conflict','retire','retire-conflict'].includes(x.state)));
-  assert.deepEqual(rows.filter(x=>x.state==='create').map(x=>x.path).sort(),[P.BASE+'/skills/crm-plugin-workflow-intelligence.md',P.BASE+'/skills/guided-pbi-creation.md',P.BASE+'/skills/xrm-workflow-intelligence.md'].concat(P.BASE+'/skills/business-rule-ownership.md',P.BASE+'/skills/business-rule-branch-completeness.md').sort());
+  assert.deepEqual(rows.filter(x=>x.state==='create').map(x=>x.path).sort(),[P.BASE+'/skills/crm-plugin-workflow-intelligence.md',P.BASE+'/skills/guided-pbi-creation.md',P.BASE+'/skills/xrm-workflow-intelligence.md'].concat(P.BASE+'/skills/business-rule-ownership.md',P.BASE+'/skills/business-rule-branch-completeness.md','.github/skills/business-decision-advisor/SKILL.md').sort());
   await P.apply(r,rows,true);for(const [f,t] of Object.entries(before))assert.equal(await P.read(r,folder+'/'+f),t,f);
   const after=await P.checkPbi(r,folder);assert.equal(after.computedStatus,'Development-Ready',JSON.stringify(after.issues));
   await fs.rm(dir,{recursive:true,force:true});
@@ -144,12 +144,12 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  await test('4.0 agent: commands, guided creation, business-only questions, interactive or numbered answers, evidence scope; two new guides',async()=>{
   const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],c=setup.files[P.BASE+'/skills/crm-plugin-workflow-intelligence.md'];
   for(const re of [/Create PBI \(also New PBI, Create User Story/,/Resume PBI <n>[\s\S]*Validate PBI <n>/,/never ask them about plugin registration/,/does not stop business\s+refinement and is never a business question/,
-   /vscode\/askQuestions/,/then Custom answer and Decide later, and accept\s+those numbers, back[\s\S]*status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
+   /vscode\/askQuestions/,/then Custom\s+answer and Decide later as the last two numbers/,/Also accept back[\s\S]*status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
    /explicit requirement, approved business decision,\s+proposed interpretation, technical observation, unverified technical detail or\s+open business question/,/Legacy CRM plugin and workflow behavior is historical\s+context, never proof/,/do not challenge it again/])assert.match(a,re);
-  for(const re of [/Step n of 6/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
+  for(const re of [/ask nothing: start the analysis/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
   for(const re of [/visited list of methods; stop at\s+a method already visited \(cycle\)/,/registration\s+unverified/,/Simple explanation/,/Important difference/,/"system": "legacy-crm"/])assert.match(c,re);
   // Plugin rules for DAB and the speed rules.
-  for(const re of [/Extract Plugin Rules <n> \[plugin, entity or operation\]/,/## Work fast/,/read\s+pbi-state.json first/,/PLUGIN-RULES.md: validations and business rules/])assert.match(a,re);
+  for(const re of [/Extract Plugin Rules <n> \[plugin, entity or operation\]/,/## Work fast/,/read\s+pbi-state.json first/,/PLUGIN-RULES.md\s+\(Extract Plugin Rules\)/])assert.match(a,re);
   assert.match(g,/Extract Plugin Rules: read the plugin code/);
   for(const re of [/Validation: a condition that throws/,/Default or calculation/,/Side effect/,/Guard: an early exit/,/async,\s+does not block/,/DAB has no plugin: it implements every applicable rule in\s+its own application code/,/Never\s+rely on the plugin for DAB/,/exact error message\s+copied from code/,/Data needed/,/dab reach evidence must come from the DAB code/,/PLUGIN-CATALOG.md/,/Never invent a rule, message, value or condition/])assert.match(c,re);
   assert.match(setup.files[P.BASE+'/skills/repository-knowledge.md'],/PLUGIN-CATALOG.md lists each plugin/);
@@ -157,7 +157,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  });
  await test('XRM workflow guide: discovery, activation, branches, custom activities, termination, recursion, ownership, scopes, coverage matrix',async()=>{
   const a=setup.files[P.AGENT],x=setup.files[P.BASE+'/skills/xrm-workflow-intelligence.md'];
-  for(const re of [/xrm-workflow-intelligence.md: before analyzing classic CRM workflows/,/Analyze Workflows <n> \[operation\]/,/PLUGIN-WORKFLOW-COVERAGE.md: each rule's CDMS owner/])assert.match(a,re);
+  for(const re of [/xrm-workflow-intelligence.md: before analyzing classic CRM workflows/,/Analyze Workflows <n> \[operation\]/,/PLUGIN-WORKFLOW-COVERAGE.md \(Analyze Workflows\)/])assert.match(a,re);
   for(const re of [/Power Automate cloud flows \(category 5/,/never\s+merge its findings with classic workflow findings/,/\*\.xaml\.data\.xml/,/TriggerOnUpdateAttributeList/,/Do not parse every workflow in the repository/,
    /does not prove the workflow is active[\s\S]*"activation unverified"/,/ConditionSequence, ConditionBranch/,/Wait="True"/,/CodeActivity/,/StartChildWorkflow/,/In a real-time workflow,\s+Canceled shows the message to the user and rolls back/,
    /In a background workflow it only ends the job/,/"possible recursion"/,/never invent an order between them/,/OWNER_MISATTRIBUTED/,/Implemented and verified/,/Source found, runtime unverified/,/Partially implemented/,/Missing in inspected sources/,
@@ -167,12 +167,12 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  });
  await test('ownership guide: no DAB plugin, application choice, JavaScript/HTML/ribbon sources, one canonical rule, CDMS and DAB owners, documents',async()=>{
   const o=setup.files[P.BASE+'/skills/business-rule-ownership.md'],a=setup.files[P.AGENT];
-  for(const re of [/## There is no DAB plugin/,/Never create a DAB plugin task,\s+contract, handoff or dependency/,/business-rule-ownership.md: for the application choice/,/application \(CDMS, DAB or Both\)/])assert.match(a,re);
+  for(const re of [/## There is no DAB plugin/,/Never create a DAB plugin task,\s+contract, handoff or dependency/,/business-rule-ownership.md: for the application choice/,/kind of change,\s+application areas/])assert.match(a,re);
   for(const re of [/DAB_PLUGIN_ASSIGNED/,/CDMS, DAB or\s+Both, plus a custom answer/,/Never ask again\s+unless the user changes it/,/OnLoad, OnSave and OnChange/,/HTML web resources/,/RibbonDiffXml/,/Source\/Formula\/PaintSystem\/PaintSystem\//,/Source\/Formula\/CustomWorkflow\//,
    /Source\/Formula\/ImitationRequest\//,/never infer a\s+rule from a file or method name/,/A client-side check is never server enforcement/,/Record one BR\s+with every source as evidence/,/never choose one silently/,
    /Implementation owner: Existing CRM plugin\. Development action: already\s+handled by the plugin; no duplicate CDMS API implementation/,/If registration or runtime is unverified, say so/,
    /function \(Azure Functions HTTP entry point\), handler \(application CQRS\s+command or query handler\), validator \(FluentValidation/,/Do not put every rule into FluentValidation/,/Never invent GraphQL operations, validators or DAB API behavior/,
-   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both\)/,/BUSINESS-RULE-OWNERSHIP\.md: one row per rule/,/CDMS-REFINED-PBI\.md and DAB-REFINED-PBI\.md/,/never two versions\s+of the same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
+   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both, on request\)/,/BUSINESS-RULE-OWNERSHIP\.md \(on request\): one row per rule/,/CDMS-REFINED-PBI\.md and DAB-REFINED-PBI\.md/,/never two versions\s+of the same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
   // The superseded "DAB relies on a plugin" wording is gone from every installed file.
   const all=Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.endsWith('.html')).map(([,t])=>t).join('\n');
   for(const re of [/plugin already runs for DAB/,/reuse when DAB already runs/,/already enforced, do not\s+duplicate/,/do not assign every legacy operation/])assert.doesNotMatch(all,re);
@@ -244,8 +244,8 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   for(const re of [/Mandatory for every PBI refinement/,/one branch in a plugin or workflow\s+never covers the rule/,/Failure and rollback/,/covered, partial, missing,\s+conflicting \(needs risk\), unverified or not-applicable/,/Legacy code never covers a\s+DAB branch/,
    /Never call a branch safe because an API can perform the\s+operation/,/"Paint system does not have a measurement"/,/Do you want to replace the Market Color\s+Measurement with this Paint System measurement\?/,/BR-1\.N is a suspected CDMS gap/,
    /For DAB both Yes and No are required behavior in DAB code/,/A technical gap is a development finding, not a business question/,/Export developer handoff/])assert.match(b,re);
-  for(const re of [/business-rule-branch-completeness.md: mandatory for every refinement/,/never ask for a path that is\s+configured and readable/,/never scan a whole repository for a PBI/,/update only the affected decision,\s+rules, branches, criteria and documents/,
-   /files read, searches run,\s+evidence index entries reused and refreshed/,/PBI scope: Both\. I found the Paint System measurement logic/,/business-rules.json: written by the form's Export\s+developer handoff button/])assert.match(a,re);
+  for(const re of [/business-rule-branch-completeness.md: mandatory for every refinement/,/never ask for a path that is\s+configured and readable/,/never read a whole repository for a PBI/,/update only the affected decision,\s+rules, branches, criteria and documents/,
+   /files read, searches run,\s+evidence index entries reused and refreshed/,/PBI scope: Both\. I found the Paint System measurement logic/,/business-rules.json \(written by the\s+form's Export developer handoff button/])assert.match(a,re);
   assert.match(k,/"confidence" \(verified-registration: source and execution registration;\s+verified-source; partial; inferred; unverified\)\. Never store credentials/);
  });
  await test('Paint System measurement (Developed): Yes covered by the plugin, No and rollback branches detected, side-effect risk, handoff, incremental update, cache',async()=>{
@@ -327,7 +327,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   const legacy=P.setupFiles({projectName:'ColorDMS legacy',ide:'visualstudio',role:'legacy',sources:{legacy:'.',dab:'../DAB',cdms:''}},assets,html);
   const y=legacy.files[P.BASE+'/sources.yaml'],a=legacy.files[P.AGENT],k=legacy.files[P.BASE+'/skills/repository-knowledge.md'];
   assert.match(y,/role: "legacy"[\s\S]*legacy:\n    area: "Custom \(Legacy CRM\/XRM\)"\n    repositoryPath: "\."[\s\S]*dab:\n    area: "DAB \(GraphQL\)"\n    repositoryPath: "\.\.\/DAB"/);assert.match(y,/ideAccess: "Visual Studio agent tools read only the open solution or opened folder/);
-  for(const re of [/## Source access before analysis/,/readable, configured but inaccessible, or not\s+configured by reading a real source file/,/Never call an inaccessible repository\s+missing and never invent a solution path/,/SOURCE-DISCOVERY\.md/])assert.match(a,re);
+  for(const re of [/## Source access before analysis/,/readable, configured but inaccessible, or not\s+configured by reading a real source file/,/Never call an inaccessible repository\s+missing and never invent a solution path/,/Source access section of EVIDENCE\.md/])assert.match(a,re);
   for(const re of [/not necessarily the application under\s+analysis/,/agent file tools reach only files in the open solution or\s+the opened folder/,/Never invent a path/,/\.sln\/\.slnx \(projects listed\), \.csproj\/\.vbproj/,
    /UI or entry point[\s\S]*-> service or plugin -> validation -> business rule -> persistence[\s\S]*-> side effects/,/ASP\.NET Web\s+Forms/,/stored procedures/,/Never record connection strings, keys or other secrets/,
    /1\. Current source code\. 2\. Current configuration and registrations\. 3\. Current\s+tests\. 4\. Current repository documentation\. 5\. Historical reports/,/the source wins/,/"sourceAccess": \[\{"source", "path", "status"/])assert.match(k,re);
@@ -356,9 +356,11 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.deepEqual(common.frameworks,['net48']);assert.equal(common.sdk,'Microsoft.NET.Sdk');assert.deepEqual(common.tags,['data-access']);assert.deepEqual(common.files,{csharp:1,sql:1});
   assert.deepEqual(web.projectReferences,['Source/Common/Common.csproj']);assert.deepEqual(web.tags,['aspnet-webforms']);assert.deepEqual(web.files,{webforms:1,csharp:1,config:1});
   assert.equal(m.fileKinds.javascript,1);assert.ok(!m.fileKinds.html);
+  // JavaScript outside every project (a sibling web-resource folder) is still listed by folder.
+  assert.deepEqual(m.folders.WebResources,{javascript:1});assert.deepEqual(m.folders['Source/Plugins'],{csharp:1,workflow:1});
   assert.deepEqual(m.sources.map(s=>s.key+':'+s.status),['legacy:readable','dab:configured-inaccessible','cdms:configured-inaccessible']);
   assert.match(m.sources[1].reason,/Outside the selected folder\. In Visual Studio/);assert.match(m.sources[2].reason,/No readable source file/);assert.ok(m.sources[0].checkedFile);
-  const md=await P.read(r,P.BASE+'/knowledge/SOURCE-MAP.md');assert.match(md,/\| DAB \(GraphQL\) \| \.\.\/DAB \| configured-inaccessible \|/);assert.match(md,/\| Source\/Plugins\/Plugins\.csproj \| \.NET Framework 4\.6\.2 \| crm-workflow, crm-sdk \| Source\/Common\/Common\.csproj \|/);
+  const md=await P.read(r,P.BASE+'/knowledge/SOURCE-MAP.md');assert.match(md,/## Source folders \(two levels\)[\s\S]*\| WebResources \| javascript 1 \|/);assert.match(md,/\| DAB \(GraphQL\) \| \.\.\/DAB \| configured-inaccessible \|/);assert.match(md,/\| Source\/Plugins\/Plugins\.csproj \| \.NET Framework 4\.6\.2 \| crm-workflow, crm-sdk \| Source\/Common\/Common\.csproj \|/);
   const json=await P.read(r,P.SOURCE_MAP);assert.ok(!/hunter2|InvalidPluginExecutionException|function onSave/.test(json+md),'no source or secret copied');
   const notConfigured=await P.discoverSources(r,{sources:{legacy:'',dab:'',cdms:''}});assert.deepEqual(notConfigured.sources.map(s=>s.status),['not-configured','not-configured','not-configured']);
   // Only the two map files were added; nothing else in the repository changed.
@@ -434,9 +436,9 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   for(const re of [/## Application areas/,/CDMS: the new CDMS application/,/DAB \(GraphQL\)/,/Custom \(Legacy CRM\/XRM\)[\s\S]*key legacy; evidence system legacy-crm/,
    /identify the area of the current repository from its source/,/Search the actual\s+source\s+before describing any functionality/,/name the area that\s+owns it/,
    /Never invent an application, repository or dependency/,/OwnColor as a\s+Development Tool value\) is data, not an application/,/never infer a separate codebase, area or\s+question scope from it/,
-   /Mark one option Recommended, with the reason/,/Decide later records the question as deferred/,/Ask about scope[\s\S]*only when the source and requirement cannot establish it/,
+   /Mark an option Recommended only\s+when the request, approved behavior or evidence supports it/,/Decide later records the question as deferred/,/Ask about scope[\s\S]*only when the source and requirement cannot establish it/,
    /find every place the relevant field or behavior is used in each available\s+application area/,/Every option names only applications, repositories,\s+processes and values that the source or the requirement establishes/])assert.match(a,re);
-  for(const re of [/"Custom answer" and "Decide later"/,/Infer the application areas to investigate \(CDMS, DAB\s+\(GraphQL\), Custom \(Legacy CRM\/XRM\)\)/,/"recommended": "A", "recommendedReason"/,/Decide later sets status\s+deferred/])assert.match(g,re);
+  for(const re of [/"Custom answer" and "Decide later"/,/the\s+application areas \(CDMS, DAB \(GraphQL\), Custom \(Legacy CRM\/XRM\)\): from the\s+requirement and source; ask only if they cannot be established/,/"recommended": "1", "recommendedReason"/,/Decide later sets status\s+deferred/])assert.match(g,re);
   assert.match(y,/legacy:\n    area: "Custom \(Legacy CRM\/XRM\)"[\s\S]*dab:\n    area: "DAB \(GraphQL\)"[\s\S]*cdms:\n    area: "CDMS"/);
   // OwnColor is never an application area, option or repository in anything installed; the misleading PBI 277355 question is gone.
   // Bundled historical reports are verbatim (they name legacy code such as AN.OwnColorExtractor), also inside the form; every instruction file is checked.
@@ -453,6 +455,55 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   const p=P.newPbi(setup.config,{title:'Development Tool actualization',description:'Ask Yes/No before actualization.'}).prompt;
   assert.match(p,/Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory/);assert.match(p,/This PBI starts with no decisions or approvals/);
   assert.ok(P.READINESS.messages.FOREIGN_PBI_EVIDENCE);
+ });
+ // Regression reference: the PBI 277355 conversation. Instruction coverage only; live behavior needs Copilot in Visual Studio.
+ await test('compact intake, autonomous investigation and the Business Decision Advisor (PBI 277355 regression expectations)',async()=>{
+  const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],adv=setup.files['.github/skills/business-decision-advisor/SKILL.md'];
+  // Native skill format: name matches its folder, description within 1024 characters.
+  const fm=/^---\nname: ([a-z0-9-]+)\ndescription: "([^"]+)"\n---\n/.exec(adv);assert.ok(fm);assert.equal(fm[1],'business-decision-advisor');assert.ok(fm[2].length<=1024);
+  const expect={
+   'avoids the six-step intake':[[a,/## Start a PBI: one compact intake/],[a,/ask\s+nothing and start investigating/],[a,/Never ask for separate approval of the title, module,\s+project/],[g,/## Create PBI: one compact intake/]],
+   'installation project is not the application':[[a,/Target\s+project in REQUEST.md is the repository where this agent is installed/]],
+   'no permission to investigate':[[a,/Never ask whether to\s+investigate the next rule, continue tracing, inspect another file or language\s+\(for example JavaScript\)/],[a,/finish the\s+independent rules first/]],
+   'sibling solutions and web resources':[[a,/not only the loaded solution: one repository often holds\s+several solutions/],[a,/JavaScript web resources \(form events, lookup\s+filters such as addCustomFilter or addPreSearch/],[a,/entity metadata and option sets/]],
+   'no premature missing claim':[[a,/Before concluding that behavior is missing, search every relevant layer/],[a,/Never conclude from one solution, project or class/],[a,/not found within the documented\s+search coverage/]],
+   'end-to-end workflow trace':[[a,/UI event, lookup or filter, client validation,\s+server validation, plugin or workflow, persistence, status transition,\s+downstream updates/]],
+   'field values are not applications':[[a,/is data, not an application/]],
+   'respects the investigation scope':[[a,/when the user limits it \(for example\s+legacy only\), investigate other areas only when an essential dependency/]],
+   'keeps rules apart':[[adv,/Does it combine separate business rules that should stay separate/]],
+   'preserves approved decisions':[[a,/never ask a question that pbi-state.json or DECISION-LOG.md\s+already answers/],[adv,/Never change an approved decision silently/],[adv,/Never record a recommendation the user did not choose as a decision/]],
+   'understandable recommendation with numbered choices':[[adv,/What happens today:[\s\S]*What the requirement expects:[\s\S]*What is missing:[\s\S]*My recommendation: Option 1\.[\s\S]*Why I recommend it:[\s\S]*1\. The recommended option \(recommended\)\n2\. An alternative[\s\S]*3\. Custom answer\n4\. Decide later/],[a,/Options are always numbers, never letters/]],
+   'ready-to-use answer':[[adv,/Ready-to-use answer:/]],
+   'no legacy bias':[[adv,/Never recommend legacy behavior only because it exists/]],
+   'evidence matrix':[[a,/1\. what the requirement expects;\s+2\. what happens today, with files and functions; 3\. existing functionality to\s+reuse; 4\. what is missing or inconsistent; 5\. which application layers need a\s+change; 6\. the regression tests needed/],[a,/confirmed\s+requirements, existing functionality, confirmed gaps, proposed changes,\s+approved decisions, remaining genuine blockers, source-access limitations and\s+required regression tests/]],
+   'real tools only':[[a,/never invent a tool and never\s+assume terminal access/]]};
+  for(const [name,checks] of Object.entries(expect))for(const [t,re] of checks)assert.match(t,re,name);
+  assert.match(a,/Read \.github\/skills\/business-decision-advisor\/SKILL\.md \(the Business Decision Advisor\) before\s+every business question/);
+  // PBI-specific facts never enter the reusable agent (fresh start, generic workflow).
+  for(const t of [a,g,adv])assert.ok(!/277355|cdms_paintsystemlevel|DEC-[345]/.test(t));
+  // Intake: scope is recorded and handed to the agent; an unchosen application is inferred, not asked up front.
+  const n=P.newPbi(setup.config,{title:'Paint System actualization',description:'Ask before actualization.',scope:'Legacy only'});
+  assert.equal(n.request.scope,'Legacy only');assert.match(n.files[n.folder+'/REQUEST.md'],/## Investigation scope\n\nLegacy only/);
+  assert.match(n.prompt,/Investigation scope, chosen by the user: Legacy only/);assert.match(n.prompt,/Infer whether this PBI is for CDMS, DAB or Both/);assert.match(n.prompt,/Investigate autonomously, without asking permission/);
+  const plain=P.newPbi(setup.config,{title:'X title',description:'Some requirement text'});assert.equal(plain.request.scope,'');assert.ok(!/Investigation scope, chosen/.test(plain.prompt));
+  assert.match(setup.files['.github/prompts/akzo-pbi-new.prompt.md'],/ask only for what is missing/);
+ });
+ await test('repository first: no end-to-end analysis document is required, created or trusted; historical reports are optional background',async()=>{
+  const inst=Object.entries(setup.files).filter(([f,t])=>typeof t==='string'&&!f.startsWith(P.BASE+'/references/')&&!f.endsWith('.html')&&f!==P.BASE+'/REFERENCES-INDEX.md');
+  const a=setup.files[P.AGENT];
+  for(const re of [/The repository is the source of truth for existing behavior\. Never require,\s+create or wait for a separate end-to-end analysis document/,/never a prerequisite for investigation or readiness,\s+never evidence of current behavior/,
+   /Revalidate relevant behavior against the\s+current repository on every investigation/,/Never delete such documents/,/Only on request, never as a step of investigation or readiness/,
+   /Never write a separate end-to-end or technical analysis report: verified\s+findings belong in VALIDATION-MATRIX.md and EVIDENCE.md/])assert.match(a,re);
+  // No installed instruction asks for SOURCE-DISCOVERY.md or tells the agent to open the reference documents first.
+  for(const [f,t] of inst){assert.ok(!/SOURCE-DISCOVERY\.md/.test(t),f);assert.ok(!/open the available reference documents/i.test(t),f);}
+  // Lightweight artifacts stay; readiness requires no analysis document and never counts a historical report.
+  for(const d of ['REQUEST.md','DRAFT-PBI.md','VALIDATION-MATRIX.md','EVIDENCE.md','DECISION-LOG.md','pbi-state.json'])assert.match(a,new RegExp('- '+d.replace('.','\\.')+':'));
+  assert.ok(!Object.values(P.READINESS.messages).some(m=>/end-to-end|SOURCE-DISCOVERY|CATALOG|COVERAGE\.md/i.test(m)));
+  assert.match(P.READINESS.messages.HISTORICAL_NOT_PROOF,/navigation aids/);
+  // New installations leave the historical reports out unless asked; an existing choice is kept.
+  const off=P.setupFiles({...raw,includeReferences:undefined},assets,html);assert.equal(off.config.includeReferences,false);
+  assert.ok(!Object.keys(off.files).some(f=>f.includes('/references/')||f.endsWith('REFERENCES-INDEX.md')));
+  assert.ok(Object.keys(setup.files).some(f=>f.includes('/references/CRM-END-TO-END-TECHNICAL-ANALYSIS.md')),'kept when chosen');
  });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});

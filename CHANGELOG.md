@@ -2,6 +2,49 @@
 
 ## 4.0.0 — 27 October 2026
 
+### Repository first: no end-to-end analysis document
+- The repository is the source of truth: the agent never requires, creates or waits for a
+  separate end-to-end analysis document, treats bundled reports and earlier analysis documents
+  as optional background (never a prerequisite or evidence), revalidates against current code on
+  every investigation, and never deletes such documents.
+- Required PBI files: REQUEST.md, DRAFT-PBI.md, VALIDATION-MATRIX.md, EVIDENCE.md,
+  DECISION-LOG.md, OPEN-QUESTIONS.md, pbi-state.json and the final PBI. SOURCE-DISCOVERY.md is
+  replaced by a short Source access section in EVIDENCE.md. PLUGIN-RULES.md,
+  PLUGIN-WORKFLOW-COVERAGE.md, LEGACY-BUSINESS-RULE-CATALOG.md, SHARED-BUSINESS-RULES.md,
+  BUSINESS-RULE-OWNERSHIP.md and ACCEPTANCE-CRITERIA.md are written only on request.
+- The historical ColorDMS reports are no longer installed by default (form checkbox off; new
+  `-IncludeReferences` switch; `-NoReferences` unchanged). The setup check prompts no longer open
+  them. Readiness needed no change: it never required them and never counts them as evidence.
+
+### Autonomous investigation and the Business Decision Advisor
+- Create PBI: one compact intake. The agent asks, in one message and only when missing, for the
+  PBI number or title, the requirement and an optional investigation scope; it infers the rest
+  and shows it for correction. No separate approvals of title, module, project, attachments,
+  change type or criteria. The Target project is the installation repository, not the
+  application under investigation. The form records the scope (REQUEST.md, pbi.json, prompt).
+- Autonomous investigation: the agent keeps investigating until the rules have evidence, a
+  genuine business decision blocks, essential source is inaccessible, or the user stops it; it
+  never asks permission to trace the next rule, file or language and finishes independent rules
+  first. Per rule: expectation, current behavior, reuse, gap, layers, regression tests.
+- Repository-wide discovery: the whole Git repository, not only the loaded solution; every
+  legacy CRM/XRM layer (plugins, workflows, web resources and lookup filters, forms, metadata and
+  option sets, solution XML, configuration, status changes) before calling anything missing;
+  four finding classes; end-to-end workflow traces; the recorded scope is respected. Optional
+  user-owned knowledge/SEARCH-SCOPE.md names a repository's folders, so no paths are hard-coded.
+  Discover sources adds a "Source folders" table (file kinds two levels deep), which shows
+  JavaScript outside every project.
+- Business Decision Advisor: new workspace skill `.github/skills/business-decision-advisor/SKILL.md`
+  (Visual Studio 18.5+ and VS Code discover it; the agent also reads it explicitly). Today /
+  expected / missing, recommendation and why, numbered choices (never letters), ready-to-use
+  answer, impact and evidence; six decision-quality checks; never records an unchosen
+  recommendation.
+- Resume continues from the last verified point; contradicting evidence is recorded and the
+  affected recommendations revalidated; approved decisions change only through supersession.
+- DRAFT-PBI.md separates confirmed requirements, existing functionality, gaps, proposed changes,
+  approved decisions, blockers, source-access limitations and regression tests.
+- Agent description updated; Visual Studio tools unchanged (`readfile`, `code_search`,
+  `find_references`, `editfiles`, as documented by Microsoft; no terminal tool).
+
 ### Every new PBI starts fresh
 - Agent: each new PBI uses only its own request, folder, attachments and the source read for
   it. Start it in a new chat (the agent asks for one if the conversation already worked on

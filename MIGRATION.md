@@ -14,6 +14,21 @@ Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`
 - PBI folders are not changed. pbi-state.json stays schemaVersion 2; existing approvals keep
   their fingerprints and stay valid (tested). New fields (question options and answers,
   evidence `system`, `evidenceScope`) are optional.
+- Added: `.github/skills/business-decision-advisor/SKILL.md`, a workspace Agent Skill. A file you
+  already have at that path is reported as a conflict and kept.
+- Create PBI uses a compact intake and autonomous investigation. Existing PBIs keep their
+  questions, answers and decisions; option keys A/B recorded earlier still work, new questions
+  use numbers. REQUEST.md may gain an "Investigation scope" section.
+- Repository first: no end-to-end analysis document is required. SOURCE-DISCOVERY.md is no
+  longer written (source access goes into EVIDENCE.md); the catalog, ownership, coverage and
+  plugin-rule documents are written only on request. Existing documents in PBI folders are kept
+  and read only as background. Readiness rules are unchanged.
+- New installations leave the historical ColorDMS reports out (`-IncludeReferences` or the form
+  checkbox adds them). An upgrade keeps the choice in config.json, so reports already installed
+  stay; unchecking it in the form removes them only if unchanged, with a backup.
+- An earlier installation in another folder (for example a project subfolder instead of the Git
+  root) is not touched. Verify the new one at the Git root first, then remove the old one with
+  the setup window's Uninstall (it only removes unchanged files it installed).
 - An edited agent or guide is reported as a conflict and nothing is written until you resolve it.
 - Rollback: restore from `playbook/pbi-builder/backups/<batch>/`, or install 3.1.0 again with
   reviewed updates allowed; it also removes the five new guides if unchanged (backed up first).

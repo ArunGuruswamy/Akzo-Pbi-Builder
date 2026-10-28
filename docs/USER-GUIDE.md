@@ -5,25 +5,26 @@ workflows. Describe what you need; the builder asks only for business decisions.
 
 ## Create a PBI
 **In Copilot.** Select "Akzo SDD PBI Builder - <your project>" and type `Create PBI`. You can
-also type New PBI, Create User Story, Refine New Requirement or Start PBI. The agent guides you
-through six short steps:
+also type New PBI, Create User Story, Refine New Requirement or Start PBI. The agent needs only
+three things, and asks for them in one message when they are missing:
 
-1. **Title.** Optionally add the PBI number and choose the target project from the configured
-   list, and the application: **CDMS**, **DAB** or **Both**. You are asked once; the answer is
-   saved.
-2. **What should the application do?** Use your own words. Pasted Azure DevOps text, rules or
-   code are fine.
-3. **Acceptance criteria.** Enter them, let the agent draft them for review, point to an
-   attachment, or skip for now.
-4. **Supporting material.** Documents, spreadsheets, screenshots, diagrams or source files.
-5. **Kind of change.** New feature, enhancement, fix, legacy migration or not sure, plus notes.
-6. **Review.** Then choose Edit details, Save draft, Start analysis or Cancel.
+1. the PBI number or title;
+2. the requirement or acceptance criteria, in your own words (pasted Azure DevOps text, rules or
+   code are fine);
+3. optionally, the investigation scope, for example "legacy only".
 
-If your first message already contains the requirement, the agent fills in those steps and asks
-only for what is missing.
+If your first message already contains them, the agent asks nothing and starts. It works out the
+rest itself (kind of change, application areas, draft acceptance criteria, attachments) and shows
+it in its first progress summary for you to correct. It then investigates the source on its own:
+it does not ask whether to look at the next rule, file or JavaScript. You hear from it at
+milestones and when a real business decision is needed.
+
+"Target project" is the repository where the Builder is installed and the PBI is saved. The
+application being investigated is established from the requirement and the source.
 
 **In the form.** Open `playbook/pbi-builder/PBI-Builder.html`, or the package's
-`Akzo-SDD-PBI-Builder.html`. The **New PBI** tab has the same six steps. Its file picker copies
+`Akzo-SDD-PBI-Builder.html`. The **New PBI** tab collects the same details on a few pages,
+including the optional investigation scope. Its file picker copies
 your attachments into the PBI's `attachments` folder. **Save draft** keeps unfinished work.
 **Start analysis** saves the intake and gives you the prompt to paste into Copilot.
 
@@ -31,11 +32,16 @@ If a PBI with the same number exists, you are offered Resume (it is selected for
 Continue tab) or **Create a separate draft**. Nothing is overwritten.
 
 ## Answer business questions
-After analysis the agent asks one business question at a time. Each question shows:
-- why it matters;
-- a short example;
-- two to four options;
-- a custom answer.
+After investigating, the agent asks only genuine business decisions: one at a time, or up to three
+related ones together. It uses the **Business Decision Advisor** skill
+(`.github/skills/business-decision-advisor/SKILL.md`). Each question shows:
+- what happens today, what the requirement expects and what is missing;
+- its recommendation and why;
+- numbered choices: the recommended option, alternatives, then Custom answer and Decide later;
+- a ready-to-use answer you can approve as written;
+- the implementation impact and the source evidence.
+
+Answer with the number. Options are never letters.
 
 | Where | How you answer |
 | --- | --- |
@@ -89,7 +95,23 @@ consistency; it cannot confirm that the content is right or who really approved.
 ## CDMS, DAB and the legacy rules
 The agent reads the legacy code (plugins, workflows, custom workflow activities, JavaScript,
 HTML web resources and ribbon commands) and lists every business rule once, with all the places
-it was found (LEGACY-BUSINESS-RULE-CATALOG.md and BUSINESS-RULE-OWNERSHIP.md).
+it was found, in VALIDATION-MATRIX.md. Ask for LEGACY-BUSINESS-RULE-CATALOG.md or
+BUSINESS-RULE-OWNERSHIP.md if you want them as separate documents.
+
+## The repository is the source of truth
+PBI -> repository discovery -> source investigation -> business-rule validation -> gaps ->
+decisions only when blocked -> readiness -> refined PBI and SDD handoff.
+
+The agent reads the application repository itself. It never needs, writes or waits for a separate
+end-to-end analysis document. Older analysis documents, including the ColorDMS reports the form
+can still install on request, are optional background: never a prerequisite, never evidence of
+current behavior, and never deleted by the Builder. Every investigation checks the current code
+again. Findings go, briefly and with file references, into EVIDENCE.md and VALIDATION-MATRIX.md.
+
+Required per PBI: REQUEST.md, DRAFT-PBI.md, VALIDATION-MATRIX.md, EVIDENCE.md, DECISION-LOG.md,
+OPEN-QUESTIONS.md, pbi-state.json and the final refined PBI. Only on request: PLUGIN-RULES.md,
+PLUGIN-WORKFLOW-COVERAGE.md, the rule catalog, shared rules, ownership and acceptance-criteria
+documents, and the developer handoff export.
 
 - **CDMS:** a rule an existing CRM plugin already handles (with its registration checked) is
   reused; the PBI says to verify it, not to build it again. Workflow and JavaScript rules are
@@ -119,7 +141,28 @@ as `..\AN.ColorDMS.Customizations`, is out of reach unless the folder you open c
 agent checks this before every analysis, reports a source it cannot read as "configured but
 inaccessible" (never as missing), and says which conclusions stay unverified.
 
-Repository-level agents are found in the `.github\agents` folder of the repository you open.
+Repository-level agents are found in the `.github\agents` folder at the repository root, and
+skills in `.github\skills` (Visual Studio 18.5 or later; Microsoft Learn, "Use Agent Skills").
+Install the Builder at the Git root (the folder with `.git`); the installer warns otherwise.
+
+The agent searches the whole repository, not only the loaded solution. A repository can hold
+several solutions, for example plugins in one and JavaScript web resources in a sibling one;
+open the repository root as a folder so all of them are reachable. **Discover sources** lists
+every solution and, per folder, the kinds of files it holds, including JavaScript that no project
+lists. To name the folders that matter in one repository, create
+`playbook\pbi-builder\knowledge\SEARCH-SCOPE.md` yourself, for example:
+
+```
+# Search scope
+- Source/Formula
+- Source/WebResources
+- Source/Measurement
+- Source/MarketColor
+```
+
+The installer never writes or overwrites it. Before saying a feature is missing, the agent searches
+every relevant layer and reports each finding as found and verified, found but not yet reviewed,
+not found within the listed searches, or inaccessible.
 
 | Analysis | Install the Builder into | Role / sources | Open in Visual Studio |
 | --- | --- | --- | --- |

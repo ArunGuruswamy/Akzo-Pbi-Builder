@@ -31,6 +31,7 @@ param(
     [string]$DabSource,
     [string]$CdmsSource,
     [switch]$NoReferences,
+    [switch]$IncludeReferences,
     [switch]$Preview,
     [switch]$AllowUpdates,
     [string]$Pbi,
@@ -605,7 +606,7 @@ function Read-Choice([string]$prompt, [string]$default) { $a = Read-Host "$promp
 function Read-YesNo([string]$prompt) { return (Read-Host "$prompt [y/N]") -match '^(y|yes)$' }
 function Get-ConfigInput([bool]$existingOnly) {
     $raw = Read-Text "$($Bundle.base)/config.json"
-    $in = @{ schemaVersion = $null; projectName = (Split-Path -Leaf $script:Repo); ide = 'visualstudio'; role = 'legacy'; includeReferences = $true; sources = @{ legacy = ''; dab = ''; cdms = '' } }
+    $in = @{ schemaVersion = $null; projectName = (Split-Path -Leaf $script:Repo); ide = 'visualstudio'; role = 'legacy'; includeReferences = $false; sources = @{ legacy = ''; dab = ''; cdms = '' } }
     if ($null -ne $raw) {
         try { $old = $raw | ConvertFrom-Json } catch { throw "The existing $($Bundle.base)/config.json is not valid JSON. Fix or remove it, then rerun." }
         $in.schemaVersion = Get-Prop $old 'schemaVersion'
@@ -615,13 +616,14 @@ function Get-ConfigInput([bool]$existingOnly) {
     }
     elseif ($existingOnly) { throw "No $($Bundle.base)/config.json found. Run Install first." }
     if ($existingOnly) {
-        if (@('ProjectName', 'Ide', 'Role', 'LegacySource', 'DabSource', 'CdmsSource', 'NoReferences' | Where-Object { $script:Bound.ContainsKey($_) }).Count) { Write-Warning 'Repair uses the installed config.json; setting parameters were ignored. Use Install to change settings.' }
+        if (@('ProjectName', 'Ide', 'Role', 'LegacySource', 'DabSource', 'CdmsSource', 'NoReferences', 'IncludeReferences' | Where-Object { $script:Bound.ContainsKey($_) }).Count) { Write-Warning 'Repair uses the installed config.json; setting parameters were ignored. Use Install to change settings.' }
         return $in
     }
     if ($script:Bound.ContainsKey('ProjectName')) { $in.projectName = $ProjectName }
     if ($script:Bound.ContainsKey('Ide')) { $in.ide = $Ide }
     if ($script:Bound.ContainsKey('Role')) { $in.role = $Role }
     if ($script:Bound.ContainsKey('NoReferences')) { $in.includeReferences = -not $NoReferences }
+    if ($script:Bound.ContainsKey('IncludeReferences')) { $in.includeReferences = [bool]$IncludeReferences }
     if ($script:Bound.ContainsKey('LegacySource')) { $in.sources.legacy = $LegacySource }
     if ($script:Bound.ContainsKey('DabSource')) { $in.sources.dab = $DabSource }
     if ($script:Bound.ContainsKey('CdmsSource')) { $in.sources.cdms = $CdmsSource }
@@ -630,7 +632,7 @@ function Get-ConfigInput([bool]$existingOnly) {
         $in.ide = Read-Choice 'Editor: visualstudio or vscode' $in.ide
         $in.role = Read-Choice 'This repository is: legacy, dab, cdms or other' $in.role
         foreach ($k in 'legacy', 'dab', 'cdms') { if ($in.role -cne $k) { $in.sources[$k] = Read-Choice "Optional $k repository path, relative to this repository (blank if none)" $in.sources[$k] } }
-        $in.includeReferences = (Read-Choice 'Include the historical ColorDMS reference documents? y/n' $(if ($in.includeReferences) { 'y' } else { 'n' })) -match '^(y|yes)$'
+        $in.includeReferences = (Read-Choice 'Also install the older ColorDMS analysis documents as optional background (not needed)? y/n' $(if ($in.includeReferences) { 'y' } else { 'n' })) -match '^(y|yes)$'
     }
     return $in
 }

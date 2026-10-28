@@ -29,7 +29,7 @@ and Python 3 are only needed to rebuild and test.
 python update-fixture.py     # only when shell.html ids/options change
 python build.py              # writes Akzo-SDD-PBI-Builder.html
 node --check src/core.js && node --check src/ui.js
-node test-core.cjs           # 38 workflow checks on real temp files
+node test-core.cjs           # 42 workflow checks on real temp files
 node test-ui.cjs             # real handlers, simulated DOM (not a rendered browser)
 node test-ps.cjs             # Windows PowerShell: byte equivalence with core.js, installer actions
 node compare-versions.cjs    # deterministic v2.1 / 3.0.0 / 3.1.0 / current evidence (MEASUREMENTS.md)
