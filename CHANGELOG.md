@@ -2,6 +2,26 @@
 
 ## 4.0.0 — 27 October 2026
 
+### Application areas and question rules
+- Three application areas, named the same everywhere: CDMS, DAB (GraphQL) and Custom (Legacy
+  CRM/XRM). Stored keys are unchanged (`legacy`, `dab`, `cdms`; evidence system `legacy-crm`),
+  so existing configurations and PBIs keep working. The form's repository role and source
+  labels, sources.yaml (`area` per source) and SOURCE-MAP.md use these names.
+- Agent: identify the current repository's area from its source, search the source before
+  describing functionality, name the owning area for each rule, trace across the available
+  areas, explain in business language. Never invent an application, repository or dependency;
+  a field value such as OwnColor (Development Tool) is data, not an application, and is kept as
+  written.
+- Questions: options in business language with a Recommended option and its reason (when
+  supported), Custom answer and Decide later. A scope question (area, workflow, process or field
+  value) only after finding where the field or behavior is used and whether the requirement
+  covers all of those places. For PBI 277355 this removes the question "Should the Yes/No
+  choice apply to ColorApps or both ColorApps and OwnColor?"; the agent now investigates where
+  the Development Tool field affects actualization across the Industrialization workflows.
+- Form: Decide later replaces Skip and also works on required questions; they stay open and the
+  PBI is not Development-Ready until they are answered. A question's `recommended` option is
+  marked and preselected.
+
 ### Guided PBI creation
 - "Create PBI" (also New PBI, Create User Story, Refine New Requirement, Start PBI): six
   steps (title and project, requirement, acceptance criteria, supporting material, kind of

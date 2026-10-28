@@ -7,6 +7,8 @@ Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`
   `skills/crm-plugin-workflow-intelligence.md`, `skills/xrm-workflow-intelligence.md`,
   `skills/business-rule-ownership.md` and `skills/business-rule-branch-completeness.md`. The PBI template gains an application line and
   CDMS/DAB ownership columns.
+- sources.yaml gains an `area` line per source (Custom (Legacy CRM/XRM), DAB (GraphQL), CDMS);
+  keys and roles are unchanged. Questions may record `recommended` and `recommendedReason`.
 - The Visual Studio agent gains the `find_references` tool; sources.yaml gains an `ideAccess`
   note (a sources.yaml you edited is reported as a conflict, as before).
 - PBI folders are not changed. pbi-state.json stays schemaVersion 2; existing approvals keep

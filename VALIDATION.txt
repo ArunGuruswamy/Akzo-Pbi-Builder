@@ -34,7 +34,7 @@ REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copi
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 38 checks on real temporary files. These are the 26 earlier
+- test-core.cjs: 39 checks on real temporary files. These are the 26 earlier
   checks (tool-list assertion updated) plus:
   - 4.0 agent wording, the Extract Plugin Rules and speed instructions, and the
     new guides;
@@ -70,6 +70,14 @@ PASSED
     draft and handoff byte-identical, rules unchanged, question not
     re-offered); a re-export keeps the earlier handoff in history/; evidence
     index fields survive a refresh and a changed source is marked stale;
+  - application areas: CDMS, DAB (GraphQL) and Custom (Legacy CRM/XRM) in the agent,
+    guided-creation guide, sources.yaml and SOURCE-MAP.md; stored role keys unchanged;
+    field values are not applications; recommended option, Custom answer and Decide
+    later; scope questions only after investigating where the field is used. PBI 277355:
+    the ColorApps/OwnColor question appears in no installed instruction file, and
+    OwnColor appears only in the rule that treats it as a Development Tool value (the
+    bundled historical reports name legacy code such as AN.OwnColorExtractor and are
+    left verbatim);
   - Visual Studio tool compatibility: every Visual Studio tool name is one
     Microsoft documents for custom agents, no terminal tool, VS Code names kept
     apart, pinned comparison agents unchanged;
@@ -114,7 +122,9 @@ PASSED
   - A started intake cannot be reopened as a draft.
   - Existing PBI number: Resume offered, nothing saved (scenario H).
   - Question panel: options plus custom, name required, submit, skip optional,
-    edit previous with a custom answer (DEC-2 replaces DEC-1), show decisions.
+    edit previous with a custom answer (DEC-2 replaces DEC-1), show decisions,
+    recommended option marked and preselected, Decide later (a required question
+    left for later stays open).
   - Export developer handoff writes business-rules.json and the matrix.
   - Discover sources writes the source map and reports each source's access.
   - Application choice (Both) shown in Review and saved in REQUEST.md and

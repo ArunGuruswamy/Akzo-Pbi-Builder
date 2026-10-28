@@ -40,8 +40,8 @@ After analysis the agent asks one business question at a time. Each question sho
 | Where | How you answer |
 | --- | --- |
 | VS Code | Choose an option in the question control Copilot shows, or type a custom answer |
-| Visual Studio, or when no control appears | Type `1`, `2`, `3`… (the last number is "custom answer"); `back` edits your previous answer, `skip` skips an optional question, `status` shows progress, `why` explains the question |
-| The form, Continue tab, **Answer business questions** | Load questions, pick an answer or write a custom one, enter your name, Submit. Edit previous answer and Skip (optional questions only) are there too |
+| Visual Studio, or when no control appears | Type `1`, `2`, `3`… (the last two are "Custom answer" and "Decide later"); `back` edits your previous answer, `status` shows progress, `why` explains the question |
+| The form, Continue tab, **Answer business questions** | Load questions, pick an answer or write a custom one, enter your name, Submit. The recommended option is preselected. Edit previous answer and Decide later are there too; a required question left for later keeps the PBI from being Development-Ready |
 
 How answers are recorded:
 - Your answer is saved immediately with your name and the time. It approves that one decision,
@@ -123,8 +123,8 @@ Repository-level agents are found in the `.github\agents` folder of the reposito
 
 | Analysis | Install the Builder into | Role / sources | Open in Visual Studio |
 | --- | --- | --- | --- |
-| Legacy only | the legacy repository | role `legacy`, legacy source `.` | File > Open > Folder on the repository root (a `.sln` in a subfolder would leave the root, and the Builder's `playbook\` folder, outside the agent's reach) |
-| DAB only | the DAB repository | role `dab`, DAB source `.` | the repository root folder |
+| Custom (Legacy CRM/XRM) only | the legacy repository | role `legacy`, legacy source `.` | File > Open > Folder on the repository root (a `.sln` in a subfolder would leave the root, and the Builder's `playbook\` folder, outside the agent's reach) |
+| DAB (GraphQL) only | the DAB repository | role `dab`, DAB source `.` | the repository root folder |
 | CDMS only | the CDMS repository | role `cdms`, CDMS source `.` | the repository root folder |
 | Several repositories | the repository you work in; other sources as relative paths (`../Legacy`) | as above | a common parent folder that contains every clone. Not verified yet: whether Visual Studio still lists an agent stored in a child repository when the opened folder is the parent. Check it with the list below; if the agent does not appear, analyse from each repository in turn |
 

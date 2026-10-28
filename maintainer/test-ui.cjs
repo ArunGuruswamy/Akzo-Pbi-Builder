@@ -70,13 +70,13 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  const pbiName=draftDir.split('/').pop();
  await ctx.PBI.write(root,draftDir+'/pbi-state.json',JSON.stringify({schemaVersion:2,pbi:pbiName,status:'Draft',questions:[
   {id:'Q-1',blocking:true,owner:'po-ba',status:'unanswered',question:'Should an Adaptation request be allowed for another Industrial Instance when an existing request already uses the same Product?',why:'Decides when a duplicate is blocked.',example:'Instance A and B share Product P.',
-   options:[{key:'A',text:'Yes. Allow different Industrial Instances; block duplicates only for the same Instance, Product and Local/Global combination.'},{key:'B',text:'No. Block duplicates across every Industrial Instance of the same Market Color.'}]},
+   options:[{key:'A',text:'Yes. Allow different Industrial Instances; block duplicates only for the same Instance, Product and Local/Global combination.'},{key:'B',text:'No. Block duplicates across every Industrial Instance of the same Market Color.'}],recommended:'B'},
   {id:'Q-2',blocking:false,owner:'po-ba',status:'unanswered',question:'Show an information banner on the request?',options:[{key:'A',text:'Yes'},{key:'B',text:'No'}]}],decisions:[]}));
  await click('loadQuestions');assert.match(ids.questionProgress.textContent,/Question 1 of 2 · Q-1 · required/);assert.match(ids.questionWhy.textContent,/duplicate is blocked[\s\S]*Example: Instance A/);
- assert.deepEqual(ids.answerOption.children.map(o=>o.value),['A','B','custom']);
+ assert.deepEqual(ids.answerOption.children.map(o=>o.value),['A','B','custom']);assert.equal(ids.answerOption.value,'B','recommended option preselected');assert.match(ids.answerOption.children[1].textContent,/\(recommended\)$/);
  ids.answeredBy.value='';await ids.submitAnswer.onclick();assert.match(ids.message.textContent,/Enter your name/);
  ids.answeredBy.value='Priya (PO)';ids.answerOption.value='A';await click('submitAnswer');assert.match(ids.message.textContent,/Saved DEC-1 for Q-1/);assert.match(ids.questionProgress.textContent,/Q-2 · optional/);
- await click('skipQuestion');assert.match(ids.message.textContent,/Q-2 skipped for later\. No unresolved business questions: 1 of 2 answered; skipped for later: Q-2/);
+ await click('skipQuestion');assert.match(ids.message.textContent,/Q-2 set to decide later\. No unresolved business questions: 1 of 2 answered; decide later: Q-2/);
  await click('editPrevious');assert.match(ids.questionProgress.textContent,/Editing your answer to Q-1/);assert.equal(ids.answerOption.value,'A');
  ids.answerOption.value='custom';ids.customAnswer.value='Block duplicates only for the same Instance and Product.';await click('submitAnswer');assert.match(ids.message.textContent,/Saved DEC-2 for Q-1 \(replaces DEC-1\)/);
  await click('showDecisions');assert.match(ids.message.textContent,/DEC-1 · superseded[\s\S]*DEC-2 · approved · replaces DEC-1[\s\S]*Block duplicates only/);

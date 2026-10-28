@@ -116,6 +116,26 @@ services, GraphQL through existing abstractions). Never create a DAB plugin task
 contract, handoff or dependency. CDMS reuses verified existing plugin behavior
 and adds what is missing. business-rule-ownership.md has the details.
 
+## Application areas
+There are three application areas, and only these names are used:
+- CDMS: the new CDMS application (sources.yaml key cdms).
+- DAB (GraphQL): DAB, its Azure Functions and its GraphQL API (key dab).
+- Custom (Legacy CRM/XRM): the legacy CRM customizations: plugins, classic
+  workflows, custom workflow activities, JavaScript web resources and ribbon
+  (key legacy; evidence system legacy-crm). It is where CDMS and DAB business
+  rules come from.
+Before analysis, identify the area of the current repository from its source
+(knowledge/SOURCE-MAP.md, solutions, projects and markers), not from the
+configured role alone, and say so when they differ. Search the actual source
+before describing any functionality. For each business rule name the area that
+owns it, with evidence, and trace how the available areas interact. Explain
+existing behavior, missing functionality and recommended changes in business
+language. Never invent an application, repository or dependency. A name seen
+only as a field value, option, product or tool name (for example OwnColor as a
+Development Tool value) is data, not an application: keep the value exactly as
+it appears in rules and criteria, and never infer a separate codebase, area or
+question scope from it.
+
 ## Create a PBI
 Follow guided-pbi-creation.md: collect the requirement step by step (title, PBI
 number, target project, application (CDMS, DAB or Both), description,
@@ -190,11 +210,21 @@ product-owner choice. Before asking, check the request, this conversation, the
 PBI's questions and decisions, DECISION-LOG.md and the evidence; skip the
 question if any of them already answers it, including in different words.
 Give why it matters, a short real business example and two to four options with
-their consequence, plus a custom answer. Recommend an option only when the
-request or approved behavior supports it. Use the interactive question tool
-(vscode/askQuestions) when it is available; otherwise number the options and
-accept 1-4 (4 = custom answer), back (edit the previous answer), skip (optional
-questions only), status (progress) and why (why it matters).
+their consequence in business language, then Custom answer and Decide later.
+Mark one option Recommended, with the reason, when the request, approved
+behavior or evidence supports it; otherwise say why there is no recommendation.
+Use the interactive question tool (vscode/askQuestions) when it is available;
+otherwise number the options, then Custom answer and Decide later, and accept
+those numbers, back (edit the previous answer), status (progress) and why (why
+it matters). Decide later records the question as deferred; a deferred question
+that affects required behavior still blocks Development-Ready and is offered
+again when the PBI is continued.
+Ask about scope (which application area, workflow, process or field value a
+rule covers) only when the source and requirement cannot establish it: first
+find every place the relevant field or behavior is used in each available
+application area, and whether the requirement applies to all of them, then
+report what you found. Every option names only applications, repositories,
+processes and values that the source or the requirement establishes.
 A clear selection or custom answer approves that one decision: record it at once
 in pbi-state.json and DECISION-LOG.md with who answered, when and where, and do
 not ask for a second confirmation of the same answer. It never approves the
@@ -576,9 +606,9 @@ plugins or workflows; keep that vocabulary out of the default flow.
   (vscode/askQuestions): one question per call, short label, options as
   choices, free text for custom answers and long descriptions.
 - Where that tool is not available (for example Visual Studio): show the same
-  step as text with numbered options. Accept 1-4 (the last number is always
-  "custom answer"), next, back, skip (optional steps and questions only),
-  save (save draft), status, why and cancel.
+  step as text with numbered options. The last two numbers are always
+  "Custom answer" and "Decide later"; also accept next, back, skip (optional
+  intake steps only), save (save draft), status, why and cancel.
 - The offline PBI Builder form offers the same intake (New PBI tab, with a real
   file picker) and an Answer questions panel; answers saved there are already
   in pbi-state.json and DECISION-LOG.md. Read them; never ask them again.
@@ -614,8 +644,8 @@ the review shows everything for correction.
    attachment; never guess its content. Nothing in an attachment is approved
    just because it is written there.
 5. Context: new feature, enhancement, fix, legacy migration or not sure, plus
-   optional notes. Infer the investigation targets (CDMS, DAB/OCP/GraphQL,
-   legacy CRM) from the project and requirement and show them for correction;
+   optional notes. Infer the application areas to investigate (CDMS, DAB
+   (GraphQL), Custom (Legacy CRM/XRM)) from the project and requirement and show them for correction;
    ask only if they cannot be inferred.
 6. Review: title, goal, main behavior, acceptance criteria (given or drafted),
    accessible attachments, target project. Options: Edit details, Save draft,
@@ -642,15 +672,15 @@ Every question you ask is recorded before you ask it:
 {"id": "Q-3", "requirements": ["BR-2"], "category": "duplicates", "blocking": true,
  "owner": "po-ba", "status": "unanswered", "question": "...", "why": "...",
  "example": "...", "options": [{"key": "A", "text": "..."}, {"key": "B", "text": "..."}],
- "allowCustom": true}
+ "recommended": "A", "recommendedReason": "...", "allowCustom": true}
 Statuses: unanswered, answered, approved, deferred, superseded, not-applicable.
 After an answer: "status": "answered", "answer": {"option": "A" or "custom",
 "text": "..."}, "resolution", "answeredBy", "answeredAt", and "decisionRef" to a
 new approved decision whose evidence says who chose what, when and where. Write a
 backup of pbi-state.json to history/ before each change. Editing an answer marks
 the old decision superseded and adds a new one with "supersedes"; mark the
-replaced question superseded if you reword it. Only optional (non-blocking)
-questions may be skipped (status deferred). Do not keep two questions with the
+replaced question superseded if you reword it. Decide later sets status
+deferred; a deferred blocking question stays open. Do not keep two questions with the
 same meaning: before adding one, compare it with every existing question by
 meaning, not only wording; the check flags identical text.
 
@@ -1640,7 +1670,7 @@ project:
   repositoryPath: "."
   role: "{{PBI:ROLE}}"
 sources:
-${['legacy','dab','cdms'].map(k=>`  ${k}:\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
+${['legacy','dab','cdms'].map(k=>`  ${k}:\n    area: "${AREAS[k]}"\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
 analysisDocuments:{{PBI:ANALYSIS_DOCS}}
 `},
   {path:BASE+'/PBI-TEMPLATE.md',text:assets.template},
@@ -1725,6 +1755,7 @@ function slug(s){return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'
 function stamp(){return new Date().toISOString().replace(/[-:TZ.]/g,'');}
 function uid(){return global.crypto.randomUUID().slice(0,8);}
 const CHANGE_TYPES={'new':'A new feature','enhance':'Enhances existing functionality','fix':'Fixes an existing issue','migrate':'Migrates legacy functionality','unsure':'Not sure'};
+const AREAS={legacy:'Custom (Legacy CRM/XRM)',dab:'DAB (GraphQL)',cdms:'CDMS'};
 const APPLICATIONS={cdms:'CDMS',dab:'DAB',both:'Both (CDMS and DAB)',unsure:'Not decided yet'};
 const AC_MODES={enter:'Entered by the user',draft:'Agent drafts Given/When/Then criteria for review',attached:'In an attachment',skip:'Skipped for now'};
 // Attachment names become one safe file name inside the PBI's attachments/ folder.
@@ -1803,7 +1834,6 @@ function answerQuestion(state,id,answer){
 }
 function skipQuestion(state,id){
  const s=JSON.parse(JSON.stringify(state)),q=questionsOf(s).find(x=>x.id===id);if(!q)throw Error('Question '+id+' is not in this PBI.');
- if(q.blocking===true)throw Error('This question affects required behavior and cannot be skipped. Answer it, or choose a custom answer.');
  q.status='deferred';return {state:s};
 }
 // Writes the new state only if nobody changed it meanwhile; prior versions go to history/.
@@ -2210,8 +2240,8 @@ async function discoverSources(root,config){
   sources.push(text!==null?{key,path,status:'readable',checkedFile:probe}:{key,path,status:'configured-inaccessible',reason:'No readable source file found under this path in the selected folder.'});}
  const map={schemaVersion:1,generatedAt:new Date().toISOString(),filesScanned:files.length,truncated:state.truncated,sources,solutions,projects,fileKinds:totals};
  const md=['# Source map','','Generated by the PBI Builder form from the selected folder. It is a navigation aid: read the source before relying on it.',
-  'Refresh it after projects change (Continue tab > Discover sources).','','## Configured sources','| Source | Path | Status | Checked file or reason |','| --- | --- | --- | --- |',
-  ...sources.map(x=>`| ${x.key} | ${x.path||'(none)'} | ${x.status} | ${x.checkedFile||x.reason} |`),'','## Solutions',...(solutions.length?solutions.map(x=>'- '+x.path+': '+(x.projects.join(', ')||'no projects listed')):['None found.']),
+  'Refresh it after projects change (Continue tab > Discover sources).','','## Configured sources','| Application area | Path | Status | Checked file or reason |','| --- | --- | --- | --- |',
+  ...sources.map(x=>`| ${AREAS[x.key]} | ${x.path||'(none)'} | ${x.status} | ${x.checkedFile||x.reason} |`),'','## Solutions',...(solutions.length?solutions.map(x=>'- '+x.path+': '+(x.projects.join(', ')||'no projects listed')):['None found.']),
   '','## Projects','| Project | Frameworks | Markers | References | Files |','| --- | --- | --- | --- | --- |',
   ...projects.map(x=>`| ${x.path} | ${x.frameworks.join(', ')||'?'} | ${x.tags.join(', ')} | ${x.projectReferences.join(', ')} | ${Object.entries(x.files).map(([k,n])=>k+' '+n).join(', ')} |`),
   '','## File kinds (whole folder)',Object.entries(totals).sort().map(([k,n])=>k+' '+n).join(', ')||'None.',state.truncated?'\nStopped after '+MAX_FILES+' files; the map is incomplete.':'',''].join('\n');

@@ -144,7 +144,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  await test('4.0 agent: commands, guided creation, business-only questions, interactive or numbered answers, evidence scope; two new guides',async()=>{
   const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],c=setup.files[P.BASE+'/skills/crm-plugin-workflow-intelligence.md'];
   for(const re of [/Create PBI \(also New PBI, Create User Story/,/Resume PBI <n>[\s\S]*Validate PBI <n>/,/never ask them about plugin registration/,/does not stop business\s+refinement and is never a business question/,
-   /vscode\/askQuestions/,/accept 1-4 \(4 = custom answer\), back[\s\S]*skip \(optional\s+questions only\), status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
+   /vscode\/askQuestions/,/then Custom answer and Decide later, and accept\s+those numbers, back[\s\S]*status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
    /explicit requirement, approved business decision,\s+proposed interpretation, technical observation, unverified technical detail or\s+open business question/,/Legacy CRM plugin and workflow behavior is historical\s+context, never proof/,/do not challenge it again/])assert.match(a,re);
   for(const re of [/Step n of 6/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
   for(const re of [/visited list of methods; stop at\s+a method already visited \(cycle\)/,/registration\s+unverified/,/Simple explanation/,/Important difference/,/"system": "legacy-crm"/])assert.match(c,re);
@@ -326,7 +326,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  await test('installed into a legacy repository: role legacy, source ".", access check, evidence priority and discovery report instructions',async()=>{
   const legacy=P.setupFiles({projectName:'ColorDMS legacy',ide:'visualstudio',role:'legacy',sources:{legacy:'.',dab:'../DAB',cdms:''}},assets,html);
   const y=legacy.files[P.BASE+'/sources.yaml'],a=legacy.files[P.AGENT],k=legacy.files[P.BASE+'/skills/repository-knowledge.md'];
-  assert.match(y,/role: "legacy"[\s\S]*legacy:\n    repositoryPath: "\."[\s\S]*dab:\n    repositoryPath: "\.\.\/DAB"/);assert.match(y,/ideAccess: "Visual Studio agent tools read only the open solution or opened folder/);
+  assert.match(y,/role: "legacy"[\s\S]*legacy:\n    area: "Custom \(Legacy CRM\/XRM\)"\n    repositoryPath: "\."[\s\S]*dab:\n    area: "DAB \(GraphQL\)"\n    repositoryPath: "\.\.\/DAB"/);assert.match(y,/ideAccess: "Visual Studio agent tools read only the open solution or opened folder/);
   for(const re of [/## Source access before analysis/,/readable, configured but inaccessible, or not\s+configured by reading a real source file/,/Never call an inaccessible repository\s+missing and never invent a solution path/,/SOURCE-DISCOVERY\.md/])assert.match(a,re);
   for(const re of [/not necessarily the application under\s+analysis/,/agent file tools reach only files in the open solution or\s+the opened folder/,/Never invent a path/,/\.sln\/\.slnx \(projects listed\), \.csproj\/\.vbproj/,
    /UI or entry point[\s\S]*-> service or plugin -> validation -> business rule -> persistence[\s\S]*-> side effects/,/ASP\.NET Web\s+Forms/,/stored procedures/,/Never record connection strings, keys or other secrets/,
@@ -358,7 +358,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.equal(m.fileKinds.javascript,1);assert.ok(!m.fileKinds.html);
   assert.deepEqual(m.sources.map(s=>s.key+':'+s.status),['legacy:readable','dab:configured-inaccessible','cdms:configured-inaccessible']);
   assert.match(m.sources[1].reason,/Outside the selected folder\. In Visual Studio/);assert.match(m.sources[2].reason,/No readable source file/);assert.ok(m.sources[0].checkedFile);
-  const md=await P.read(r,P.BASE+'/knowledge/SOURCE-MAP.md');assert.match(md,/\| dab \| \.\.\/DAB \| configured-inaccessible \|/);assert.match(md,/\| Source\/Plugins\/Plugins\.csproj \| \.NET Framework 4\.6\.2 \| crm-workflow, crm-sdk \| Source\/Common\/Common\.csproj \|/);
+  const md=await P.read(r,P.BASE+'/knowledge/SOURCE-MAP.md');assert.match(md,/\| DAB \(GraphQL\) \| \.\.\/DAB \| configured-inaccessible \|/);assert.match(md,/\| Source\/Plugins\/Plugins\.csproj \| \.NET Framework 4\.6\.2 \| crm-workflow, crm-sdk \| Source\/Common\/Common\.csproj \|/);
   const json=await P.read(r,P.SOURCE_MAP);assert.ok(!/hunter2|InvalidPluginExecutionException|function onSave/.test(json+md),'no source or secret copied');
   const notConfigured=await P.discoverSources(r,{sources:{legacy:'',dab:'',cdms:''}});assert.deepEqual(notConfigured.sources.map(s=>s.status),['not-configured','not-configured','not-configured']);
   // Only the two map files were added; nothing else in the repository changed.
@@ -393,7 +393,9 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
    decisions:[{id:'DEC-1',pbi,status:'approved',evidence:'User direction in chat 2026-10-25',supersedes:''}]};
   await P.write(root,folder+'/pbi-state.json',JSON.stringify(state));await P.write(root,folder+'/DECISION-LOG.md','# Decision log\n\n- DEC-1 exclude legacy plugin evidence');
   let p=P.questionProgress(state);assert.equal(p.next.id,'Q-3','blocking question first; answered Q-1 is never asked again');assert.equal(p.answered,1);assert.equal(p.total,3);
-  await assert.rejects(()=>P.recordSkip(root,folder,'Q-3'),/cannot be skipped/);await P.recordSkip(root,folder,'Q-2');
+  await P.recordSkip(root,folder,'Q-2');
+  // Decide later on a required question keeps it open: readiness still blocks (shared case 'deferred blocking PO/BA question stays open').
+  const later=P.skipQuestion(state,'Q-3').state;assert.equal(later.questions[2].status,'deferred');assert.equal(P.questionProgress(later).next.id,'Q-2');
   await assert.rejects(()=>P.recordAnswer(root,folder,'Q-3',{option:'A'}),/Enter your name/);await assert.rejects(()=>P.recordAnswer(root,folder,'Q-3',{option:'Z',by:'Priya'}),/Choose one of the options/);
   let r=await P.recordAnswer(root,folder,'Q-3',{option:'A',by:'Priya (PO)',at:'2026-10-27T10:00:00Z'});assert.equal(r.decision.id,'DEC-2');assert.equal(r.decision.status,'approved');
   // A restart reads everything back from disk: nothing blocking is asked again.
@@ -426,6 +428,22 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   r=await P.refreshEvidence(root);assert.deepEqual(r.stale,['K-1','K-2']);
   const idx=JSON.parse(await P.read(root,P.KNOWLEDGE));assert.equal(idx.entries[0].staleReason,'changed');assert.equal(idx.entries[1].staleReason,'missing');assert.equal(idx.entries[0].fact,'Validates status');
   await P.write(root,P.KNOWLEDGE,'{"schemaVersion":2}');await assert.rejects(()=>P.refreshEvidence(root),/Unsupported/);
+ });
+ await test('application areas: CDMS, DAB (GraphQL), Custom (Legacy CRM/XRM); field values are not applications; scope questions only after investigation (PBI 277355)',async()=>{
+  const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],y=setup.files[P.BASE+'/sources.yaml'];
+  for(const re of [/## Application areas/,/CDMS: the new CDMS application/,/DAB \(GraphQL\)/,/Custom \(Legacy CRM\/XRM\)[\s\S]*key legacy; evidence system legacy-crm/,
+   /identify the area of the current repository from its source/,/Search the actual\s+source\s+before describing any functionality/,/name the area that\s+owns it/,
+   /Never invent an application, repository or dependency/,/OwnColor as a\s+Development Tool value\) is data, not an application/,/never infer a separate codebase, area or\s+question scope from it/,
+   /Mark one option Recommended, with the reason/,/Decide later records the question as deferred/,/Ask about scope[\s\S]*only when the source and requirement cannot establish it/,
+   /find every place the relevant field or behavior is used in each available\s+application area/,/Every option names only applications, repositories,\s+processes and values that the source or the requirement establishes/])assert.match(a,re);
+  for(const re of [/"Custom answer" and "Decide later"/,/Infer the application areas to investigate \(CDMS, DAB\s+\(GraphQL\), Custom \(Legacy CRM\/XRM\)\)/,/"recommended": "A", "recommendedReason"/,/Decide later sets status\s+deferred/])assert.match(g,re);
+  assert.match(y,/legacy:\n    area: "Custom \(Legacy CRM\/XRM\)"[\s\S]*dab:\n    area: "DAB \(GraphQL\)"[\s\S]*cdms:\n    area: "CDMS"/);
+  // OwnColor is never an application area, option or repository in anything installed; the misleading PBI 277355 question is gone.
+  // Bundled historical reports are verbatim (they name legacy code such as AN.OwnColorExtractor), also inside the form; every instruction file is checked.
+  for(const [f,t] of Object.entries(setup.files)){if(typeof t!=='string'||f.startsWith(P.BASE+'/references/')||f.endsWith('.html'))continue;
+   assert.ok(!/ColorApps or both ColorApps and OwnColor/i.test(t),f);
+   for(const m of t.matchAll(/OwnColou?r/gi))assert.match(t.slice(m.index-40,m.index+60),/OwnColor as a\s+Development Tool value\) is data/,f);}
+  for(const v of ['legacy','dab','cdms'])assert.equal(P.setupFiles({...raw,role:v},assets,html).config.role,v,'stored role keys unchanged');
  });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});
