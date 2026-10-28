@@ -189,7 +189,27 @@ acceptance criteria, supporting material, kind of change, review) before any
 repository analysis. Ask the application once and keep the answer. Prefill everything the
 user already gave in the message, a REQUEST.md, pbi.json or an attachment; never
 ask for the same information twice. A new PBI starts with no decisions or
-approvals, whatever earlier PBIs recorded. Create its folder under playbook/pbis/
+approvals, whatever earlier PBIs recorded.
+
+## Every new PBI starts fresh
+Treat each new PBI as if you had never seen another one. Its only inputs are
+the user's words for this PBI, its own folder (REQUEST.md, pbi.json,
+attachments), the configured source code you read for it, and reusable
+knowledge notes that you verify against current source.
+- Start each new PBI in a new chat. If this conversation already worked on
+  another PBI, say so and ask the user to open a new chat; until then, use
+  nothing from that earlier work.
+- Never carry over from an earlier PBI, conversation or Copilot memory any
+  business rule, answer, decision, assumption, field value, application name,
+  question, acceptance criterion or conclusion. If something looks familiar,
+  find it again in this PBI's request or in source, or leave it out.
+- Other PBI folders: read only their names, to detect a duplicate number or
+  title. Read their content only when the user names that PBI as related; then
+  cite it as "related PBI <n>, not approved for this PBI" and never as
+  evidence, a decision or an approval.
+- Never store PBI content in Copilot memory or in knowledge notes; those hold
+  reusable code facts only.
+Create its folder under playbook/pbis/
 only once a title or number exists; inspect existing folders first and, when one
 matches, offer Resume existing, Create separate draft or Cancel. Never overwrite
 an existing request.
@@ -1312,7 +1332,10 @@ classic workflow already read (entity, message or trigger, stage, mode,
 activation evidence, file, rule summary) so it is not
 traced again. Record the repository and revision for each fact.
 Never store or reuse another PBI's approvals, decisions, readiness status or
-implementation progress as current task state.
+implementation progress as current task state. Never write a business rule,
+answer, decision, field value or requirement into knowledge notes; they are
+PBI content. Files in another PBI's folder are never evidence for this PBI
+(FOREIGN_PBI_EVIDENCE).
 
 ## Evidence fingerprints
 ${KNOWLEDGE} lists the source files behind reusable facts:
@@ -1842,7 +1865,7 @@ function newPbi(c,data){
 `:`Application: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again.
 `)
   +(acMode==='draft'?`Draft Given/When/Then acceptance criteria from the description, each traced to the text and marked proposed for review.\n`:'')
-  +`Save this PBI's documents in ${folder}/. Investigate the target project's evidence first, then ask one unresolved business question at a time.\nThis PBI starts with no decisions or approvals. Do not change application code or publish a work item.`;
+  +`Save this PBI's documents in ${folder}/. Investigate the target project's evidence first, then ask one unresolved business question at a time.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
  return {folder,request,prompt,attachments,files:{[folder+'/REQUEST.md']:md,[folder+'/pbi.json']:JSON.stringify(request,null,2)+'\n',[folder+'/START-PROMPT.txt']:prompt+'\n'}};
 }
 function refinePbi(folder,changes){safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');
@@ -1982,6 +2005,7 @@ const READINESS={
   DAB_BRANCH_GAP:'DAB is marked implemented, but a branch is not covered in DAB.',
   RULE_DUPLICATE:'The same rule text is recorded twice; keep one canonical rule and cite every source as evidence.',
   DOC_OUT_OF_SCOPE:'An application-specific PBI exists for an application this PBI does not apply to.',
+  FOREIGN_PBI_EVIDENCE:'Evidence points into another PBI\'s folder. Each PBI starts fresh: cite this PBI\'s request or the current source instead.',
   HISTORICAL_NOT_PROOF:'Only historical reference reports support this rule; they are navigation aids, so read and cite the current source.',
   OWNER_UNKNOWN:'The owner of the rule is unknown; find which component enforces it.',
   OWNER_MISATTRIBUTED:'The owner is not backed by code evidence from that component (for example a workflow rule cited only with plugin code).',
@@ -2044,7 +2068,10 @@ async function readiness(state,docs,pbi){
   if(!Array.isArray(state.dependencies))add('NO_DEPENDENCIES',0,pbi);
   // Approval fingerprints are keyed by ID, so IDs must be unique across every list.
   const seen=[];for(const n of R.lists)for(const x of L[n]){const id=obj(x)?x.id:undefined;if(!str(id))continue;if(seen.includes(id))add('DUPLICATE_ID',0,id);else seen.push(id);}
-  const historical=x=>x.historical===true||(x.kind==='repo-file'&&typeof x.source==='string'&&R.historicalPaths.some(p=>p.endsWith('/')?x.source.startsWith(p):x.source===p));
+  // Files from another PBI's folder are never evidence for this one.
+  const foreign=x=>typeof x.source==='string'&&x.source.startsWith('playbook/pbis/')&&!x.source.startsWith('playbook/pbis/'+pbi+'/');
+  for(const x of evidence)if(obj(x)&&foreign(x))add('FOREIGN_PBI_EVIDENCE',1,str(x.id)?x.id:pbi);
+  const historical=x=>x.historical===true||foreign(x)||(x.kind==='repo-file'&&typeof x.source==='string'&&R.historicalPaths.some(p=>p.endsWith('/')?x.source.startsWith(p):x.source===p));
   const evScope=obj(state.evidenceScope)?state.evidenceScope:{},excluded=arr(evScope.exclude).filter(x=>typeof x==='string');
   if(excluded.length&&byId(decisions,evScope.decisionRef)?.status!=='approved')add('SCOPE_DECISION_MISSING',2,pbi);
   const scope=obj(state.paths)?state.paths:{},applies=[];

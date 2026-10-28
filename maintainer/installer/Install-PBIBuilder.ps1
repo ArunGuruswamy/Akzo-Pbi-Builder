@@ -301,7 +301,10 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         if (-not ((Get-Prop $state 'dependencies') -is [array])) { & $add 'NO_DEPENDENCIES' 0 $pbi }
         $seen = New-Object System.Collections.Generic.List[string]
         foreach ($n in $Spec.lists) { foreach ($x in $Lists[$n]) { $id = Get-Prop $x 'id'; if (-not (Test-Str $id)) { continue }; if ($seen.Contains($id)) { & $add 'DUPLICATE_ID' 0 $id } else { $seen.Add($id) } } }
-        $isHist = { param($x) if ((Get-Prop $x 'historical') -eq $true -and (Get-Prop $x 'historical') -is [bool]) { return $true }; $src = Get-Prop $x 'source'; if (-not (Test-Same (Get-Prop $x 'kind') 'repo-file') -or -not ($src -is [string])) { return $false }; foreach ($p in $Spec.historicalPaths) { if ($p.EndsWith('/')) { if ($src.StartsWith($p, [System.StringComparison]::Ordinal)) { return $true } } elseif (Test-Same $src $p) { return $true } }; return $false }
+        # Files from another PBI's folder are never evidence for this one.
+        $isForeign = { param($x) $src = Get-Prop $x 'source'; return ($src -is [string]) -and $src.StartsWith('playbook/pbis/', [System.StringComparison]::Ordinal) -and -not $src.StartsWith("playbook/pbis/$pbi/", [System.StringComparison]::Ordinal) }
+        foreach ($x in $evidence) { if ((Test-Obj $x) -and (& $isForeign $x)) { $id = Get-Prop $x 'id'; & $add 'FOREIGN_PBI_EVIDENCE' 1 $(if (Test-Str $id) { $id } else { $pbi }) } }
+        $isHist = { param($x) if ((Get-Prop $x 'historical') -eq $true -and (Get-Prop $x 'historical') -is [bool]) { return $true }; if (& $isForeign $x) { return $true }; $src = Get-Prop $x 'source'; if (-not (Test-Same (Get-Prop $x 'kind') 'repo-file') -or -not ($src -is [string])) { return $false }; foreach ($p in $Spec.historicalPaths) { if ($p.EndsWith('/')) { if ($src.StartsWith($p, [System.StringComparison]::Ordinal)) { return $true } } elseif (Test-Same $src $p) { return $true } }; return $false }
         $evScope = Get-Prop $state 'evidenceScope'; $excluded = @((Get-Arr (Get-Prop $evScope 'exclude')) | Where-Object { $_ -is [string] })
         if ($excluded.Count -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $evScope 'decisionRef')) 'status') 'approved')) { & $add 'SCOPE_DECISION_MISSING' 2 $pbi }
         $scope = Get-Prop $state 'paths'; if (-not (Test-Obj $scope)) { $scope = [pscustomobject]@{} }

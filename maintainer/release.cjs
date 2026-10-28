@@ -11,7 +11,7 @@ async function list(dir,rel=''){let out=[];for(const e of await fs.readdir(path.
  const assets=JSON.parse(await fs.readFile(path.join(__dirname,'src/assets.json'),'utf8'));
  await fs.copyFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),path.join(pkg,'Akzo-SDD-PBI-Builder.html'));
  await fs.writeFile(path.join(pkg,'pbi-builder-bundle.json'),JSON.stringify(P.bundle(assets)));
- for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
+ for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
  const files={},sums=[];
  for(const rel of await list(pkg)){const b=await fs.readFile(path.join(pkg,rel));files['Akzo-SDD-PBI-Builder/'+rel]=new Uint8Array(b);sums.push(sha(b)+'  '+rel);}
  const sumText=sums.join('\n')+'\n';files['Akzo-SDD-PBI-Builder/SHA256SUMS.txt']=sumText;await fs.writeFile(path.join(pkg,'SHA256SUMS.txt'),sumText);

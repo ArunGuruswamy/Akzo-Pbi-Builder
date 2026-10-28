@@ -445,6 +445,15 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
    for(const m of t.matchAll(/OwnColou?r/gi))assert.match(t.slice(m.index-40,m.index+60),/OwnColor as a\s+Development Tool value\) is data/,f);}
   for(const v of ['legacy','dab','cdms'])assert.equal(P.setupFiles({...raw,role:v},assets,html).config.role,v,'stored role keys unchanged');
  });
+ await test('every new PBI starts fresh: new chat, nothing carried over from earlier PBIs, chats or Copilot memory; other PBI folders are not evidence',async()=>{
+  const a=setup.files[P.AGENT],k=setup.files[P.BASE+'/skills/repository-knowledge.md'];
+  for(const re of [/## Every new PBI starts fresh/,/Start each new PBI in a new chat/,/Never carry over from an earlier PBI, conversation or Copilot memory any\s+business rule, answer, decision, assumption, field value, application name/,
+   /read only their names, to detect a duplicate number or\s+title/,/not approved for this PBI/,/Never store PBI content in Copilot memory or in knowledge notes/])assert.match(a,re);
+  assert.match(k,/Files in another PBI's folder are never evidence for this PBI/);
+  const p=P.newPbi(setup.config,{title:'Development Tool actualization',description:'Ask Yes/No before actualization.'}).prompt;
+  assert.match(p,/Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory/);assert.match(p,/This PBI starts with no decisions or approvals/);
+  assert.ok(P.READINESS.messages.FOREIGN_PBI_EVIDENCE);
+ });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});
 })().catch(e=>{console.error(e);process.exitCode=1;});

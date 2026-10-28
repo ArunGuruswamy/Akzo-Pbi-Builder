@@ -2,6 +2,30 @@
 
 ## 4.0.0 — 27 October 2026
 
+### Every new PBI starts fresh
+- Agent: each new PBI uses only its own request, folder, attachments and the source read for
+  it. Start it in a new chat (the agent asks for one if the conversation already worked on
+  another PBI); nothing is carried over from earlier PBIs, chats or Copilot memory (rules,
+  answers, decisions, assumptions, field values, application names, questions, criteria).
+  Other PBI folders are read only by name for duplicate detection, or as a named related PBI
+  that is never evidence or approval. PBI content is never stored in Copilot memory or
+  knowledge notes. The start prompt of every new PBI repeats this.
+- Readiness (form and PowerShell, identical): evidence that points into another PBI's folder is
+  reported as FOREIGN_PBI_EVIDENCE and never counts; files in the PBI's own folder still do.
+
+### Setup window with upgrade
+- Double-clicking Install-PBIBuilder.cmd opens a setup window (PBI-Builder-Setup.ps1),
+  modelled on the Akzo Master SDD installer: a remembered list of repositories with each one's
+  installed version and available update, Add repository, Install / Upgrade, Upgrade all,
+  Repair, Verify, Uninstall and a log. Editor and repository area are asked only for a first
+  install; an upgrade keeps config.json.
+- It runs Install-PBIBuilder.ps1 for every action, so review, conflict protection, backups and
+  rollback are unchanged: changes are previewed and confirmed before writing, and a repository
+  with edited files is skipped and reported. It runs under the user's execution policy (no
+  Bypass, unlike the Master installer). `-NoGui -Action Install|Upgrade|Repair|Verify|Uninstall|Status`
+  for scripts. The list is stored in %USERPROFILE%\.akzo-pbi-builder\repositories.txt (paths
+  only). With arguments, Install-PBIBuilder.cmd runs the installer as before.
+
 ### Application areas and question rules
 - Three application areas, named the same everywhere: CDMS, DAB (GraphQL) and Custom (Legacy
   CRM/XRM). Stored keys are unchanged (`legacy`, `dab`, `cdms`; evidence system `legacy-crm`),

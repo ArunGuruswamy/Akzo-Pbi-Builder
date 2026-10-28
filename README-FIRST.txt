@@ -21,12 +21,22 @@ INSTALL - OPTION A: BROWSER (no PowerShell needed)
 5. Reopen the solution (Visual Studio) or folder (VS Code). In Copilot Chat select
    Akzo SDD PBI Builder - <your project>, then run the setup-check prompt shown.
 
-INSTALL - OPTION B: WINDOWS INSTALLER
-Double-click Install-PBIBuilder.cmd. It asks for the repository folder and
-settings, shows what it will change, and asks before writing. Or run it with
+INSTALL - OPTION B: WINDOWS SETUP WINDOW
+Double-click Install-PBIBuilder.cmd. A setup window opens:
+1. Add repository... and choose the repository root (the folder with .git).
+   The list shows each repository's installed version and whether an update is
+   available; it is remembered for next time.
+2. For a first install choose the editor and what the repository is (CDMS,
+   DAB (GraphQL) or Custom (Legacy CRM/XRM)); an upgrade keeps its settings.
+3. Install / Upgrade shows the planned changes and asks before writing.
+   Upgrade all does the same for every listed repository with an older version.
+   Repair, Verify and Uninstall work on the selected repository.
+Files you edited are never overwritten (that repository is skipped and
+reported); replaced files are backed up first. Or run the installer with
 parameters, for example:
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -ProjectName "My Repo" -Ide vscode -Role dab -Preview
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -AllowUpdates
+  powershell -File PBI-Builder-Setup.ps1 -NoGui -Action Upgrade   (all listed repositories)
 Actions: -Action Install (default), Verify, Repair, Uninstall, CheckPbi,
 RefreshEvidence. -Preview shows changes without writing. Uninstall-PBIBuilder.cmd
 removes setup files but always keeps PBIs, decisions, history and knowledge notes.
@@ -35,7 +45,8 @@ The installer respects your PowerShell execution policy and never bypasses it.
 If the policy blocks it, ask IT or use Option A. Do not change the policy yourself.
 
 CREATE A PBI
-In Copilot type "Create PBI", or use the New PBI tab of the form. Choose the
+Open a NEW Copilot chat for every new PBI, so nothing from an earlier PBI is
+carried over. In Copilot type "Create PBI", or use the New PBI tab of the form. Choose the
 application: CDMS, DAB or Both. There is no DAB plugin: DAB implements every
 applicable legacy rule in its own code, while CDMS reuses verified plugins. You are guided
 through six short steps; save a draft any time. Business questions come one at
@@ -43,7 +54,8 @@ a time with selectable answers (VS Code) or numbered options, and can also be
 answered on the form's Continue tab. See docs/USER-GUIDE.md.
 
 UPGRADING FROM 3.1.0
-Install as above and allow reviewed updates. Existing PBIs and approvals stay
+Install as above and allow reviewed updates (in the setup window: Install /
+Upgrade or Upgrade all). Existing PBIs and approvals stay
 valid. See MIGRATION.md.
 
 UPGRADING FROM 3.0.0

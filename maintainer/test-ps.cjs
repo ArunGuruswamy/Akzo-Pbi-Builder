@@ -18,7 +18,7 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
  const assets=JSON.parse(await fs.readFile(path.join(__dirname,'src/assets.json'),'utf8'));
  const html=await fs.readFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),'utf8');
  const pkg=path.join(tmp,'package ಕನ್ನಡ & space');await fs.mkdir(pkg);
- for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
+ for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
  await fs.writeFile(path.join(pkg,'pbi-builder-bundle.json'),JSON.stringify(P.bundle(assets)));await fs.writeFile(path.join(pkg,'Akzo-SDD-PBI-Builder.html'),html);
  let n=0;const repo=async()=>{const d=path.join(tmp,`repo ${++n} — ಕನ್ನಡ & co`);await fs.mkdir(path.join(d,'.git'),{recursive:true});return d;};
  const jsInstall=async(d,cfg,allow=false)=>{const root=new DirectoryHandle(d);return P.apply(root,await P.plan(root,P.setupFiles(cfg,assets,html).files,true),allow);};
@@ -132,6 +132,28 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
   r=ps(await bad('token',b=>{b.tokens.push('NEW_TOKEN');}),args);assert.equal(r.code,2);assert.match(r.err,/placeholder NEW_TOKEN/);
   r=ps(await bad('placeholder',b=>{b.setup.at(-1).template+='{{PBI:NOPE}}';}),args);assert.equal(r.code,2);assert.match(r.err,/Unresolved placeholder \{\{PBI:NOPE\}\} in \.github\/prompts\/akzo-pbi-refine\.prompt\.md/);
   assert.deepEqual(Object.keys(await tree(d)),[]);
+ });
+ await test('setup window engine (-NoGui): install remembers the repository, status, upgrade all outdated repositories, edited files block only their repository, uninstall forgets it',async()=>{
+  const home=path.join(tmp,'home ಕ');await fs.mkdir(home);const reg=path.join(home,'.akzo-pbi-builder','repositories.txt');
+  const setup=args=>ps(pkg,['-NoGui','-HomeRoot',home,...args],'PBI-Builder-Setup.ps1');
+  const version=async d=>(await loose(path.join(d,P.MANIFEST))).packageVersion;
+  const a=await repo();let r=setup(['-Action','Install','-Repo',a,'-Ide','vscode','-Role','dab']);assert.equal(r.code,0,r.out+r.err);
+  assert.equal(await version(a),P.VERSION);assert.equal((await loose(path.join(a,P.CONFIG))).role,'dab');assert.deepEqual((await fs.readFile(reg,'utf8')).trim().split(/\r?\n/),[a]);
+  r=setup(['-Action','Install','-Repo',a]);assert.equal(r.code,0);assert.match(r.out,/Already up to date/);
+  // Two 3.0.0 installations; one has an edited agent. Upgrade all upgrades the clean one, keeps its settings and reports the other.
+  const a30={...assets,template:await fs.readFile(path.join(__dirname,'fixtures/baseline-v3.0.0-template.md'),'utf8')};
+  const old=async(role)=>{const d=await repo(),root=new DirectoryHandle(d),cfg={projectName:'Old '+role,ide:'visualstudio',role,includeReferences:false,sources:{legacy:'',dab:'',cdms:''}};
+   const f=V30.setupFiles(cfg,a30,'HTML 3.0');await V30.apply(root,await V30.plan(root,f.files,true));return d;};
+  const b=await old('cdms'),c=await old('legacy');await fs.appendFile(path.join(c,P.AGENT),'\nlocal edit');
+  await fs.appendFile(reg,b+'\r\n'+c+'\r\n');
+  r=setup(['-Action','Status']);assert.match(r.out,/up to date[\s\S]*update to 4\.0\.0 available/);
+  r=setup(['-Action','Upgrade']);assert.equal(r.code,3,'one repository was not upgraded');
+  assert.equal(await version(b),P.VERSION);assert.equal((await loose(path.join(b,P.CONFIG))).role,'cdms');assert.ok((await fs.readdir(path.join(b,P.BASE,'backups'))).length);
+  assert.equal(await version(c),'3.0.0');assert.match(r.out,/Nothing was written: files you edited differ/);assert.match(await fs.readFile(path.join(c,P.AGENT),'utf8'),/local edit/);
+  r=setup(['-Action','Verify','-Repo',b]);assert.equal(r.code,0,r.out);assert.match(r.out,/All recorded files match/);
+  r=setup(['-Action','Uninstall','-Repo',a]);assert.equal(r.code,0,r.out);await assert.rejects(fs.stat(path.join(a,P.MANIFEST)));assert.doesNotMatch(await fs.readFile(reg,'utf8'),new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  // Double-click path: the .cmd opens the window (it stays open until closed); with arguments it still runs the engine.
+  const src=await fs.readFile(path.join(pkg,'Install-PBIBuilder.cmd'),'utf8');assert.match(src,/PBI-Builder-Setup\.ps1/);assert.doesNotMatch(src+await fs.readFile(path.join(pkg,'PBI-Builder-Setup.ps1'),'utf8'),/ExecutionPolicy/i);
  });
  console.log(`\n${count} PowerShell installer checks passed (Windows PowerShell, real execution policy, real files).`);
  await fs.rm(tmp,{recursive:true,force:true});

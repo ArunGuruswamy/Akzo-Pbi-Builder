@@ -11,7 +11,8 @@ and Python 3 are only needed to rebuild and test.
   ownership, plan/apply/rollback, ZIP writer.
 - `src/ui.js`, `src/shell.html`: browser controls and layout (inline CSP, no network).
 - `src/assets.json`: historical reference documents and the PBI template.
-- `installer/`: `Install-PBIBuilder.ps1` (all actions), `Uninstall-PBIBuilder.ps1`
+- `installer/`: `Install-PBIBuilder.ps1` (all actions), `PBI-Builder-Setup.ps1` (setup window and
+  `-NoGui` batch mode over the installer; opened by double-clicking the .cmd), `Uninstall-PBIBuilder.ps1`
   (wrapper) and `.cmd` launchers. Pure ASCII so Windows PowerShell 5.1 reads them
   without a BOM.
 - `fixtures/baseline-v2.0.0-core.cjs`, `baseline-v2.1.0-core.cjs`, `baseline-v3.0.0-core.cjs`:
