@@ -11,7 +11,13 @@ async function list(dir,rel=''){let out=[];for(const e of await fs.readdir(path.
  const assets=JSON.parse(await fs.readFile(path.join(__dirname,'src/assets.json'),'utf8'));
  await fs.copyFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),path.join(pkg,'Akzo-SDD-PBI-Builder.html'));
  await fs.writeFile(path.join(pkg,'pbi-builder-bundle.json'),JSON.stringify(P.bundle(assets)));
- for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
+ for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd','Install.cmd','Uninstall.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
+ // Organization-signed package: set PBI_SIGN_CERT to the thumbprint of a code-signing certificate in
+ // Cert:\CurrentUser\My (and optionally PBI_SIGN_TIMESTAMP to a timestamp URL). Signing runs before checksums.
+ if(process.env.PBI_SIGN_CERT){
+  const s=cp.spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command','$c=Get-Item -LiteralPath (\'Cert:\\CurrentUser\\My\\\'+$env:PBI_SIGN_CERT);foreach($f in \'Install-PBIBuilder.ps1\',\'Uninstall-PBIBuilder.ps1\',\'PBI-Builder-Setup.ps1\'){$a=@{FilePath=(Join-Path $env:PKG $f);Certificate=$c;HashAlgorithm=\'SHA256\'};if($env:PBI_SIGN_TIMESTAMP){$a.TimestampServer=$env:PBI_SIGN_TIMESTAMP};$r=Set-AuthenticodeSignature @a;if($r.Status -ne \'Valid\'){throw ($f+\': \'+$r.StatusMessage)}}'],{encoding:'utf8',env:{...process.env,PKG:pkg}});
+  if(s.status!==0)throw Error('Signing failed: '+s.stderr);console.log('Signed the PowerShell scripts with certificate '+process.env.PBI_SIGN_CERT);
+ }
  const files={},sums=[];
  for(const rel of await list(pkg)){const b=await fs.readFile(path.join(pkg,rel));files['Akzo-SDD-PBI-Builder/'+rel]=new Uint8Array(b);sums.push(sha(b)+'  '+rel);}
  const sumText=sums.join('\n')+'\n';files['Akzo-SDD-PBI-Builder/SHA256SUMS.txt']=sumText;await fs.writeFile(path.join(pkg,'SHA256SUMS.txt'),sumText);

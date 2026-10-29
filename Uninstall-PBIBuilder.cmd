@@ -1,8 +1,7 @@
 @echo off
-rem Runs Uninstall-PBIBuilder.ps1 under your existing PowerShell execution policy; it never bypasses it.
+rem Uninstalls through Install-PBIBuilder.cmd, so the same package and execution-policy checks run first.
+rem Never bypasses the execution policy. Removes only unchanged installed files, after backing them up.
 setlocal
-powershell.exe -NoProfile -File "%~dp0Uninstall-PBIBuilder.ps1" %*
-set "code=%ERRORLEVEL%"
-if "%code%"=="1" echo.& echo If PowerShell said running scripts is disabled or the file is not signed, your execution policy blocks this installer. Ask IT, or use Akzo-SDD-PBI-Builder.html instead.
-if "%~1"=="" pause
-exit /b %code%
+if "%~1"=="" set "PBI_PAUSE=1"
+call "%~dp0Install-PBIBuilder.cmd" -Action Uninstall %*
+exit /b %ERRORLEVEL%

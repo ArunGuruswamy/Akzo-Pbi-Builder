@@ -108,7 +108,8 @@ $info.Text = "This package: $PackageVersion. Install the PBI Builder into each r
 $listLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = 50; Width = 400; Text = 'Repositories (installed version):' }
 $list = New-Object System.Windows.Forms.ListBox -Property @{ Left = 12; Top = 72; Width = 620; Height = 110 }
 $add = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 72; Width = 130; Height = 30; Text = 'Add repository...' }
-$forget = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 108; Width = 130; Height = 30; Text = 'Remove from list' }
+$addPath = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 108; Width = 130; Height = 30; Text = 'Add by path...' }
+$forget = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 144; Width = 130; Height = 30; Text = 'Remove from list' }
 $ideLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = 192; Width = 200; Text = 'For a first install - Editor:' }
 $ideBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 215; Top = 189; Width = 170; DropDownStyle = 'DropDownList' }
 [void]$ideBox.Items.AddRange(@('Visual Studio 2026', 'VS Code')); $ideBox.SelectedIndex = $(if ($Ide -eq 'vscode') { 1 } else { 0 })
@@ -118,7 +119,7 @@ $roleBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 520; Top
 $buttons = foreach ($b in 'Install / Upgrade', 'Upgrade all', 'Repair', 'Verify', 'Uninstall', 'Close') { New-Object System.Windows.Forms.Button -Property @{ Text = $b; Width = 118; Height = 32; Top = 224 } }
 for ($i = 0; $i -lt $buttons.Count; $i++) { $buttons[$i].Left = 12 + $i * 127 }
 $log = New-Object System.Windows.Forms.TextBox -Property @{ Left = 12; Top = 266; Width = 760; Height = 284; Multiline = $true; ScrollBars = 'Vertical'; ReadOnly = $true; Font = New-Object System.Drawing.Font('Consolas', 8.5) }
-$form.Controls.AddRange(@($info, $listLabel, $list, $add, $forget, $ideLabel, $ideBox, $roleLabel, $roleBox) + $buttons + @($log))
+$form.Controls.AddRange(@($info, $listLabel, $list, $add, $addPath, $forget, $ideLabel, $ideBox, $roleLabel, $roleBox) + $buttons + @($log))
 
 $script:paths = @()
 function Show-Repos {
@@ -137,12 +138,22 @@ function Write-Log([string]$text) { $log.Text = $text; $log.SelectionStart = $lo
 function Invoke-Busy([scriptblock]$work) { $form.Cursor = 'WaitCursor'; $log.Text = 'Working...'; $form.Refresh(); try { & $work } finally { $form.Cursor = 'Default'; Show-Repos } }
 $askApply = { param($plan) [System.Windows.Forms.MessageBox]::Show("Planned changes:`n`n$((($plan -split "`r?`n") | Where-Object { $_ -match '^(create|update|retire|Review:)' } | Select-Object -First 25) -join "`n")`n`nApply them? Files that are replaced are backed up first.", 'Install / Upgrade', 'YesNo', 'Question') -eq 'Yes' }
 
+function Add-Checked([string]$path) {
+    # Pasted "Copy as path" quotes and trailing slashes are removed, as in the Akzo-Agent installer.
+    $path = $path.Trim().Trim('"', "'").TrimEnd('\', '/')
+    if (-not $path -or -not (Test-Path -LiteralPath $path -PathType Container)) { [void][System.Windows.Forms.MessageBox]::Show("Folder not found (or not reachable): $path", 'Add repository', 'OK', 'Warning'); return }
+    if (-not (Test-Path -LiteralPath (Join-Path $path '.git')) -and [System.Windows.Forms.MessageBox]::Show("$path has no .git folder. Use the repository root, not a parent folder or one project.`n`nAdd it anyway?", 'Add repository', 'YesNo', 'Warning') -ne 'Yes') { return }
+    Add-Repo $path; Show-Repos; $list.SelectedIndex = [array]::IndexOf($script:paths, (Resolve-Path -LiteralPath $path).ProviderPath)
+    Write-Log "Added $path ($(Get-RepoStatus $path)). Choose the editor and what the repository is, then click Install / Upgrade."
+}
 $add.Add_Click({
         $dlg = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ Description = 'Select the repository root (the folder that contains .git)'; ShowNewFolderButton = $false }
-        if ($dlg.ShowDialog($form) -ne 'OK') { return }
-        if (-not (Test-Path -LiteralPath (Join-Path $dlg.SelectedPath '.git')) -and [System.Windows.Forms.MessageBox]::Show("$($dlg.SelectedPath) has no .git folder. Use the repository root, not a parent folder or one project.`n`nAdd it anyway?", 'Add repository', 'YesNo', 'Warning') -ne 'Yes') { return }
-        Add-Repo $dlg.SelectedPath; Show-Repos; $list.SelectedIndex = [array]::IndexOf($script:paths, (Resolve-Path -LiteralPath $dlg.SelectedPath).ProviderPath)
-        Write-Log "Added $($dlg.SelectedPath). Choose the editor and what the repository is, then click Install / Upgrade."
+        if ($dlg.ShowDialog($form) -eq 'OK') { Add-Checked $dlg.SelectedPath }
+    })
+$addPath.Add_Click({
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        $typed = [Microsoft.VisualBasic.Interaction]::InputBox('Type or paste (Ctrl+V) the full repository path, for example C:\src\MyRepo or \\server\share\MyRepo.', 'Add repository by path', '')
+        if ($typed) { Add-Checked $typed }
     })
 $forget.Add_Click({ $p = Get-Selected; if ($p) { Remove-Repo $p; Show-Repos; Write-Log "Removed $p from the list. Nothing in the repository was changed." } })
 $buttons[0].Add_Click({

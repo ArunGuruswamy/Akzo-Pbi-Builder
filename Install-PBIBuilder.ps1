@@ -223,6 +223,7 @@ function Invoke-Apply($rows, [bool]$allow) {
     if (@($rows | Where-Object { $_.state -ceq 'update' -or $_.state -ceq 'retire' }).Count -and -not $allow) { throw 'Review and allow updates to the previously installed files (-AllowUpdates) before continuing.' }
     foreach ($r in $rows) { if (-not (Test-SameText (Read-Text $r.path) $r.before)) { throw "A file changed after review. Nothing was written. Review setup again: $($r.path)" } }
     $batch = Get-Batch; $touched = New-Object System.Collections.ArrayList; $backups = New-Object System.Collections.ArrayList
+    $complete = $false; $message = 'Interrupted (for example Ctrl+C).'
     try {
         foreach ($r in @($rows | Where-Object { $_.state -ceq 'update' -or $_.state -ceq 'retire' })) {
             $b = "$($Bundle.base)/backups/$batch/$($r.path)"
@@ -235,16 +236,21 @@ function Invoke-Apply($rows, [bool]$allow) {
         }
         # Retire only after every new file is written and verified.
         foreach ($r in @($rows | Where-Object { $_.state -ceq 'retire' })) { [void]$touched.Add($r); Remove-File $r.path }
+        $complete = $true
     }
-    catch {
-        $message = $_.Exception.Message; $errors = @()
-        for ($i = $touched.Count - 1; $i -ge 0; $i--) {
-            $r = $touched[$i]
-            try { if ($null -eq $r.before) { Remove-File $r.path } else { Write-Text $r.path $r.before } } catch { $errors += "$($r.path): $($_.Exception.Message)" }
+    catch { $message = $_.Exception.Message }
+    # finally also runs on Ctrl+C, where catch does not. A killed process skips both; rerunning Install completes it.
+    finally {
+        if (-not $complete) {
+            $errors = @()
+            for ($i = $touched.Count - 1; $i -ge 0; $i--) {
+                $r = $touched[$i]
+                try { if ($null -eq $r.before) { Remove-File $r.path } else { Write-Text $r.path $r.before } } catch { $errors += "$($r.path): $($_.Exception.Message)" }
+            }
+            $tail = if ($errors.Count) { "Some files could not be restored:`n" + ($errors -join "`n") } else { 'Previously touched files were restored; any backups and empty folders were retained.' }
         }
-        $tail = if ($errors.Count) { "Some files could not be restored:`n" + ($errors -join "`n") } else { 'Previously touched files were restored; any backups and empty folders were retained.' }
-        throw "File write failed: $message`n$tail"
     }
+    if (-not $complete) { throw "File write failed: $message`n$tail" }
     return [pscustomobject]@{ written = @($rows | Where-Object { $_.state -ceq 'create' -or $_.state -ceq 'update' }).Count; backups = $backups
         retired = @($rows | Where-Object { $_.state -ceq 'retire' } | ForEach-Object { $_.path }); kept = @($rows | Where-Object { $_.state -ceq 'retire-conflict' } | ForEach-Object { $_.path }) }
 }
@@ -717,24 +723,37 @@ function Invoke-Uninstall {
     if ($Preview) { Write-Host 'Preview only. No files removed.'; return $true }
     if ($Interactive -and -not (Read-YesNo 'Remove the files marked remove (backed up first)?')) { Write-Host 'Cancelled. Nothing was changed.'; return $true }
     $batch = 'uninstall-' + (Get-Batch); $done = New-Object System.Collections.ArrayList
+    $complete = $false; $message = 'Interrupted (for example Ctrl+C).'
     try {
         foreach ($r in @($rows | Where-Object { $_.state -ceq 'remove' })) { Write-Text "$($Bundle.base)/backups/$batch/$($r.path)" $r.before }
         foreach ($r in @($rows | Where-Object { $_.state -ceq 'remove' })) {
             if (-not (Test-SameText (Read-Text $r.path) $r.before)) { throw "A file changed during uninstall: $($r.path)" }
             [void]$done.Add($r); Remove-File $r.path
         }
+        $complete = $true
     }
-    catch {
-        $message = $_.Exception.Message; $errors = @()
-        foreach ($r in $done) { try { Write-Text $r.path $r.before } catch { $errors += $r.path } }
-        throw "Uninstall stopped: $message`n$(if ($errors.Count) { 'Could not restore: ' + ($errors -join ', ') } else { 'Removed files were restored.' })"
+    catch { $message = $_.Exception.Message }
+    finally {
+        if (-not $complete) { $errors = @(); foreach ($r in $done) { try { Write-Text $r.path $r.before } catch { $errors += $r.path } } }
     }
+    if (-not $complete) { throw "Uninstall stopped: $message`n$(if ($errors.Count) { 'Could not restore: ' + ($errors -join ', ') } else { 'Removed files were restored.' })" }
     Write-Host "Uninstalled $($done.Count) files. Backups: $($Bundle.base)/backups/$batch/"
     $kept = @($rows | Where-Object { $_.state -ceq 'keep' })
     if ($kept.Count) { Write-Host "Kept because they were edited: $(($kept | ForEach-Object { $_.path }) -join ', ')" -ForegroundColor Yellow }
     return $true
 }
 
+# One JSON line per run in %USERPROFILE%\.akzo-pbi-builder\logs\install.log (paths and outcome only).
+$LogFile = Join-Path $env:USERPROFILE '.akzo-pbi-builder\logs\install.log'
+function Write-Log([int]$code, [string]$message) {
+    try {
+        [void][System.IO.Directory]::CreateDirectory((Split-Path $LogFile))
+        $line = ConvertTo-Json -Compress ([ordered]@{ time = [DateTime]::UtcNow.ToString('o'); step = $Action; repo = $script:Repo; package = $(if ($Bundle) { $Bundle.packageVersion } else { $null }); exitCode = $code; message = $message })
+        [System.IO.File]::AppendAllText($LogFile, $line + "`n", $Utf8)
+    }
+    catch { }
+}
+$Bundle = $null
 try {
     $Bundle = Read-Bundle
     Select-Repo
@@ -748,9 +767,14 @@ try {
         'RefreshEvidence' { Invoke-RefreshEvidence }
     }
     # 1 is left to PowerShell itself (for example a script blocked by execution policy).
-    exit $(if ($ok) { 0 } else { 3 })
+    $code = if ($ok) { 0 } else { 3 }
+    Write-Log $code $(if ($ok) { 'ok' } else { 'check failed or nothing written' })
+    exit $code
 }
 catch {
-    [Console]::Error.WriteLine("ERROR: $($_.Exception.Message)")
+    $m = $_.Exception.Message
+    if ($m -match 'Access to the path .* is denied|UnauthorizedAccess') { $m += "`nFix: you need write access to the repository folder. Administrator rights are not needed; choose a clone you own, or close programs that lock these files, then rerun." }
+    Write-Log 2 $m
+    [Console]::Error.WriteLine("ERROR: $m`nLog: $LogFile")
     exit 2
 }

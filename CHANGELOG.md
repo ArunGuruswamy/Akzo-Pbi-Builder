@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.1.0 — 29 October 2026
+
+### Installer: blocked scripts, HTML parity, folder selection
+- Install.cmd and Uninstall.cmd (aliases of Install-PBIBuilder.cmd and Uninstall-PBIBuilder.cmd)
+  check the package before PowerShell runs anything: required files, SHA256SUMS.txt, Windows
+  PowerShell 5.1, the effective execution policy (and whether Group Policy sets it), script
+  signatures, the downloaded-from-internet mark and AppLocker/WDAC Constrained Language mode.
+  They never bypass or change the policy. A downloaded ZIP under RemoteSigned ("file is not
+  digitally signed") is explained and, after a Y, unblocked for this package folder only.
+  AllSigned, Restricted and application control get the compliant options: the browser form or
+  an organization-signed package (release.cjs signs with PBI_SIGN_CERT). Exit codes 10-14.
+- Uninstall-PBIBuilder.cmd now goes through the same checks.
+- One JSON line per run in %USERPROFILE%\.akzo-pbi-builder\logs\install.log; write-access
+  errors say how to fix them (no administrator rights needed).
+- Install and uninstall roll back on Ctrl+C as well as on errors; rerunning Install completes
+  an interrupted installation.
+- HTML form: Repair, Uninstall (asks first; same engine and identical result as PowerShell),
+  installed version on folder selection, and a list of repositories chosen in this session.
+  Setup window: Add by path... (type or paste) besides the folder dialog, adapted from the
+  Akzo-Agent installer. Parity matrix: docs/INSTALLER-PARITY.md.
+
+### Agent: direct legacy source analysis
+- New section "Analyze the legacy source directly": detect the stack (.NET Framework, Web
+  Forms, controllers, handlers, ADO.NET, EF, stored procedures, CRM SDK) without assuming
+  modern architecture; trace entry point to database; establish whether behavior exists and
+  reuse it; cite files, classes, methods and lines; mark unverifiable details Not Verified;
+  analysis documents (ANALYSIS.md, REFERENCE-ANALYSIS.md, earlier SDDs, generated reports) are
+  never proof; respect .gitignore and skip build output; never copy secrets into reports.
+- Approvals are offered as selectable choices: 1. Approved, 2. Change Requested, 3. Custom
+  Response.
+
 ## 4.0.0 — 27 October 2026
 
 ### Repository first: no end-to-end analysis document

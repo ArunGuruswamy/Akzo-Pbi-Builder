@@ -505,6 +505,32 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.ok(!Object.keys(off.files).some(f=>f.includes('/references/')||f.endsWith('REFERENCES-INDEX.md')));
   assert.ok(Object.keys(setup.files).some(f=>f.includes('/references/CRM-END-TO-END-TECHNICAL-ANALYSIS.md')),'kept when chosen');
  });
+ await test('legacy source analysis: stack detection, end-to-end trace, reuse first, Not Verified, analysis documents never proof, selectable approvals',async()=>{
+  const a=setup.files[P.AGENT];
+  for(const re of [/## Analyze the legacy source directly/,/never ask the user to prepare an analysis\s+document/,/ASP\.NET Web Forms\s+\(\.aspx, \.ascx, code-behind\)/,/ADO\.NET \(SqlCommand, SqlDataAdapter\)/,
+   /Do not assume Clean Architecture,\s+CQRS, dependency injection or modern conventions/,/1\. locate the existing entry point; 2\. trace UI,\s+code-behind or controller, business logic, data access, SQL or stored procedure/,
+   /Give file paths, class and method names and line numbers for every claim/,/establish whether the behavior already exists/,/never\s+duplicate a validation or business rule/,
+   /Not Verified\s+\(UNKNOWN in pbi-state\.json\)/,/ANALYSIS\.md, REFERENCE-ANALYSIS\.md, architecture summaries, earlier SDDs,\s+cached or generated reports are never proof/,
+   /Skip what \.gitignore excludes/,/Never copy secrets or sensitive files/,/test cases and\s+implementation recommendations/,
+   /1\. Approved; 2\. Change\s+Requested[\s\S]{0,200}nothing is approved\); 3\. Custom Response/,/never as text to type/])assert.match(a,re);
+ });
+ await test('HTML uninstall: same rows as the PowerShell installer, backups first, PBIs, knowledge and edited files kept, rollback on failure',async()=>{
+  const d=path.join(tmp,'uninstall-core');await fs.mkdir(d);const root=new DirectoryHandle(d);
+  await P.apply(root,await P.plan(root,setup.files,true));
+  await P.write(root,'playbook/pbis/pbi-1/DECISION-LOG.md','DEC-1');await P.write(root,P.BASE+'/sources.yaml',setup.files[P.BASE+'/sources.yaml']+'# mine\n');
+  await P.write(root,P.BASELINES['2.1-concise'].path,P.baselineAgent(setup.config,'2.1-concise'));
+  const rows=await P.uninstallPlan(root,setup.config);
+  assert.equal(rows.find(r=>r.path===P.BASE+'/sources.yaml').state,'keep');assert.equal(rows.find(r=>r.path===P.BASELINES['2.1-concise'].path).state,'remove');assert.equal(rows.at(-1).path,P.MANIFEST);
+  assert.ok(!rows.some(r=>r.path.startsWith('playbook/pbis/')));
+  const r=await P.uninstall(root,rows);assert.equal(await P.read(root,P.AGENT),null);assert.equal(await P.read(root,P.MANIFEST),null);
+  assert.equal(await P.read(root,'playbook/pbis/pbi-1/DECISION-LOG.md'),'DEC-1');assert.match(await P.read(root,P.BASE+'/sources.yaml'),/# mine/);
+  assert.equal(await P.read(root,r.backup+P.AGENT),setup.files[P.AGENT]);
+  await assert.rejects(P.uninstallPlan(root,setup.config),/Nothing to uninstall/);
+  // A file changed between review and removal: everything already removed is restored.
+  await fs.rm(path.join(d,P.BASE,'sources.yaml'));await P.apply(root,await P.plan(root,setup.files,true),true);const again=await P.uninstallPlan(root,setup.config);
+  await P.write(root,again.filter(x=>x.state==='remove').at(-2).path,'edited after review');
+  await assert.rejects(P.uninstall(root,again),/changed during uninstall[\s\S]*Removed files were restored/);assert.equal(await P.read(root,P.AGENT),setup.files[P.AGENT]);
+ });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});
 })().catch(e=>{console.error(e);process.exitCode=1;});

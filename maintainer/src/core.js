@@ -1,7 +1,7 @@
-/* Akzo SDD PBI Builder 4.0.0. Offline; no dependencies or network calls. */
+/* Akzo SDD PBI Builder 4.1.0. Offline; no dependencies or network calls. */
 (function (global) {
 'use strict';
-const VERSION='4.0.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
+const VERSION='4.1.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
 const AGENT='.github/agents/akzo-sdd-pbi-builder.agent.md', AGENT_PREFIX='Akzo SDD PBI Builder - ';
 const KNOWLEDGE=BASE+'/knowledge/evidence-index.json';
 // A workspace Agent Skill: Visual Studio 18.5+ and VS Code discover .github/skills/<name>/SKILL.md themselves.
@@ -244,6 +244,44 @@ Respect the recorded investigation scope: when the user limits it (for example
 legacy only), investigate other areas only when an essential dependency needs
 clarifying, and say why.
 
+## Analyze the legacy source directly
+Inspect the current repository for every new requirement before any SDD, PBI,
+plan or technical recommendation; never ask the user to prepare an analysis
+document. First detect the stack from solution and project files, web.config or
+app.config, and file types: .NET Framework or modern .NET, ASP.NET Web Forms
+(.aspx, .ascx, code-behind), MVC or Web API controllers, handlers (.ashx),
+services, ADO.NET (SqlCommand, SqlDataAdapter), Entity Framework, SQL scripts
+and stored procedures, CRM SDK, JavaScript. Do not assume Clean Architecture,
+CQRS, dependency injection or modern conventions; follow what the code does.
+For each requirement: 1. locate the existing entry point; 2. trace UI,
+code-behind or controller, business logic, data access, SQL or stored procedure
+and database effect; 3. find reusable code and existing validation,
+authorization, workflow and error handling; 4. decide which components really
+need a change; 5. list affected dependencies, callers and regression risks.
+Give file paths, class and method names and line numbers for every claim.
+Before proposing anything new, establish whether the behavior already exists.
+Reuse existing methods, services, stored procedures and conventions; never
+duplicate a validation or business rule; propose new architecture only when a
+requirement demonstrably needs it; preserve existing workflows and backward
+compatibility.
+Mark any implementation detail you could not verify in code as Not Verified
+(UNKNOWN in pbi-state.json), with what would verify it; never fill the gap with
+an assumption.
+ANALYSIS.md, REFERENCE-ANALYSIS.md, architecture summaries, earlier SDDs,
+cached or generated reports are never proof that a feature, validation, rule,
+API or database operation exists: use one only after checking its claim
+against current code, and cite the code. Reports you write are outputs of the
+current inspection, never a substitute for it. When a cited file changed or
+the branch differs from what EVIDENCE.md recorded, reread before reusing it.
+Skip what .gitignore excludes and generated or build output (bin, obj,
+packages, node_modules, .vs, *.designer.cs unless the question is about it).
+Never copy secrets or sensitive files (connection strings, keys, certificates,
+.env, user data) into any report.
+Feed the same evidence into requirement clarification, business rules, impact
+analysis, solution design, the SDD handoff, acceptance criteria, test cases and
+implementation recommendations; every technical recommendation names the files
+and execution path it rests on.
+
 ## Investigate before asking
 For each business rule, find where it is enforced today and whether the target
 request reaches that enforcement. Keep four evidence levels apart: code exists;
@@ -378,6 +416,11 @@ fingerprints from the check, requesting:
 2. Technical approval: feasibility, dependencies, permissions, evidence and
    CDMS versus DAB/OCP/GraphQL validation responsibilities.
 3. Final user approval: permission to generate the final REFINED-PBI.md.
+Offer each approval as numbered choices the user selects (the interactive
+question tool where available), never as text to type: 1. Approved; 2. Change
+Requested (ask what to change, apply it, rerun the check and present the summary
+again; nothing is approved); 3. Custom Response (record it word for word; it
+approves only when it explicitly approves).
 Record each explicit approval separately with the basis the check printed for
 it, copied unchanged. Keep documents as drafts while approval is pending. Create
 or update REFINED-PBI.md and set Development-Ready only after all three
@@ -2352,6 +2395,23 @@ async function apply(root,rows,allowUpdates=false){
  const retired=rows.filter(r=>r.state==='retire').map(r=>r.path),kept=rows.filter(r=>r.state==='retire-conflict').map(r=>r.path);
  return {written:touched.length-retired.length,unchanged:rows.filter(r=>r.state==='unchanged').length,backups,retired,kept};
 }
+// Same rows and order as Invoke-Uninstall in Install-PBIBuilder.ps1. c is the installed config (null if unreadable).
+async function uninstallPlan(root,c){
+ const raw=await read(root,MANIFEST);if(raw===null)throw Error('No PBI Builder installation record found in this folder. Nothing to uninstall.');
+ let m;try{m=JSON.parse(raw);}catch{throw Error('The existing installation record is invalid. Preserve it and compare manually.');}
+ if(m?.schemaVersion!==1||!m.files||typeof m.files!=='object')throw Error('Unrecognized installation record.');
+ const protectedPaths=['playbook/pbis/',BASE+'/knowledge/',BASE+'/backups/'],rows=[];
+ for(const [path,h]of Object.entries(m.files)){if(path===MANIFEST||protectedPaths.some(p=>path.startsWith(p)))continue;const before=await read(root,path);if(before===null)continue;rows.push({path,before,state:await hash(before)===h?'remove':'keep'});}
+ for(const key of Object.keys(BASELINES)){const path=BASELINES[key].path,before=await read(root,path);if(before===null)continue;rows.push({path,before,state:c&&before===baselineAgent(c,key)?'remove':'keep'});}
+ rows.push({path:MANIFEST,before:raw,state:'remove'});return rows;
+}
+async function uninstall(root,rows){
+ const batch='uninstall-'+stamp()+'-'+uid(),done=[],targets=rows.filter(r=>r.state==='remove');
+ try{for(const r of targets)await write(root,BASE+'/backups/'+batch+'/'+r.path,r.before);
+  for(const r of targets){if(await read(root,r.path)!==r.before)throw Error('A file changed during uninstall: '+r.path);done.push(r);await remove(root,r.path);}}
+ catch(e){const errors=[];for(const r of done){try{await write(root,r.path,r.before);}catch{errors.push(r.path);}}throw Error('Uninstall stopped: '+e.message+'\n'+(errors.length?'Could not restore: '+errors.join(', '):'Removed files were restored.'));}
+ return {removed:done.map(r=>r.path),kept:rows.filter(r=>r.state==='keep').map(r=>r.path),backup:BASE+'/backups/'+batch+'/'};
+}
 async function listPbis(root){let dir;try{dir=await root.getDirectoryHandle('playbook');dir=await dir.getDirectoryHandle('pbis');}catch(e){if(e.name==='NotFoundError')return [];throw e;}
  const items=[];for await(const [name,entry]of dir.entries()){if(entry.kind!=='directory')continue;let title=name,number='',metadataWarning='';const folder='playbook/pbis/'+name;safePath(folder);const raw=await read(root,folder+'/pbi.json');if(raw){try{const m=JSON.parse(raw);if(m.kind==='comparison')continue;title=String(m.title||name);number=String(m.number||'');}catch{metadataWarning='Unreadable intake metadata; inspect saved documents.';}}
  const present=[];for(const file of ['REQUEST.md','DRAFT-PBI.md','REFINED-PBI.md','VALIDATION-MATRIX.md','OPEN-QUESTIONS.md','DECISION-LOG.md','EVIDENCE.md','pbi-state.json'])if(await read(root,folder+'/'+file)!==null)present.push(file);
@@ -2423,6 +2483,6 @@ async function discoverSources(root,config){
  await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
  return map;
 }
-const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,listPbis,zip};
+const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
 global.PBI=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

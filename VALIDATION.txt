@@ -1,4 +1,4 @@
-Akzo SDD PBI Builder 4.0.0
+Akzo SDD PBI Builder 4.1.0
 Validation date: 27 October 2026 (Windows 11, Node 20.20.2, Python 3.13.7,
 Windows PowerShell 5.1.22621.6133, CurrentUser execution policy RemoteSigned)
 
@@ -34,7 +34,11 @@ REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copi
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 42 checks on real temporary files.
+- test-core.cjs: 44 checks on real temporary files.
+  - legacy source analysis: stack detection, entry-point-to-database trace, reuse
+    first, Not Verified, analysis documents never proof, selectable Approved /
+    Change Requested / Custom Response approvals;
+  - HTML uninstall: same rows as PowerShell, backups first, rollback on failure;
   - repository first: the agent never requires, creates or trusts an end-to-end
     analysis document; no installed instruction asks for SOURCE-DISCOVERY.md or
     for opening reference documents first; the lightweight PBI files stay
@@ -150,7 +154,10 @@ PASSED
   - Discover sources writes the source map and reports each source's access.
   - Application choice (Both) shown in Review and saved in REQUEST.md and
     pbi.json; the start prompt says not to ask again.
-- test-ps.cjs: 8 checks with real Windows PowerShell, folders with spaces and
+- test-ps.cjs: 10 checks with real Windows PowerShell (launchers: Install.cmd,
+  Uninstall.cmd, package checksum, missing file, downloaded-file mark with Y/N,
+  AllSigned and Restricted not bypassed, interrupted install, repeated install and
+  uninstall, log and exit codes; HTML and PowerShell uninstall identical), folders with spaces and
   Kannada characters.
   - Installer output byte-identical to core for both IDEs, including the new
     guides and the VS Code tool list.

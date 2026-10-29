@@ -1,4 +1,14 @@
-# Migrating to Akzo SDD PBI Builder 4.0.0
+# Migrating to Akzo SDD PBI Builder 4.1.0
+
+## From 4.0.0
+- Install or Upgrade as usual and allow reviewed updates. The agent file and its guides change
+  (direct legacy source analysis; selectable Approved / Change Requested / Custom Response
+  approvals); unedited files are updated with backups, edited ones are reported, never
+  overwritten. PBIs, decisions, approvals and readiness rules are unchanged.
+- Start the installer with Install.cmd / Uninstall.cmd (the old names still work). They check
+  the package and your execution policy first and never bypass it.
+
+## To 4.0.0
 
 ## From 3.1.0
 Install with the form or `Install-PBIBuilder.cmd -RepoPath <repo> -AllowUpdates`.

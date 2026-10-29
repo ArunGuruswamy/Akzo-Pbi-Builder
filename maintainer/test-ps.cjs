@@ -8,17 +8,18 @@ const shared=require('./fixtures/readiness-cases.cjs'),CASE_PBI=shared.PBI;
 let count=0;
 async function test(name,fn){await fn();count++;console.log('PASS',name)}
 const env={...process.env};delete env.PSExecutionPolicyPreference;
+const cmdRun=(pkg,file,args,extra={},input='')=>{const r=cp.spawnSync('cmd.exe',['/d','/s','/c',`""${path.join(pkg,file)}" ${args}"`],{encoding:'utf8',env:{...env,...extra},input,windowsVerbatimArguments:true,timeout:120000});if(r.error)throw r.error;return {code:r.status,out:r.stdout+r.stderr};};
 function ps(pkg,args,script='Install-PBIBuilder.ps1'){const r=cp.spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-File',path.join(pkg,script),...args],{encoding:'utf8',env,timeout:120000});if(r.error)throw r.error;return {code:r.status,out:r.stdout,err:r.stderr};}
 async function tree(dir,rel=''){const out={};for(const e of await fs.readdir(path.join(dir,rel),{withFileTypes:true})){const r=rel?rel+'/'+e.name:e.name;if(e.isDirectory())Object.assign(out,await tree(dir,r));else out[r]=(await fs.readFile(path.join(dir,r))).toString('utf8');}return out;}
 // Backup batch folders are timestamped; compare their contents by original path.
 const unbatch=t=>Object.fromEntries(Object.entries(t).map(([k,v])=>[k.replace(/^(playbook\/pbi-builder\/backups\/)[^/]+\//,'$1*/'),v]));
 const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
 (async()=>{
- const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'akzo-ps-'));
+ const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'akzo-ps-'));env.USERPROFILE=tmp;// installer logs stay in the test folder
  const assets=JSON.parse(await fs.readFile(path.join(__dirname,'src/assets.json'),'utf8'));
  const html=await fs.readFile(path.join(__dirname,'Akzo-SDD-PBI-Builder.html'),'utf8');
  const pkg=path.join(tmp,'package ಕನ್ನಡ & space');await fs.mkdir(pkg);
- for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
+ for(const f of ['Install-PBIBuilder.ps1','Uninstall-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd','Uninstall-PBIBuilder.cmd','Install.cmd','Uninstall.cmd'])await fs.copyFile(path.join(__dirname,'installer',f),path.join(pkg,f));
  await fs.writeFile(path.join(pkg,'pbi-builder-bundle.json'),JSON.stringify(P.bundle(assets)));await fs.writeFile(path.join(pkg,'Akzo-SDD-PBI-Builder.html'),html);
  let n=0;const repo=async()=>{const d=path.join(tmp,`repo ${++n} — ಕನ್ನಡ & co`);await fs.mkdir(path.join(d,'.git'),{recursive:true});return d;};
  const jsInstall=async(d,cfg,allow=false)=>{const root=new DirectoryHandle(d);return P.apply(root,await P.plan(root,P.setupFiles(cfg,assets,html).files,true),allow);};
@@ -83,7 +84,7 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
   assert.equal(cmd.status,0,cmd.stdout+cmd.stderr);assert.match(cmd.stdout,/All recorded files match/);assert.doesNotMatch(cmd.stdout,/execution policy/);
   // An enforced policy that blocks the unsigned script is reported, not bypassed.
   const blockedCmd=cp.spawnSync('cmd.exe',['/d','/s','/c',`""${path.join(pkg,'Install-PBIBuilder.cmd')}" -RepoPath "${d}" -Action Verify"`],{encoding:'utf8',env:{...env,PSExecutionPolicyPreference:'AllSigned'},windowsVerbatimArguments:true});
-  assert.equal(blockedCmd.status,1,blockedCmd.stdout+blockedCmd.stderr);assert.match(blockedCmd.stdout,/execution policy blocks this installer/);
+  assert.equal(blockedCmd.status,11,blockedCmd.stdout+blockedCmd.stderr);assert.match(blockedCmd.stdout,/AllSigned[\s\S]*will not bypass[\s\S]*Akzo-SDD-PBI-Builder\.html[\s\S]*organization-signed package/);
   // A folder where a new file must go makes the write fail; every created file is removed again.
   const f=await repo();await fs.mkdir(path.join(f,'.github/prompts/akzo-pbi-refine.prompt.md'),{recursive:true});
   r=ps(pkg,['-RepoPath',f,'-ProjectName','Rollback','-Ide','vscode','-Role','dab']);assert.equal(r.code,2);assert.match(r.err,/write failed[\s\S]*restored/);assert.deepEqual(Object.keys(await tree(f)),[]);
@@ -146,14 +147,53 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
    const f=V30.setupFiles(cfg,a30,'HTML 3.0');await V30.apply(root,await V30.plan(root,f.files,true));return d;};
   const b=await old('cdms'),c=await old('legacy');await fs.appendFile(path.join(c,P.AGENT),'\nlocal edit');
   await fs.appendFile(reg,b+'\r\n'+c+'\r\n');
-  r=setup(['-Action','Status']);assert.match(r.out,/up to date[\s\S]*update to 4\.0\.0 available/);
+  r=setup(['-Action','Status']);assert.match(r.out,new RegExp('up to date[\\s\\S]*update to '+P.VERSION.replace(/\./g,'\\.')+' available'));
   r=setup(['-Action','Upgrade']);assert.equal(r.code,3,'one repository was not upgraded');
   assert.equal(await version(b),P.VERSION);assert.equal((await loose(path.join(b,P.CONFIG))).role,'cdms');assert.ok((await fs.readdir(path.join(b,P.BASE,'backups'))).length);
   assert.equal(await version(c),'3.0.0');assert.match(r.out,/Nothing was written: files you edited differ/);assert.match(await fs.readFile(path.join(c,P.AGENT),'utf8'),/local edit/);
   r=setup(['-Action','Verify','-Repo',b]);assert.equal(r.code,0,r.out);assert.match(r.out,/All recorded files match/);
   r=setup(['-Action','Uninstall','-Repo',a]);assert.equal(r.code,0,r.out);await assert.rejects(fs.stat(path.join(a,P.MANIFEST)));assert.doesNotMatch(await fs.readFile(reg,'utf8'),new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
   // Double-click path: the .cmd opens the window (it stays open until closed); with arguments it still runs the engine.
-  const src=await fs.readFile(path.join(pkg,'Install-PBIBuilder.cmd'),'utf8');assert.match(src,/PBI-Builder-Setup\.ps1/);assert.doesNotMatch(src+await fs.readFile(path.join(pkg,'PBI-Builder-Setup.ps1'),'utf8'),/ExecutionPolicy/i);
+  const src=await fs.readFile(path.join(pkg,'Install-PBIBuilder.cmd'),'utf8');assert.match(src,/PBI-Builder-Setup\.ps1/);assert.doesNotMatch(src+await fs.readFile(path.join(pkg,'PBI-Builder-Setup.ps1'),'utf8'),/\s-ExecutionPolicy\s|PSExecutionPolicyPreference|EncodedCommand|Invoke-Expression|iex /i);
+ });
+ await test('launchers: Install.cmd and Uninstall.cmd, package check, downloaded-file mark, blocked policy, interrupted install, log and exit codes',async()=>{
+  const d=await repo(),A=`-RepoPath "${d}"`;
+  let r=cmdRun(pkg,'Install.cmd',`${A} -ProjectName L -Ide vscode -Role dab`);assert.equal(r.code,0,r.out);
+  r=cmdRun(pkg,'Install.cmd',`${A} -Action Verify`);assert.equal(r.code,0,r.out);assert.match(r.out,/All recorded files match/);
+  // Reinstall: nothing to write. Repeated uninstall and install leave a working installation.
+  r=cmdRun(pkg,'Install.cmd',A);assert.equal(r.code,0,r.out);assert.doesNotMatch(r.out,/create|update/);
+  r=cmdRun(pkg,'Uninstall.cmd',`${A} -Preview`);assert.equal(r.code,0,r.out);assert.match(r.out,/Preview only/);
+  for(let i=0;i<2;i++){r=cmdRun(pkg,'Uninstall.cmd',A);assert.equal(r.code,0,r.out);await assert.rejects(fs.stat(path.join(d,P.MANIFEST)));r=cmdRun(pkg,'Install.cmd',`${A} -ProjectName L -Ide vscode -Role dab`);assert.equal(r.code,0,r.out);}
+  r=cmdRun(pkg,'Uninstall.cmd',A);assert.equal(r.code,0,r.out);r=cmdRun(pkg,'Uninstall.cmd',A);assert.equal(r.code,2);assert.match(r.out,/Nothing to uninstall/);
+  // Interrupted install (process killed before the record was written): rerunning completes it.
+  const full=await repo();assert.equal(cmdRun(pkg,'Install.cmd',`-RepoPath "${full}" -ProjectName L -Ide vscode -Role dab`).code,0);
+  const t=await tree(full),half=await repo();for(const [p,x] of Object.entries(t).slice(0,4))if(p!==P.MANIFEST){await fs.mkdir(path.dirname(path.join(half,p)),{recursive:true});await fs.writeFile(path.join(half,p),x);}
+  r=cmdRun(pkg,'Install.cmd',`-RepoPath "${half}" -ProjectName L -Ide vscode -Role dab`);assert.equal(r.code,0,r.out);assert.deepEqual(await tree(half),t);
+  // Downloaded-file mark under RemoteSigned: explained, removed only after Y, never otherwise.
+  const ps1=path.join(pkg,'Install-PBIBuilder.ps1'),mark=ps1+':Zone.Identifier',RS={PSExecutionPolicyPreference:'RemoteSigned'};
+  await fs.writeFile(mark,'[ZoneTransfer]\r\nZoneId=3\r\n');
+  r=cmdRun(pkg,'Install-PBIBuilder.cmd',`${A} -Action Verify`,RS,'N\r\n');assert.equal(r.code,12,r.out);assert.match(r.out,/RemoteSigned[\s\S]*downloaded[\s\S]*Nothing was changed/);await fs.stat(mark);
+  r=cmdRun(pkg,'Install-PBIBuilder.cmd',`-RepoPath "${full}" -Action Verify`,RS,'Y\r\n');assert.equal(r.code,0,r.out);assert.match(r.out,/All recorded files match/);await assert.rejects(fs.stat(mark));
+  // Restricted: no bypass; the compliant options are listed.
+  r=cmdRun(pkg,'Install.cmd',`-RepoPath "${full}" -Action Verify`,{PSExecutionPolicyPreference:'Restricted'});assert.equal(r.code,11,r.out);assert.match(r.out,/Restricted[\s\S]*will not bypass/);
+  // A damaged or missing package file stops before PowerShell runs anything.
+  const sums=path.join(pkg,'SHA256SUMS.txt'),crypto=require('node:crypto');
+  const lines=[];for(const f of ['Install-PBIBuilder.ps1','PBI-Builder-Setup.ps1','Install-PBIBuilder.cmd'])lines.push(crypto.createHash('sha256').update(await fs.readFile(path.join(pkg,f))).digest('hex')+'  '+f);
+  await fs.writeFile(sums,lines.join('\n')+'\n');assert.equal(cmdRun(pkg,'Install.cmd',`-RepoPath "${full}" -Action Verify`).code,0);
+  await fs.writeFile(sums,'0'.repeat(64)+'  Install-PBIBuilder.ps1\n');r=cmdRun(pkg,'Install.cmd',`-RepoPath "${full}" -Action Verify`);assert.equal(r.code,10,r.out);assert.match(r.out,/missing or changed: Install-PBIBuilder\.ps1/);await fs.rm(sums);
+  await fs.rename(path.join(pkg,'pbi-builder-bundle.json'),path.join(pkg,'x.json'));r=cmdRun(pkg,'Uninstall.cmd',`-RepoPath "${full}"`);assert.equal(r.code,10,r.out);assert.match(r.out,/Missing package file: pbi-builder-bundle\.json/);await fs.stat(path.join(full,P.MANIFEST));
+  await fs.rename(path.join(pkg,'x.json'),path.join(pkg,'pbi-builder-bundle.json'));
+  // Every run leaves one JSON line in the log.
+  const log=(await fs.readFile(path.join(tmp,'.akzo-pbi-builder','logs','install.log'),'utf8')).trim().split('\n').map(l=>JSON.parse(l.replace(/^\uFEFF/,'')));
+  for(const c of [0,2,10,11,12])assert.ok(log.some(l=>l.exitCode===c),'log has exit code '+c);assert.ok(log.some(l=>l.step==='preflight'&&l.policy==='Restricted'));
+ });
+ await test('HTML and PowerShell uninstall leave identical repositories (same kept files, same backups)',async()=>{
+  const cfg={projectName:'Parity',ide:'vscode',role:'dab',includeReferences:false,sources:{legacy:'',dab:'',cdms:''}},a=await repo(),b=await repo();
+  for(const d of [a,b]){await jsInstall(d,cfg);const root=new DirectoryHandle(d);await P.write(root,'playbook/pbis/pbi-9/REQUEST.md','keep me');await fs.appendFile(path.join(d,P.BASE,'sources.yaml'),'# mine\n');}
+  const root=new DirectoryHandle(a);await P.uninstall(root,await P.uninstallPlan(root,P.normalizeConfig(cfg)));
+  const r=ps(pkg,['-RepoPath',b],'Uninstall-PBIBuilder.ps1');assert.equal(r.code,0,r.err+r.out);
+  const norm=t=>Object.fromEntries(Object.entries(t).map(([k,v])=>[k.replace(/backups\/uninstall-[^/]+\//,'backups/uninstall-*/'),v]));
+  assert.deepEqual(norm(await tree(b)),norm(await tree(a)));
  });
  console.log(`\n${count} PowerShell installer checks passed (Windows PowerShell, real execution policy, real files).`);
  await fs.rm(tmp,{recursive:true,force:true});

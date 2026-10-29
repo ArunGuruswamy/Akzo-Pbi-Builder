@@ -1,5 +1,5 @@
-AKZO SDD PBI BUILDER 4.0.0
-Evidence-based PBI refinement | 27 October 2026
+AKZO SDD PBI BUILDER 4.1.0
+Evidence-based PBI refinement | 29 October 2026
 
 WHAT IT DOES
 One Copilot agent per repository: "Akzo SDD PBI Builder - <your project>".
@@ -15,15 +15,24 @@ INSTALL - OPTION A: BROWSER (no PowerShell needed)
 1. Extract this ZIP (Extract All). Open Akzo-SDD-PBI-Builder.html from the
    extracted folder in desktop Edge or Chrome.
 2. Click Choose project folder and select your application repository root.
+   The form shows the installed version, Git root and solutions it finds.
 3. Check Project name, Editor and repository role. Add other source paths if needed.
 4. Click Review setup. When upgrading, check Allow reviewed updates only after
    reviewing the list. Click Install / update in selected folder.
+   Repair, Uninstall and Check installed files work on the selected folder too.
+   Repositories you choose stay in "Repositories chosen in this session".
 5. Reopen the solution (Visual Studio) or folder (VS Code). In Copilot Chat select
    Akzo SDD PBI Builder - <your project>, then run the setup-check prompt shown.
+The browser only works on folders you choose in its folder dialog; it cannot open
+a typed path or run PowerShell. That is a browser security rule, and it is why
+Option A works where PowerShell scripts are blocked.
 
 INSTALL - OPTION B: WINDOWS SETUP WINDOW
-Double-click Install-PBIBuilder.cmd. A setup window opens:
-1. Add repository... and choose the repository root (the folder with .git).
+Double-click Install.cmd (same as Install-PBIBuilder.cmd). It first checks the
+package and your PowerShell policy (see IF THE INSTALLER IS BLOCKED). Then a setup
+window opens:
+1. Add repository... (folder dialog) or Add by path... (type or paste a path) and
+   choose the repository root (the folder with .git).
    The list shows each repository's installed version and whether an update is
    available; it is remembered for next time.
 2. For a first install choose the editor and what the repository is (CDMS,
@@ -40,11 +49,41 @@ parameters, for example:
   the agent investigates the repository directly and never needs them)
   powershell -File PBI-Builder-Setup.ps1 -NoGui -Action Upgrade   (all listed repositories)
 Actions: -Action Install (default), Verify, Repair, Uninstall, CheckPbi,
-RefreshEvidence. -Preview shows changes without writing. Uninstall-PBIBuilder.cmd
-removes setup files but always keeps PBIs, decisions, history and knowledge notes.
-Both options write identical files for the same settings.
-The installer respects your PowerShell execution policy and never bypasses it.
-If the policy blocks it, ask IT or use Option A. Do not change the policy yourself.
+RefreshEvidence. -Preview shows changes without writing. Uninstall.cmd (same as
+Uninstall-PBIBuilder.cmd) removes setup files but always keeps PBIs, decisions,
+history and knowledge notes.
+Both options write identical files for the same settings; see
+docs/INSTALLER-PARITY.md.
+Every run writes one line to %USERPROFILE%\.akzo-pbi-builder\logs\install.log.
+Exit codes: 0 done; 1 PowerShell refused or failed; 2 error, changes rolled back;
+3 check failed or nothing written; 10 package incomplete or damaged; 11 policy
+needs signed scripts; 12 downloaded files not unblocked; 13 AppLocker/WDAC;
+14 Windows PowerShell 5.1 missing.
+
+IF THE INSTALLER IS BLOCKED
+Install.cmd and Uninstall.cmd check before PowerShell runs anything. They never
+bypass or change your execution policy, Group Policy, AppLocker or WDAC.
+- "File ... is not digitally signed" after downloading the ZIP: Windows marked
+  the files as downloaded from the internet, and your policy (RemoteSigned) does
+  not run marked unsigned scripts. Install.cmd explains this and asks once to
+  remove the mark from this package folder's files (Unblock-File, the standard
+  Windows step). Answer Y and it continues. Nothing else changes.
+- Policy AllSigned or Restricted, or set by Group Policy: the scripts cannot run
+  unsigned. Use Option A (the browser form: install, upgrade, repair, verify and
+  uninstall) or ask IT for the organization-signed package (below).
+- AppLocker or WDAC (Constrained Language mode): use Option A or the signed
+  package that IT allows.
+- Missing or damaged package file: extract the original ZIP again.
+- No write access to the repository: use a clone you own. Administrator rights
+  are never needed.
+Organization-signed package (for IT): on a machine with the organization's
+code-signing certificate, set PBI_SIGN_CERT to its thumbprint (optionally
+PBI_SIGN_TIMESTAMP to a timestamp server), run node maintainer/release.cjs, and
+distribute the resulting ZIP. Its checksums cover the signed scripts. The
+publisher must be trusted on user machines (Trusted Publishers).
+Interrupted install (window closed, PC restarted): run Install again with the same
+settings. It completes the installation; nothing else is needed. Ctrl+C during
+writing restores the files touched so far.
 
 CREATE A PBI
 Open a NEW Copilot chat for every new PBI, so nothing from an earlier PBI is
@@ -56,6 +95,11 @@ numbered choices and a ready-to-use answer (Business Decision Advisor skill). Th
 is no DAB plugin: DAB implements every applicable legacy rule in its own code, while
 CDMS reuses verified plugins. Answers can also be given on the form's Continue tab.
 See docs/USER-GUIDE.md.
+
+UPGRADING FROM 4.0.0
+Install as above (Install.cmd, the form, or Upgrade all) and allow reviewed updates.
+The setup window and the form show "update to 4.1.0 available". Files you never
+edited are updated with backups; PBIs, decisions and approvals stay valid.
 
 UPGRADING FROM 3.1.0
 Install as above and allow reviewed updates (in the setup window: Install /
@@ -90,7 +134,7 @@ Compare old & new in the form adds a pinned v2.0 Original or v2.1 Concise agent 
 one trial, with identical requests and separate output folders. Remove it afterwards
 with Remove comparison agents. See COMPARE-OLD-AND-NEW.txt.
 
-WHEN FOLDER ACCESS IS BLOCKED
+WHEN BROWSER FOLDER ACCESS IS BLOCKED
 Use Option B, or Download setup ZIP in the form and copy its CONTENTS into the
 repository root (including .github), comparing existing files first. The manual
 copy has no managed-update protection.

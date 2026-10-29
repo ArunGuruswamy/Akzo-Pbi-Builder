@@ -2,7 +2,7 @@
 
 `test-core.cjs` checks that the installed instructions ask for each behavior below. Only a real
 Copilot run against the real source can show the model follows them. Run this once after
-installing 4.0.0, and again after any agent change. PBI facts named here are the expected
+installing 4.0.0 or later, and again after any agent change. PBI facts named here are the expected
 results of that run; they are never written into the reusable agent.
 
 ## Setup
