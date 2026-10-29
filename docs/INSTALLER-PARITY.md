@@ -19,6 +19,8 @@ file by file, so the two cannot drift without a failing test.
 | Several repositories, each with its own config.json | This session (list) | Remembered list | test-ui, test-ps |
 | Upgrade every listed repository in one action | No: the browser needs a folder dialog per repository | Upgrade all | test-ps |
 | Settings: project name, editor, role, other sources, historical reports | Yes | Yes (same defaults) | test-ps (identical files) |
+| Legacy, CDMS, DAB and other reference repositories | Typed paths (`Name = path`); the browser cannot reveal a folder's path | Repositories... with Browse per repository, `-LegacySource`, `-OtherSource "Name=path;..."` | test-ui, test-ps (identical files) |
+| Select Implementation References per PBI | Pop-up after the target is chosen | Copilot Create PBI question | test-core (every combination), test-ui |
 | Review before writing | Review setup | Preview / confirmation | both |
 | Install and upgrade with backups, ownership check and rollback | Yes | Yes | test-core, test-ps |
 | Retire unchanged earlier-version files; keep edited ones | Yes | Yes | test-ps (v2.1 and 3.0.0 upgrades) |

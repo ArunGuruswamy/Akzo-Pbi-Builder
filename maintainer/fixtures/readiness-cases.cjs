@@ -141,9 +141,9 @@ async function load(P){
  await c('the same rule recorded twice from different sources',s=>{s.rules[1].rule=s.rules[0].rule;},{rebind:true,expect:'Ready for Review',codes:['RULE_DUPLICATE',...OVER],refs:['BR-2']});
  await c('JavaScript and web resource evidence components are accepted',s=>{s.evidence[4].component='javascript';s.rules[1].owner={type:'multiple',types:['ui','application']};},{rebind:true,expect:'Development-Ready',codes:[]});
  await c('approved PBI may have CDMS and DAB final documents',null,{docs:(s,st)=>({refined:doc(st,s),cdmsRefined:doc(st,s),dabRefined:doc(st,s)}),expect:'Development-Ready',codes:[]});
- await c('application PBI before approval is blocked',pending,{docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL'],refs:['DAB-REFINED-PBI.md']});
- await c('application PBI missing a rule',null,{docs:(s,st)=>({cdmsRefined:doc(st,{...s,rules:s.rules.slice(0,1)})}),expect:'Ready for Review',codes:['DOC_MISSING_ID','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['CDMS-REFINED-PBI.md/BR-2','CDMS-REFINED-PBI.md']});
- await c('DAB PBI for a CDMS-only PBI',s=>{s.paths.dab={applies:false,reason:'CDMS only'};for(const r of s.rules)delete r.paths.dab;},{rebind:true,docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['DAB-REFINED-PBI.md']});
+ await c('application PBI before approval is blocked',pending,{docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL'],refs:['PBI-DAB.md']});
+ await c('application PBI missing a rule',null,{docs:(s,st)=>({cdmsRefined:doc(st,{...s,rules:s.rules.slice(0,1)})}),expect:'Ready for Review',codes:['DOC_MISSING_ID','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['PBI-CDMS.md/BR-2','PBI-CDMS.md']});
+ await c('DAB PBI for a CDMS-only PBI',s=>{s.paths.dab={applies:false,reason:'CDMS only'};for(const r of s.rules)delete r.paths.dab;},{rebind:true,docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['PBI-DAB.md']});
  // Branch completeness: a Yes branch covered by the plugin does not cover the No branch.
  const br=(s,y={},n={})=>{s.rules[0].branches=[{id:'BR-1.Y',condition:'User answers Yes',expected:'Status Actual; Master measurement replaced',cdms:'covered',dab:'missing',evidence:['EV-1'],acceptance:['AC-1','AC-2'],...y},
   {id:'BR-1.N',condition:'User answers No',expected:'Status Actual; Master measurement unchanged',cdms:'missing',dab:'missing',acceptance:['AC-3'],risk:'Activation may run the replacing plugin',...n}];};
@@ -177,7 +177,7 @@ async function load(P){
 // Writes a case as real files: PBI documents, state and evidence sources (null documents are not written).
 async function writeCase(P,root,folder,c){
  if(c.state!==null)await P.write(root,folder+'/pbi-state.json',JSON.stringify(c.state,null,2));
- for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['cdmsRefined','CDMS-REFINED-PBI.md'],['dabRefined','DAB-REFINED-PBI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
+ for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['cdmsRefined','PBI-CDMS.md'],['dabRefined','DAB-REFINED-PBI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
  for(const [p,t] of Object.entries(c.sources))await P.write(root,p,t);
 }
 module.exports={PBI,load,writeCase};

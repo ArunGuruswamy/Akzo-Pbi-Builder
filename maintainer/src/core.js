@@ -25,13 +25,26 @@ function normalizeConfig(c){
  const sources={};
  for(const key of ['legacy','dab','cdms']){const val=String(c.sources?.[key]??'').trim();if(/[\r\n\x00-\x1f]/.test(val))throw Error('Source paths must be on one line.');sources[key]=val.replace(/\\/g,'/');}
  if(c.role!=='other')sources[c.role]='.';
- return {schemaVersion:1,packageVersion:VERSION,projectName,ide,role:c.role,agentName:AGENT_PREFIX+projectName,includeReferences:!!c.includeReferences,sources};
+ // Other repositories: named, read-only implementation references (Install-PBIBuilder.ps1 New-Config mirrors this).
+ const others=[],raw=Array.isArray(c.others)?c.others:[];if(raw.length>10)throw Error('Configure at most 10 other repositories.');
+ for(const o of raw){const name=line(o?.name,60),path=String(o?.path??'').trim().replace(/\\/g,'/');
+  if(!path||/[\r\n\x00-\x1f]/.test(path))throw Error('Give each other repository one path on one line: '+name);
+  if(['legacy','dab','cdms'].includes(name.toLowerCase())||others.some(x=>x.name.toLowerCase()===name.toLowerCase()))throw Error('Other repository names must be unique and not Legacy, DAB or CDMS: '+name);
+  others.push({name,path});}
+ return {schemaVersion:1,packageVersion:VERSION,projectName,ide,role:c.role,agentName:AGENT_PREFIX+projectName,includeReferences:!!c.includeReferences,sources,others};
+}
+// Reference repositories a PBI can use: every configured repository except the target application.
+function referenceOptions(c,application){
+ const target=application==='both'?['cdms','dab']:[application],out=[];
+ for(const key of ['legacy','cdms','dab'])if(!target.includes(key))out.push({key,label:AREAS[key]});
+ for(const o of c.others||[])out.push({key:o.name,label:o.name});
+ return out;
 }
 // Placeholder values: the generation contract shared with Install-PBIBuilder.ps1 (see bundle()).
 const NO_DOCS=' []';
 function analysisDocs(referenceNames){return referenceNames.map(n=>`\n  - path: "${esc(BASE+'/references/'+n)}"\n    status: "Historical reference; not verified against the current checkout."`).join('');}
 function values(c,referenceNames){
- return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
+ return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,OTHER_SOURCES:c.others.length?c.others.map(o=>`\n  - name: "${esc(o.name)}"\n    repositoryPath: "${esc(o.path)}"`).join(''):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
 }
 function render(template,v,label){return template.replace(/\{\{PBI:([A-Z0-9_]+)\}\}/g,(m,k)=>{if(!Object.prototype.hasOwnProperty.call(v,k))throw Error('Unresolved placeholder '+m+' in '+label);return v[k];});}
 
@@ -157,9 +170,11 @@ it appears in rules and criteria, and never infer a separate codebase, area or
 question scope from it.
 
 ## Start a PBI: one compact intake
-Create PBI needs only three things, asked together in one message and only when
+Create PBI needs only these, asked together in one message and only when
 missing: 1. the PBI number or title; 2. the requirement or acceptance criteria;
-3. optionally, the investigation scope (for example legacy only). When the
+3. optionally, the investigation scope (for example legacy only); 4. the target
+application (DAB, CDMS or Both). Then one "Select Implementation References"
+question (multi-select, none allowed; guided-pbi-creation.md). When the
 message, a REQUEST.md, pbi.json or an attachment already gives them, ask
 nothing and start investigating. Infer everything else (module, kind of change,
 application areas, criteria to draft, supporting material) from the
@@ -282,6 +297,34 @@ analysis, solution design, the SDD handoff, acceptance criteria, test cases and
 implementation recommendations; every technical recommendation names the files
 and execution path it rests on.
 
+## Multi-repository implementation analysis
+Each PBI has one target application (pbi.json application) and zero or more
+implementation references (pbi.json references) that the user chose for this
+PBI only: legacy, cdms, dab or the name of a repository under
+otherRepositories in sources.yaml. Never carry references over from another PBI.
+Always analyze the target first: its actual source, what already exists and
+what is missing. Then analyze each reference, read-only: never create, edit or
+delete a file in a reference repository and never propose changes there.
+- Legacy: business rules, CRM workflows, validations and database operations
+  that must be preserved.
+- CDMS (when it is a reference): similar features and modernized patterns:
+  services, handlers, validators and tests worth reusing as an approach.
+- DAB or another repository (when it is a reference): the same, for its stack.
+Compare every requirement against the target and each selected reference. Use
+references to understand behavior and proven approaches; recommend a
+target-specific implementation that follows the target's own conventions, and
+never copy reference code blindly. When a reference has no matching
+implementation, write "No matching implementation found" with the searches you
+ran; never invent a reference. A reference path that is empty or unreadable is
+reported as inaccessible, not as missing behavior.
+Write the comparison as the "Implementation comparison" section of
+VALIDATION-MATRIX.md (no separate report), one row per requirement:
+| Requirement | Legacy reference | CDMS reference | Existing target implementation | Missing functionality | Recommended target changes | Validation and regression tests |
+Use only the columns for the target and the selected references (one column per
+other repository); every cell with a finding gives file and method references.
+Carry the result into DRAFT-PBI.md, acceptance criteria, the technical approval
+summary and the developer handoff.
+
 ## Investigate before asking
 For each business rule, find where it is enforced today and whether the target
 request reaches that enforcement. Keep four evidence levels apart: code exists;
@@ -369,7 +412,7 @@ Keep each PBI under its own playbook/pbis/<folder>/:
   covered), then concise source references, revisions, findings, confidence
   and gaps.
 - pbi-state.json: the structured record defined in readiness-and-approval.md.
-- REFINED-PBI.md, or CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md for the selected
+- REFINED-PBI.md, or PBI-CDMS.md and/or PBI-DAB.md for the selected
   applications (business-rule-ownership.md): the final PBI, created only as
   described below.
 - history/: prior versions of every changed document.
@@ -620,7 +663,8 @@ status proposed, approved, superseded. coverage defaults to positive and negativ
 - A rule may carry "branches" (business-rule-branch-completeness.md): each with
   id, condition, expected, cdms/dab coverage for the applications in scope,
   evidence, acceptance (AC IDs of this rule) and risk when conflicting.
-- CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md are final documents like
+- PBI-CDMS.md and PBI-DAB.md (earlier name: CDMS-/DAB-REFINED-PBI.md, still
+  read) are final documents like
   REFINED-PBI.md: blocked before approval, checked for the same text, and
   reported when their application does not apply (DOC_OUT_OF_SCOPE).
 - Evidence may carry "component": cdms-api, xrm-service, plugin, workflow,
@@ -754,6 +798,14 @@ Otherwise ask once, in one message, only for what is missing:
 2. Requirement or acceptance criteria, in the user's own words (any length,
    pasted Azure DevOps text, Markdown, rules or code).
 3. Optional: investigation scope (for example legacy only, or one workflow).
+4. Target application: DAB, CDMS or Both (the application that gets the change).
+Then, unless pbi.json already records references, show one question titled
+"Select Implementation References": a multi-select of every repository in
+sources.yaml except the target (Legacy, CDMS, DAB, each otherRepositories name).
+In VS Code use the interactive question tool with multiple selection; elsewhere
+list them numbered and accept several numbers, or 0 for none. Record the target
+and the selected references in pbi.json and REQUEST.md, then investigate as
+"Multi-repository implementation analysis" describes.
 Then infer the rest and show it in the first progress summary for correction:
 - Acceptance criteria not given: draft Given/When/Then criteria, each traced to
   a sentence of the requirement and marked proposed; an outcome the requirement
@@ -1281,11 +1333,33 @@ pbi-state.json and DRAFT-PBI.md.
   implementation status, CDMS development action, DAB implementation owner
   (layer), DAB implementation status, DAB development action, acceptance
   criteria, evidence confidence.
-- CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md: the final application PBIs,
-  created only when the check allows a final document (the check also reports
-  an application document for an application not in scope). Each contains
-  every rule and criterion text and the shared decision IDs; never two versions
-  of the same decision. Keep CDMS and DAB technical scopes separate.
+- PBI-CDMS.md and PBI-DAB.md: the final application PBIs, created only when
+  the check allows a final document (the check also reports an application
+  document for an application not in scope). Application CDMS: only
+  PBI-CDMS.md. DAB: only PBI-DAB.md. Both: exactly these two separate PBIs,
+  never one combined plan and never a gap-analysis report. PBI-CDMS.md and
+  PBI-DAB.md were called CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md before 4.1;
+  existing ones are still read, and new ones use the new names.
+  Each one is independently understandable and actionable by its own team and
+  contains its own title, description, functional requirements, business rules
+  and validations (full rule and criterion text), technical implementation
+  steps, acceptance criteria, test scenarios, dependencies, source file and
+  method references, and the shared decision IDs (never two versions of the
+  same decision). Both start with the same "Shared requirement" line (PBI number
+  or title and REQUEST.md) for traceability. Legacy is the primary functional
+  reference for both.
+  - PBI-CDMS.md: reuse only plugin validations verified as registered and
+    reached; state explicitly every JavaScript validation, workflow and
+    application-side logic CDMS must implement itself.
+  - PBI-DAB.md: explicit C# implementation steps for every applicable legacy
+    rule, including the rules CRM plugins enforce automatically for CDMS
+    (DAB never reaches those plugins): workflows, validations, handlers,
+    domain services, GraphQL integration and tests. Never omit a DAB
+    validation because CDMS relies on a plugin.
+  Each can be reviewed and edited on its own; the approvals in pbi-state.json
+  cover the PBI as a whole, so a change requested for one document renews the
+  approval for both. Creating Azure DevOps work items is outside this agent:
+  never publish them; the user creates one item per document.
 - VALIDATION-MATRIX.md, DECISION-LOG.md, EVIDENCE.md and pbi-state.json as
   usual; ACCEPTANCE-CRITERIA.md on request. DRAFT-PBI.md remains the working document; with a
   single application the final document is REFINED-PBI.md or that application's
@@ -1880,6 +1954,7 @@ project:
   role: "{{PBI:ROLE}}"
 sources:
 ${['legacy','dab','cdms'].map(k=>`  ${k}:\n    area: "${AREAS[k]}"\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
+otherRepositories:{{PBI:OTHER_SOURCES}}
 analysisDocuments:{{PBI:ANALYSIS_DOCS}}
 `},
   {path:BASE+'/PBI-TEMPLATE.md',text:assets.template},
@@ -1899,7 +1974,7 @@ function baselineAgent(c,key){const b=BASELINES[key];if(!b)throw Error('Unknown 
 // Generation contract consumed by Install-PBIBuilder.ps1. Bump schemaVersion on any incompatible change.
 function bundle(assets){
  return {schemaVersion:1,packageVersion:VERSION,base:BASE,agentPath:AGENT,agentPrefix:AGENT_PREFIX,manifest:MANIFEST,knowledgeIndex:KNOWLEDGE,
-  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','ANALYSIS_DOCS','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
+  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','ANALYSIS_DOCS','OTHER_SOURCES','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
   analysisDocs:{included:analysisDocs(Object.keys(assets.references)),excluded:NO_DOCS},ideProfiles:IDE,legacyFiles:LEGACY_FILES,setup:templates(assets),
   baselines:Object.fromEntries(Object.entries(BASELINES).map(([k,b])=>[k,{label:b.label,path:b.path,template:b.template}])),
   readiness:READINESS};
@@ -1988,14 +2063,17 @@ function newPbi(c,data){
  const changeType=data.changeType===undefined||data.changeType===''?'unsure':data.changeType;if(!CHANGE_TYPES[changeType])throw Error('Choose what kind of change this is.');
  const project=data.project?line(data.project,100):c.projectName;
  const application=data.application===undefined||data.application===''?'unsure':data.application;if(!APPLICATIONS[application])throw Error('Choose the application: CDMS, DAB or Both.');
+ const offered=referenceOptions(c,application),references=[];
+ for(const r of Array.isArray(data.references)?data.references:[]){const o=offered.find(x=>x.key===r);if(!o)throw Error('Implementation reference not available for this target: '+r);if(!references.includes(r))references.push(r);}
+ const refLabels=references.map(r=>offered.find(x=>x.key===r).label);
  folder=folder||'playbook/pbis/'+(number?'pbi-'+number+'-':'pbi-')+slug(title)+'-'+stamp()+'-'+uid();
  const attachments=[],taken=kept.map(x=>x.path);for(const n of names){const at=attachmentPath(folder,n,taken);taken.push(at);attachments.push(at);}
  const all=[...kept,...attachments.map((path,i)=>({name:names[i],path}))];
- const request={schemaVersion:1,title,number,project,application,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
+ const request={schemaVersion:1,title,number,project,application,references,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
   attachments:all,businessReason:String(data.businessReason??'').trim(),businessExample:String(data.businessExample??'').trim(),businessUnit:String(data.businessUnit??'').trim(),
   createdAt:new Date().toISOString(),wizard:{step:draft?String(data.step??'review'):'analysis',status:draft?'draft':'ready-for-analysis'},status:draft?'Draft intake — not sent for analysis':'Intake — AI refinement not started'};
  const list=all.length?all.map(x=>'- '+x.name+' → '+x.path.slice(folder.length+1)).join('\n'):'None';
- const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
+ const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Implementation references (read-only)',refLabels.length?refLabels.join(', '):'None selected'],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
   ['Acceptance criteria',acMode==='enter'?acceptanceCriteria:AC_MODES[acMode]],['Attachments (not yet reviewed)',list],['Investigation scope',request.scope||'Not limited'],['Additional notes',request.notes||'None'],
   ['Business reason',request.businessReason||'Not known yet'],['Business example',request.businessExample||'Not known yet'],['Business Unit / Sub-BU',request.businessUnit||'Not known yet']];
  const md='# Original PBI request\n\n'+fields.map(([k,v])=>'## '+k+'\n\n'+v).join('\n\n')+'\n\nStatus: '+request.status+'. No approvals recorded.\n';
@@ -2006,6 +2084,8 @@ function newPbi(c,data){
   +(application==='unsure'?`Infer whether this PBI is for CDMS, DAB or Both from the requirement and source; ask once only if they cannot establish it.
 `:`Application: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again.
 `)
+  +(application==='both'?`Final deliverables: exactly two separate PBIs, PBI-CDMS.md and PBI-DAB.md, each complete for its own team (business-rule-ownership.md); never one combined plan.\n`:application==='unsure'?'':`Final deliverable: only ${application==='cdms'?'PBI-CDMS.md':'PBI-DAB.md'}.\n`)
+  +(refLabels.length?`Implementation references, chosen by the user (read-only; never modify them): ${refLabels.join(', ')}. Analyze the target first, then each reference, and write the implementation comparison as described in "Multi-repository implementation analysis".\n`:`No implementation references selected: analyze the target repository only.\n`)
   +(acMode==='draft'?`Draft Given/When/Then acceptance criteria from the description, each traced to the text and marked proposed for review.\n`:'')
   +`Save this PBI's documents in ${folder}/. Investigate autonomously, without asking permission, until the rules have evidence or a genuine business decision blocks progress; then ask through the Business Decision Advisor.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
  return {folder,request,prompt,attachments,files:{[folder+'/REQUEST.md']:md,[folder+'/pbi.json']:JSON.stringify(request,null,2)+'\n',[folder+'/START-PROMPT.txt']:prompt+'\n'}};
@@ -2120,7 +2200,7 @@ const READINESS={
  branchCoverage:['covered','partial','missing','conflicting','unverified','not-applicable'],branchApps:['cdms','dab'],
  // Bundled reference reports describe past code; they never count as evidence levels.
  historicalPaths:[BASE+'/references/',BASE+'/REFERENCES-INDEX.md'],
- finalDocs:{cdmsRefined:['cdms','CDMS-REFINED-PBI.md'],dabRefined:['dab','DAB-REFINED-PBI.md']},registration:['active','disabled','missing','unknown'],
+ finalDocs:{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md']},registration:['active','disabled','missing','unknown'],
  pathStatus:['reaches','bypasses','unknown','not-applicable'],actions:['reuse','verify','extend','implement','resolve-gap'],
  acTypes:['positive','negative','boundary','permission'],identities:['caller','impersonated','service','unknown'],approvals:['poba','technical','user'],
  requiredPaths:['cdms','dab'],evidenceLevels:['code','registration','reach','runtime'],evidenceKinds:['repo-file','external'],
@@ -2340,7 +2420,7 @@ async function checkPbi(root,folder){safePath(folder);if(!/^playbook\/pbis\/[^/]
  const raw=await read(root,folder+'/pbi-state.json');let state=null;if(raw!==null){try{state=JSON.parse(raw);}catch{state=null;}}
  const at=f=>read(root,folder+'/'+f),files=[];
  for(const e of Array.isArray(state?.evidence)?state.evidence:[])if(e&&typeof e==='object'&&e.kind==='repo-file'&&isSafe(e.source)&&!files.some(([p])=>p===e.source))files.push([e.source,await sourceHash(root,e.source)]);
- return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await at('REFINED-PBI.md'),cdmsRefined:await at('CDMS-REFINED-PBI.md'),dabRefined:await at('DAB-REFINED-PBI.md'),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
+ return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await at('REFINED-PBI.md'),cdmsRefined:(await at('PBI-CDMS.md'))??await at('CDMS-REFINED-PBI.md'),dabRefined:(await at('PBI-DAB.md'))??await at('DAB-REFINED-PBI.md'),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
 async function sourceHash(root,path){try{const f=await file(root,path);return f===null?null:await hashBytes(await f.arrayBuffer());}catch(e){if(e.name==='TypeMismatchError')return null;throw e;}}
 
 async function hashBytes(bytes){return Array.from(new Uint8Array(await global.crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');}
@@ -2483,6 +2563,6 @@ async function discoverSources(root,config){
  await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
  return map;
 }
-const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
+const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,referenceOptions,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
 global.PBI=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -34,7 +34,12 @@ REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copi
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 44 checks on real temporary files.
+- test-core.cjs: 46 checks on real temporary files.
+  - implementation references: other repositories validated and written to
+    sources.yaml, the target never offered, every subset for every target
+    recorded in pbi.json, REQUEST.md and the prompt, read-only comparison rules;
+  - separate CDMS and DAB PBIs: PBI-CDMS.md / PBI-DAB.md rules, one deliverable
+    per single application, two for Both, 4.0 file names give the same result;
   - legacy source analysis: stack detection, entry-point-to-database trace, reuse
     first, Not Verified, analysis documents never proof, selectable Approved /
     Change Requested / Custom Response approvals;
@@ -154,7 +159,8 @@ PASSED
   - Discover sources writes the source map and reports each source's access.
   - Application choice (Both) shown in Review and saved in REQUEST.md and
     pbi.json; the start prompt says not to ask again.
-- test-ps.cjs: 10 checks with real Windows PowerShell (launchers: Install.cmd,
+- test-ps.cjs: 11 checks with real Windows PowerShell (other repositories via
+  -OtherSource identical to the form, kept by Repair, cleared by ';'; launchers: Install.cmd,
   Uninstall.cmd, package checksum, missing file, downloaded-file mark with Y/N,
   AllSigned and Restricted not bypassed, interrupted install, repeated install and
   uninstall, log and exit codes; HTML and PowerShell uninstall identical), folders with spaces and

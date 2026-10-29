@@ -2,6 +2,21 @@
 
 ## 4.1.0 — 29 October 2026
 
+### Implementation references and separate CDMS / DAB PBIs
+- Configure other repositories besides Legacy, CDMS and DAB (config.json `others`, sources.yaml
+  `otherRepositories`): form setup (`Name = path`), setup window Repositories... with Browse per
+  repository, or `-OtherSource "Name=path;..."`. Both installers write identical files; older
+  config.json files without `others` keep working.
+- New PBI: after the target application is chosen, a Select Implementation References pop-up
+  offers every configured repository except the target; none, one or several, recorded per PBI
+  in pbi.json and REQUEST.md. Create PBI in Copilot asks the same.
+- Agent: Multi-repository implementation analysis. Target first, references read-only, an
+  Implementation comparison section in VALIDATION-MATRIX.md with file and method references,
+  "No matching implementation found" instead of invented references.
+- Final application PBIs are now PBI-CDMS.md and PBI-DAB.md (4.0 names still read): CDMS only,
+  DAB only, or exactly two separate, complete PBIs for Both, linked by a shared requirement
+  line. PBI-DAB.md covers every applicable legacy rule in C#, including plugin-enforced ones.
+
 ### Installer: blocked scripts, HTML parity, folder selection
 - Install.cmd and Uninstall.cmd (aliases of Install-PBIBuilder.cmd and Uninstall-PBIBuilder.cmd)
   check the package before PowerShell runs anything: required files, SHA256SUMS.txt, Windows

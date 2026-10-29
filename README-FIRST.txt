@@ -86,6 +86,11 @@ settings. It completes the installation; nothing else is needed. Ctrl+C during
 writing restores the files touched so far.
 
 CREATE A PBI
+Choose the target application (CDMS, DAB or Both). The form then opens Select
+Implementation References: tick any other configured repositories (Legacy, CDMS,
+DAB, others) to use as read-only references for this PBI, or none. Both produces
+two separate PBIs, PBI-CDMS.md and PBI-DAB.md. Configure repositories in the form's
+setup, or with Repositories... in the setup window (Browse per repository).
 Open a NEW Copilot chat for every new PBI, so nothing from an earlier PBI is
 carried over. In Copilot type "Create PBI", or use the New PBI tab of the form. The
 agent asks, in one message, only for what is missing: the PBI number or title, the

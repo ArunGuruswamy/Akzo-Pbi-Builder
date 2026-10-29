@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Akzo SDD · PBI Builder</title>
 <style>
 :root{--ink:#211d35;--muted:#686276;--purple:#5236ab;--red:#e31937;--line:#e3deed;--surface:#f5f3f9;--good:#126744;--bad:#ac1834}*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--surface);color:var(--ink);font-size:15px;line-height:1.55}header{background:white;border-bottom:1px solid var(--line);padding:28px max(24px,calc((100vw - 1120px)/2));display:flex;justify-content:space-between;gap:24px;align-items:center}.eyebrow{font-size:11px;letter-spacing:2px;color:var(--purple);font-weight:800;text-transform:uppercase}h1{font-size:30px;letter-spacing:-1px;margin:5px 0 0}h2{font-size:22px;margin:0 0 7px}h3{font-size:16px;margin:18px 0 8px}p{margin:8px 0 16px}.badge{font-size:12px;border-radius:25px;background:#f0ebfc;color:var(--purple);padding:7px 13px;white-space:nowrap}main{max-width:1168px;padding:24px;margin:auto}.connection{display:flex;justify-content:space-between;gap:20px;align-items:center;background:var(--ink);color:#fff;border-radius:14px;padding:17px 22px}.connection small{display:block;color:#d9d3e7}.connection button{background:white;color:var(--ink);white-space:nowrap}nav{display:flex;gap:7px;flex-wrap:wrap;margin:23px 0}button{font:inherit;font-size:14px;font-weight:600;border:1px solid transparent;border-radius:8px;padding:10px 17px;background:var(--purple);color:#fff;cursor:pointer}button:hover{filter:brightness(.95)}button:disabled{opacity:.45;cursor:not-allowed}button.secondary{border-color:var(--line);background:white;color:var(--ink)}nav button{color:var(--muted);background:transparent}nav button[aria-selected=true]{background:white;color:var(--purple);box-shadow:0 1px 5px #28174412}button:focus-visible,input:focus,textarea:focus,select:focus{outline:3px solid #baa8ed;outline-offset:2px}.panel{display:none}.panel.active{display:block}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:25px;margin-bottom:18px}.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,1fr);gap:20px}.two{display:grid;grid-template-columns:1fr 1fr;gap:15px}.muted,small{color:var(--muted)}label{font-size:13px;font-weight:650;display:block;margin:15px 0 5px}input,textarea,select{width:100%;font:inherit;color:var(--ink);border:1px solid #cfc8dc;border-radius:7px;padding:10px 12px;background:#fff}textarea{resize:vertical;min-height:105px}input[type=checkbox]{width:17px;height:17px;accent-color:var(--purple);flex-shrink:0}.check{display:flex;gap:10px;align-items:flex-start;font-weight:400}details{margin-top:16px}summary{cursor:pointer;font-weight:650;color:var(--purple)}.buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}.note{padding:13px 16px;border-left:3px solid var(--purple);background:#f6f2ff;border-radius:0 7px 7px 0;font-size:13px}.step{display:flex;gap:12px;margin:17px 0}.num{border-radius:50%;background:#efe9fc;color:var(--purple);width:27px;height:27px;display:inline-flex;justify-content:center;align-items:center;flex-shrink:0;font-weight:700}.step p{margin:0}code{font-size:13px;background:#f1eef6;padding:2px 5px;border-radius:4px;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f8f7fa;border:1px solid var(--line);border-radius:8px;padding:15px;font-size:13px;max-height:350px;overflow:auto}#message{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px 20px;margin:17px 0;border-radius:9px;display:none;background:#eaf6ef;color:var(--good)}#message.error{background:#fff0f2;color:var(--bad)}.status{font-size:13px;margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:12px;margin:12px 0}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}td:first-child{width:90px}.tag{font-weight:700}.conflict{color:var(--bad)}.update{color:#8d5200}.create{color:var(--good)}.output{border-top:3px solid var(--red)}.output textarea{font-family:Consolas,monospace;font-size:13px;min-height:155px}.hidden{display:none!important}footer{font-size:12px;color:var(--muted);padding:15px 0 35px}ul,ol{padding-left:23px}a{color:var(--purple)}.connection strong{overflow-wrap:anywhere}.filepath{font-family:Consolas,monospace;font-size:12px}.summary-name{font-weight:700;color:var(--purple);overflow-wrap:anywhere}#review{max-height:330px;overflow:auto}#pbiDetails{max-height:220px;overflow:auto}@media(max-width:780px){.grid,.two{grid-template-columns:1fr}header{padding:20px;align-items:flex-start}h1{font-size:25px}.connection{align-items:flex-start;flex-direction:column}main{padding:16px}.card{padding:19px}.badge{display:none}}@media print{nav,.buttons,.connection,footer{display:none}.panel{display:block}.card{break-inside:avoid}}
-</style></head><body>
+dialog{border:1px solid #c9ced6;border-radius:12px;padding:20px;max-width:520px;width:calc(100% - 32px)}dialog::backdrop{background:rgba(0,0,0,.35)}#refList label{display:flex;gap:8px;align-items:center;margin:6px 0}</style></head><body>
 <header><div><div class="eyebrow">Akzo · Spec-driven development</div><h1>Evidence-based PBI refinement.</h1></div><span class="badge">PBI Builder · 4.0</span></header>
 <main>
 <div class="connection"><div><strong id="connectedName">Choose the project you want to work in</strong><small id="connectedDetail">Select the repository root, then install once or continue an existing setup.</small></div><button id="pick">Choose project folder</button></div>
@@ -14,13 +14,13 @@
 <label for="displayPath">Full project path (optional, for the on-screen guide)</label><input id="displayPath" placeholder="Paste from File Explorer, for example C:\src\MyProject"><small>The browser does not reveal the full path. This text does not select or change the destination.</small>
 <label class="check"><input type="checkbox" id="rootConfirmed"><span>I selected the repository root that contains this application's source, rather than a parent user folder or one nested project.</span></label>
 <div class="status" id="solutions"></div>
-<details><summary>Reference documents and other repositories</summary><label class="check"><input type="checkbox" id="includeReferences"><span>Also install the two older ColorDMS analysis documents as optional historical background. Not needed: the agent investigates the repository directly.</span></label><p class="muted"><small>The current repository is registered as <code>.</code>. Other paths are optional; relative paths are resolved from the repository root. Enter only known paths. Copilot must verify access.</small></p><label for="legacyPath">Custom (Legacy CRM/XRM) repository (when this is a different project)</label><input id="legacyPath" placeholder="Example: ../AN.ColorDMS.Customizations"><label for="dabPath">DAB (GraphQL) repository</label><input id="dabPath" placeholder="Example: ../AN.ColorAppsAzure.BL"><label for="cdmsPath">CDMS repository</label><input id="cdmsPath" placeholder="Example: ../ColorDMS"></details>
+<details><summary>Reference documents and other repositories</summary><label class="check"><input type="checkbox" id="includeReferences"><span>Also install the two older ColorDMS analysis documents as optional historical background. Not needed: the agent investigates the repository directly.</span></label><p class="muted"><small>The current repository is registered as <code>.</code>. Other paths are optional; relative paths are resolved from the repository root. Enter only known paths. Copilot must verify access.</small></p><label for="legacyPath">Custom (Legacy CRM/XRM) repository (when this is a different project)</label><input id="legacyPath" placeholder="Example: ../AN.ColorDMS.Customizations"><label for="dabPath">DAB (GraphQL) repository</label><input id="dabPath" placeholder="Example: ../AN.ColorAppsAzure.BL"><label for="cdmsPath">CDMS repository</label><input id="cdmsPath" placeholder="Example: ../ColorDMS"><label for="otherRepos">Other repositories (one per line: Name = path)</label><textarea id="otherRepos" rows="3" placeholder="Example: Portal = ../AN.Portal"></textarea><small>Offered as read-only implementation references when you create a PBI. Up to 10. The browser cannot reveal folder paths, so type them here; the Windows setup window has Browse buttons.</small></details>
 <div class="buttons"><button id="preview">Review setup</button><button id="install" class="secondary">Install / update in selected folder</button><button id="repair" class="secondary">Repair</button><button id="uninstall" class="secondary">Uninstall</button><button id="setupZip" class="secondary">Download setup ZIP</button></div>
 <label for="recentRepos">Repositories chosen in this session</label><select id="recentRepos"><option value="">None yet: use Choose project folder</option></select><small>Switch between repositories without choosing them again. Each keeps its own config.json; the browser forgets them when this page closes.</small>
 <label class="check"><input type="checkbox" id="allowUpdates"><span>Allow reviewed updates to files previously installed by this wizard, and retirement of unchanged earlier-version agents, with backups. Files changed outside the wizard remain protected.</span></label><div id="review"></div></div>
 <aside><div class="card"><div class="eyebrow">Where the agent appears</div><h3 id="agentPreview" class="summary-name">Akzo SDD PBI Builder - your project</h3><div class="step"><span class="num">1</span><p>Install into the selected repository.</p></div><div class="step"><span class="num">2</span><p>Open that repository's solution or folder in the selected editor.</p></div><div class="step"><span class="num">3</span><p>In Copilot Chat, choose the exact project-specific name above.</p></div><div class="note">The wizard sets up files. You select the agent and send the prompt in Copilot. Sign-in and Copilot access are required.</div><div class="buttons"><button id="verify" class="secondary">Check installed files</button></div></div><div class="card"><h3>Windows installer alternative</h3><p class="muted">Install-PBIBuilder.cmd in the package installs, verifies, repairs and uninstalls the same files without a browser. It respects your PowerShell execution policy.</p><p class="muted">If access is blocked, download a setup ZIP, extract it and copy its contents into the project, comparing any existing files first.</p><label for="importConfig">For ZIP-only use: load the installed config.json</label><input type="file" id="importConfig" accept=".json,application/json"><small>Find it at <code>playbook/pbi-builder/config.json</code> after extracting the setup ZIP. This loads settings only; it does not verify installation.</small></div></aside></div></section>
 <section id="new" class="panel" role="tabpanel"><div class="grid"><div class="card"><h2>Create a PBI</h2><p class="muted" id="wizardProgress" aria-live="polite">Step 1 of 6 · Basic information</p>
-<div id="step1" class="wizstep"><label for="pbiTitle">What is the PBI title? *</label><input id="pbiTitle" maxlength="240" placeholder="Example: Creation of Adaptation Imitation Request &amp; Paint System"><label for="pbiNumber">PBI number (optional)</label><input id="pbiNumber" inputmode="numeric" maxlength="12" placeholder="Leave blank if not created in Azure DevOps"><label for="targetProject">Target project</label><select id="targetProject"><option value="">This repository</option></select><label for="customProject">Other project or module (optional)</label><input id="customProject" maxlength="100" placeholder="Only if it is not in the list"><label for="application">Which application is this PBI for?</label><select id="application"><option value="unsure">Not decided yet (the agent asks once)</option><option value="cdms">CDMS</option><option value="dab">DAB</option><option value="both">Both (CDMS and DAB)</option></select><label for="pbiScope">Investigation scope (optional)</label><input id="pbiScope" maxlength="300" placeholder="Example: legacy only, or the Paint System creation workflow"></div>
+<div id="step1" class="wizstep"><label for="pbiTitle">What is the PBI title? *</label><input id="pbiTitle" maxlength="240" placeholder="Example: Creation of Adaptation Imitation Request &amp; Paint System"><label for="pbiNumber">PBI number (optional)</label><input id="pbiNumber" inputmode="numeric" maxlength="12" placeholder="Leave blank if not created in Azure DevOps"><label for="targetProject">Target project</label><select id="targetProject"><option value="">This repository</option></select><label for="customProject">Other project or module (optional)</label><input id="customProject" maxlength="100" placeholder="Only if it is not in the list"><label for="application">Which application is this PBI for?</label><select id="application"><option value="unsure">Not decided yet (the agent asks once)</option><option value="cdms">CDMS</option><option value="dab">DAB</option><option value="both">Both (CDMS and DAB)</option></select><div class="status" id="refSummary">Implementation references: none selected</div><div class="buttons"><button id="chooseRefs" class="secondary">Select implementation references</button></div><dialog id="refDialog" aria-labelledby="refTitle"><h3 id="refTitle">Select Implementation References</h3><p class="muted">The target application is always analyzed. Checked repositories are read-only references for this PBI only. None is fine.</p><div id="refList"></div><div class="buttons"><button id="refOk">Use these references</button></div></dialog><label for="pbiScope">Investigation scope (optional)</label><input id="pbiScope" maxlength="300" placeholder="Example: legacy only, or the Paint System creation workflow"></div>
 <div id="step2" class="wizstep hidden"><label for="pbiDescription">What do you want the application to do? *</label><p class="muted">Describe the requirement in your own words. You do not need to use technical terminology. Long text, copied Azure DevOps descriptions, rules and code are all fine. You can attach a document instead in step 4.</p><textarea id="pbiDescription" rows="10" placeholder="Explain what the user needs and the expected behavior."></textarea><details><summary>Show a short sample</summary><p class="muted">Users must be able to request an Adaptation for an Industrial Market Color Instance. The request is rejected when one already exists for the same instance and product. When the request is approved, a Paint System is created.</p></details></div>
 <div id="step3" class="wizstep hidden"><label for="acMode">What should happen when this feature works correctly?</label><select id="acMode"><option value="enter">I will enter my acceptance criteria</option><option value="draft" selected>Draft acceptance criteria from my description for review</option><option value="attached">My acceptance criteria are in an attachment</option><option value="skip">Skip this step for now</option></select><label for="acceptanceCriteria">Acceptance criteria (when you enter them)</label><textarea id="acceptanceCriteria" rows="6" placeholder="Given ..., when ..., then ..."></textarea></div>
 <div id="step4" class="wizstep hidden"><label for="attachments">Do you have any supporting material? (optional)</label><p class="muted">Requirements documents, spreadsheets, screenshots, diagrams or source files. They are copied into this PBI's attachments folder. The agent reports any file it cannot open; nothing in a file is treated as approved automatically.</p><input id="attachments" type="file" multiple><div class="status" id="attachmentList"></div></div>
@@ -72,13 +72,26 @@ function normalizeConfig(c){
  const sources={};
  for(const key of ['legacy','dab','cdms']){const val=String(c.sources?.[key]??'').trim();if(/[\r\n\x00-\x1f]/.test(val))throw Error('Source paths must be on one line.');sources[key]=val.replace(/\\/g,'/');}
  if(c.role!=='other')sources[c.role]='.';
- return {schemaVersion:1,packageVersion:VERSION,projectName,ide,role:c.role,agentName:AGENT_PREFIX+projectName,includeReferences:!!c.includeReferences,sources};
+ // Other repositories: named, read-only implementation references (Install-PBIBuilder.ps1 New-Config mirrors this).
+ const others=[],raw=Array.isArray(c.others)?c.others:[];if(raw.length>10)throw Error('Configure at most 10 other repositories.');
+ for(const o of raw){const name=line(o?.name,60),path=String(o?.path??'').trim().replace(/\\/g,'/');
+  if(!path||/[\r\n\x00-\x1f]/.test(path))throw Error('Give each other repository one path on one line: '+name);
+  if(['legacy','dab','cdms'].includes(name.toLowerCase())||others.some(x=>x.name.toLowerCase()===name.toLowerCase()))throw Error('Other repository names must be unique and not Legacy, DAB or CDMS: '+name);
+  others.push({name,path});}
+ return {schemaVersion:1,packageVersion:VERSION,projectName,ide,role:c.role,agentName:AGENT_PREFIX+projectName,includeReferences:!!c.includeReferences,sources,others};
+}
+// Reference repositories a PBI can use: every configured repository except the target application.
+function referenceOptions(c,application){
+ const target=application==='both'?['cdms','dab']:[application],out=[];
+ for(const key of ['legacy','cdms','dab'])if(!target.includes(key))out.push({key,label:AREAS[key]});
+ for(const o of c.others||[])out.push({key:o.name,label:o.name});
+ return out;
 }
 // Placeholder values: the generation contract shared with Install-PBIBuilder.ps1 (see bundle()).
 const NO_DOCS=' []';
 function analysisDocs(referenceNames){return referenceNames.map(n=>`\n  - path: "${esc(BASE+'/references/'+n)}"\n    status: "Historical reference; not verified against the current checkout."`).join('');}
 function values(c,referenceNames){
- return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
+ return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,OTHER_SOURCES:c.others.length?c.others.map(o=>`\n  - name: "${esc(o.name)}"\n    repositoryPath: "${esc(o.path)}"`).join(''):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
 }
 function render(template,v,label){return template.replace(/\{\{PBI:([A-Z0-9_]+)\}\}/g,(m,k)=>{if(!Object.prototype.hasOwnProperty.call(v,k))throw Error('Unresolved placeholder '+m+' in '+label);return v[k];});}
 
@@ -204,9 +217,11 @@ it appears in rules and criteria, and never infer a separate codebase, area or
 question scope from it.
 
 ## Start a PBI: one compact intake
-Create PBI needs only three things, asked together in one message and only when
+Create PBI needs only these, asked together in one message and only when
 missing: 1. the PBI number or title; 2. the requirement or acceptance criteria;
-3. optionally, the investigation scope (for example legacy only). When the
+3. optionally, the investigation scope (for example legacy only); 4. the target
+application (DAB, CDMS or Both). Then one "Select Implementation References"
+question (multi-select, none allowed; guided-pbi-creation.md). When the
 message, a REQUEST.md, pbi.json or an attachment already gives them, ask
 nothing and start investigating. Infer everything else (module, kind of change,
 application areas, criteria to draft, supporting material) from the
@@ -329,6 +344,34 @@ analysis, solution design, the SDD handoff, acceptance criteria, test cases and
 implementation recommendations; every technical recommendation names the files
 and execution path it rests on.
 
+## Multi-repository implementation analysis
+Each PBI has one target application (pbi.json application) and zero or more
+implementation references (pbi.json references) that the user chose for this
+PBI only: legacy, cdms, dab or the name of a repository under
+otherRepositories in sources.yaml. Never carry references over from another PBI.
+Always analyze the target first: its actual source, what already exists and
+what is missing. Then analyze each reference, read-only: never create, edit or
+delete a file in a reference repository and never propose changes there.
+- Legacy: business rules, CRM workflows, validations and database operations
+  that must be preserved.
+- CDMS (when it is a reference): similar features and modernized patterns:
+  services, handlers, validators and tests worth reusing as an approach.
+- DAB or another repository (when it is a reference): the same, for its stack.
+Compare every requirement against the target and each selected reference. Use
+references to understand behavior and proven approaches; recommend a
+target-specific implementation that follows the target's own conventions, and
+never copy reference code blindly. When a reference has no matching
+implementation, write "No matching implementation found" with the searches you
+ran; never invent a reference. A reference path that is empty or unreadable is
+reported as inaccessible, not as missing behavior.
+Write the comparison as the "Implementation comparison" section of
+VALIDATION-MATRIX.md (no separate report), one row per requirement:
+| Requirement | Legacy reference | CDMS reference | Existing target implementation | Missing functionality | Recommended target changes | Validation and regression tests |
+Use only the columns for the target and the selected references (one column per
+other repository); every cell with a finding gives file and method references.
+Carry the result into DRAFT-PBI.md, acceptance criteria, the technical approval
+summary and the developer handoff.
+
 ## Investigate before asking
 For each business rule, find where it is enforced today and whether the target
 request reaches that enforcement. Keep four evidence levels apart: code exists;
@@ -416,7 +459,7 @@ Keep each PBI under its own playbook/pbis/<folder>/:
   covered), then concise source references, revisions, findings, confidence
   and gaps.
 - pbi-state.json: the structured record defined in readiness-and-approval.md.
-- REFINED-PBI.md, or CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md for the selected
+- REFINED-PBI.md, or PBI-CDMS.md and/or PBI-DAB.md for the selected
   applications (business-rule-ownership.md): the final PBI, created only as
   described below.
 - history/: prior versions of every changed document.
@@ -667,7 +710,8 @@ status proposed, approved, superseded. coverage defaults to positive and negativ
 - A rule may carry "branches" (business-rule-branch-completeness.md): each with
   id, condition, expected, cdms/dab coverage for the applications in scope,
   evidence, acceptance (AC IDs of this rule) and risk when conflicting.
-- CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md are final documents like
+- PBI-CDMS.md and PBI-DAB.md (earlier name: CDMS-/DAB-REFINED-PBI.md, still
+  read) are final documents like
   REFINED-PBI.md: blocked before approval, checked for the same text, and
   reported when their application does not apply (DOC_OUT_OF_SCOPE).
 - Evidence may carry "component": cdms-api, xrm-service, plugin, workflow,
@@ -801,6 +845,14 @@ Otherwise ask once, in one message, only for what is missing:
 2. Requirement or acceptance criteria, in the user's own words (any length,
    pasted Azure DevOps text, Markdown, rules or code).
 3. Optional: investigation scope (for example legacy only, or one workflow).
+4. Target application: DAB, CDMS or Both (the application that gets the change).
+Then, unless pbi.json already records references, show one question titled
+"Select Implementation References": a multi-select of every repository in
+sources.yaml except the target (Legacy, CDMS, DAB, each otherRepositories name).
+In VS Code use the interactive question tool with multiple selection; elsewhere
+list them numbered and accept several numbers, or 0 for none. Record the target
+and the selected references in pbi.json and REQUEST.md, then investigate as
+"Multi-repository implementation analysis" describes.
 Then infer the rest and show it in the first progress summary for correction:
 - Acceptance criteria not given: draft Given/When/Then criteria, each traced to
   a sentence of the requirement and marked proposed; an outcome the requirement
@@ -1328,11 +1380,33 @@ pbi-state.json and DRAFT-PBI.md.
   implementation status, CDMS development action, DAB implementation owner
   (layer), DAB implementation status, DAB development action, acceptance
   criteria, evidence confidence.
-- CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md: the final application PBIs,
-  created only when the check allows a final document (the check also reports
-  an application document for an application not in scope). Each contains
-  every rule and criterion text and the shared decision IDs; never two versions
-  of the same decision. Keep CDMS and DAB technical scopes separate.
+- PBI-CDMS.md and PBI-DAB.md: the final application PBIs, created only when
+  the check allows a final document (the check also reports an application
+  document for an application not in scope). Application CDMS: only
+  PBI-CDMS.md. DAB: only PBI-DAB.md. Both: exactly these two separate PBIs,
+  never one combined plan and never a gap-analysis report. PBI-CDMS.md and
+  PBI-DAB.md were called CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md before 4.1;
+  existing ones are still read, and new ones use the new names.
+  Each one is independently understandable and actionable by its own team and
+  contains its own title, description, functional requirements, business rules
+  and validations (full rule and criterion text), technical implementation
+  steps, acceptance criteria, test scenarios, dependencies, source file and
+  method references, and the shared decision IDs (never two versions of the
+  same decision). Both start with the same "Shared requirement" line (PBI number
+  or title and REQUEST.md) for traceability. Legacy is the primary functional
+  reference for both.
+  - PBI-CDMS.md: reuse only plugin validations verified as registered and
+    reached; state explicitly every JavaScript validation, workflow and
+    application-side logic CDMS must implement itself.
+  - PBI-DAB.md: explicit C# implementation steps for every applicable legacy
+    rule, including the rules CRM plugins enforce automatically for CDMS
+    (DAB never reaches those plugins): workflows, validations, handlers,
+    domain services, GraphQL integration and tests. Never omit a DAB
+    validation because CDMS relies on a plugin.
+  Each can be reviewed and edited on its own; the approvals in pbi-state.json
+  cover the PBI as a whole, so a change requested for one document renews the
+  approval for both. Creating Azure DevOps work items is outside this agent:
+  never publish them; the user creates one item per document.
 - VALIDATION-MATRIX.md, DECISION-LOG.md, EVIDENCE.md and pbi-state.json as
   usual; ACCEPTANCE-CRITERIA.md on request. DRAFT-PBI.md remains the working document; with a
   single application the final document is REFINED-PBI.md or that application's
@@ -1927,6 +2001,7 @@ project:
   role: "{{PBI:ROLE}}"
 sources:
 ${['legacy','dab','cdms'].map(k=>`  ${k}:\n    area: "${AREAS[k]}"\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
+otherRepositories:{{PBI:OTHER_SOURCES}}
 analysisDocuments:{{PBI:ANALYSIS_DOCS}}
 `},
   {path:BASE+'/PBI-TEMPLATE.md',text:assets.template},
@@ -1946,7 +2021,7 @@ function baselineAgent(c,key){const b=BASELINES[key];if(!b)throw Error('Unknown 
 // Generation contract consumed by Install-PBIBuilder.ps1. Bump schemaVersion on any incompatible change.
 function bundle(assets){
  return {schemaVersion:1,packageVersion:VERSION,base:BASE,agentPath:AGENT,agentPrefix:AGENT_PREFIX,manifest:MANIFEST,knowledgeIndex:KNOWLEDGE,
-  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','ANALYSIS_DOCS','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
+  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','ANALYSIS_DOCS','OTHER_SOURCES','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
   analysisDocs:{included:analysisDocs(Object.keys(assets.references)),excluded:NO_DOCS},ideProfiles:IDE,legacyFiles:LEGACY_FILES,setup:templates(assets),
   baselines:Object.fromEntries(Object.entries(BASELINES).map(([k,b])=>[k,{label:b.label,path:b.path,template:b.template}])),
   readiness:READINESS};
@@ -2035,14 +2110,17 @@ function newPbi(c,data){
  const changeType=data.changeType===undefined||data.changeType===''?'unsure':data.changeType;if(!CHANGE_TYPES[changeType])throw Error('Choose what kind of change this is.');
  const project=data.project?line(data.project,100):c.projectName;
  const application=data.application===undefined||data.application===''?'unsure':data.application;if(!APPLICATIONS[application])throw Error('Choose the application: CDMS, DAB or Both.');
+ const offered=referenceOptions(c,application),references=[];
+ for(const r of Array.isArray(data.references)?data.references:[]){const o=offered.find(x=>x.key===r);if(!o)throw Error('Implementation reference not available for this target: '+r);if(!references.includes(r))references.push(r);}
+ const refLabels=references.map(r=>offered.find(x=>x.key===r).label);
  folder=folder||'playbook/pbis/'+(number?'pbi-'+number+'-':'pbi-')+slug(title)+'-'+stamp()+'-'+uid();
  const attachments=[],taken=kept.map(x=>x.path);for(const n of names){const at=attachmentPath(folder,n,taken);taken.push(at);attachments.push(at);}
  const all=[...kept,...attachments.map((path,i)=>({name:names[i],path}))];
- const request={schemaVersion:1,title,number,project,application,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
+ const request={schemaVersion:1,title,number,project,application,references,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
   attachments:all,businessReason:String(data.businessReason??'').trim(),businessExample:String(data.businessExample??'').trim(),businessUnit:String(data.businessUnit??'').trim(),
   createdAt:new Date().toISOString(),wizard:{step:draft?String(data.step??'review'):'analysis',status:draft?'draft':'ready-for-analysis'},status:draft?'Draft intake — not sent for analysis':'Intake — AI refinement not started'};
  const list=all.length?all.map(x=>'- '+x.name+' → '+x.path.slice(folder.length+1)).join('\n'):'None';
- const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
+ const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Implementation references (read-only)',refLabels.length?refLabels.join(', '):'None selected'],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
   ['Acceptance criteria',acMode==='enter'?acceptanceCriteria:AC_MODES[acMode]],['Attachments (not yet reviewed)',list],['Investigation scope',request.scope||'Not limited'],['Additional notes',request.notes||'None'],
   ['Business reason',request.businessReason||'Not known yet'],['Business example',request.businessExample||'Not known yet'],['Business Unit / Sub-BU',request.businessUnit||'Not known yet']];
  const md='# Original PBI request\n\n'+fields.map(([k,v])=>'## '+k+'\n\n'+v).join('\n\n')+'\n\nStatus: '+request.status+'. No approvals recorded.\n';
@@ -2053,6 +2131,8 @@ function newPbi(c,data){
   +(application==='unsure'?`Infer whether this PBI is for CDMS, DAB or Both from the requirement and source; ask once only if they cannot establish it.
 `:`Application: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again.
 `)
+  +(application==='both'?`Final deliverables: exactly two separate PBIs, PBI-CDMS.md and PBI-DAB.md, each complete for its own team (business-rule-ownership.md); never one combined plan.\n`:application==='unsure'?'':`Final deliverable: only ${application==='cdms'?'PBI-CDMS.md':'PBI-DAB.md'}.\n`)
+  +(refLabels.length?`Implementation references, chosen by the user (read-only; never modify them): ${refLabels.join(', ')}. Analyze the target first, then each reference, and write the implementation comparison as described in "Multi-repository implementation analysis".\n`:`No implementation references selected: analyze the target repository only.\n`)
   +(acMode==='draft'?`Draft Given/When/Then acceptance criteria from the description, each traced to the text and marked proposed for review.\n`:'')
   +`Save this PBI's documents in ${folder}/. Investigate autonomously, without asking permission, until the rules have evidence or a genuine business decision blocks progress; then ask through the Business Decision Advisor.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
  return {folder,request,prompt,attachments,files:{[folder+'/REQUEST.md']:md,[folder+'/pbi.json']:JSON.stringify(request,null,2)+'\n',[folder+'/START-PROMPT.txt']:prompt+'\n'}};
@@ -2167,7 +2247,7 @@ const READINESS={
  branchCoverage:['covered','partial','missing','conflicting','unverified','not-applicable'],branchApps:['cdms','dab'],
  // Bundled reference reports describe past code; they never count as evidence levels.
  historicalPaths:[BASE+'/references/',BASE+'/REFERENCES-INDEX.md'],
- finalDocs:{cdmsRefined:['cdms','CDMS-REFINED-PBI.md'],dabRefined:['dab','DAB-REFINED-PBI.md']},registration:['active','disabled','missing','unknown'],
+ finalDocs:{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md']},registration:['active','disabled','missing','unknown'],
  pathStatus:['reaches','bypasses','unknown','not-applicable'],actions:['reuse','verify','extend','implement','resolve-gap'],
  acTypes:['positive','negative','boundary','permission'],identities:['caller','impersonated','service','unknown'],approvals:['poba','technical','user'],
  requiredPaths:['cdms','dab'],evidenceLevels:['code','registration','reach','runtime'],evidenceKinds:['repo-file','external'],
@@ -2387,7 +2467,7 @@ async function checkPbi(root,folder){safePath(folder);if(!/^playbook\/pbis\/[^/]
  const raw=await read(root,folder+'/pbi-state.json');let state=null;if(raw!==null){try{state=JSON.parse(raw);}catch{state=null;}}
  const at=f=>read(root,folder+'/'+f),files=[];
  for(const e of Array.isArray(state?.evidence)?state.evidence:[])if(e&&typeof e==='object'&&e.kind==='repo-file'&&isSafe(e.source)&&!files.some(([p])=>p===e.source))files.push([e.source,await sourceHash(root,e.source)]);
- return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await at('REFINED-PBI.md'),cdmsRefined:await at('CDMS-REFINED-PBI.md'),dabRefined:await at('DAB-REFINED-PBI.md'),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
+ return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await at('REFINED-PBI.md'),cdmsRefined:(await at('PBI-CDMS.md'))??await at('CDMS-REFINED-PBI.md'),dabRefined:(await at('PBI-DAB.md'))??await at('DAB-REFINED-PBI.md'),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
 async function sourceHash(root,path){try{const f=await file(root,path);return f===null?null:await hashBytes(await f.arrayBuffer());}catch(e){if(e.name==='TypeMismatchError')return null;throw e;}}
 
 async function hashBytes(bytes){return Array.from(new Uint8Array(await global.crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');}
@@ -2530,7 +2610,7 @@ async function discoverSources(root,config){
  await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
  return map;
 }
-const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
+const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,referenceOptions,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
 global.PBI=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
 </script>
@@ -2541,8 +2621,9 @@ function msg(s,error=false){$('message').textContent=s;$('message').classList.to
 function tab(name){for(const b of document.querySelectorAll('nav button'))b.setAttribute('aria-selected',String(b.dataset.tab===name));for(const p of document.querySelectorAll('.panel'))p.classList.toggle('active',p.id===name);}
 for(const b of document.querySelectorAll('nav button'))b.onclick=()=>tab(b.dataset.tab);
 function action(id,fn){$(id).onclick=async()=>{if(busy)return;busy=true;const buttons=[...document.querySelectorAll('button')];const prior=buttons.map(b=>b.disabled);buttons.forEach(b=>b.disabled=true);try{await fn();}catch(e){msg(e.name==='AbortError'?'Cancelled. No action was completed.':e.message,true);}finally{buttons.forEach((b,i)=>b.disabled=prior[i]);busy=false;}};}
-function getConfig(){return PBI.normalizeConfig({projectName:$('projectName').value,ide:$('ide').value,role:$('role').value,includeReferences:$('includeReferences').checked,sources:{legacy:$('legacyPath').value,dab:$('dabPath').value,cdms:$('cdmsPath').value}});}
-function fill(c){$('projectName').value=c.projectName;$('ide').value=c.ide;$('role').value=c.role;$('includeReferences').checked=c.includeReferences;for(const key of ['legacy','dab','cdms'])$(key+'Path').value=c.sources[key]==='.'?'':c.sources[key];previewName();}
+function getConfig(){return PBI.normalizeConfig({projectName:$('projectName').value,ide:$('ide').value,role:$('role').value,includeReferences:$('includeReferences').checked,sources:{legacy:$('legacyPath').value,dab:$('dabPath').value,cdms:$('cdmsPath').value},others:otherRepos()});}
+function otherRepos(){return $('otherRepos').value.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const i=l.indexOf('=');if(i<1)throw Error('Write each other repository as Name = path: '+l.trim());return {name:l.slice(0,i).trim(),path:l.slice(i+1).trim()};});}
+function fill(c){$('projectName').value=c.projectName;$('ide').value=c.ide;$('role').value=c.role;$('includeReferences').checked=c.includeReferences;for(const key of ['legacy','dab','cdms'])$(key+'Path').value=c.sources[key]==='.'?'':c.sources[key];$('otherRepos').value=(c.others||[]).map(o=>o.name+' = '+o.path).join('\n');previewName();}
 function previewName(){$('agentPreview').textContent='Akzo SDD PBI Builder - '+($('projectName').value.trim()||'your project');for(const key of ['legacy','dab','cdms']){$(key+'Path').disabled=$('role').value===key;$(key+'Path').placeholder=$('role').value===key?'Current repository (registered as .)':'Optional repository path';}}
 $('projectName').oninput=previewName;$('role').onchange=previewName;
 function needRoot(){if(!root)throw Error('Choose the project folder first. If folder access is unavailable, use Download ZIP.');}
@@ -2591,18 +2672,27 @@ const CHANGE_LABEL={new:'A new feature',enhance:'Enhances existing functionality
 // Typed criteria win over "draft" or "skip", so text the user entered is never dropped.
 function acMode(){const m=$('acMode').value;return $('acceptanceCriteria').value.trim()&&(m==='draft'||m==='skip')?'enter':m;}
 function picked(){return [...($('attachments').files||[])];}
-function intake(draft=false){return {title:$('pbiTitle').value,description:$('pbiDescription').value,number:$('pbiNumber').value,project:$('customProject').value.trim()||$('targetProject').value,application:$('application').value,acMode:acMode(),acceptanceCriteria:$('acceptanceCriteria').value,changeType:$('changeType').value,notes:$('pbiNotes').value,scope:$('pbiScope').value,attachments:picked().map(f=>f.name),businessReason:$('businessReason').value,businessExample:$('businessExample').value,businessUnit:$('businessUnit').value,draft,step:STEPS[step-1],...(draftFolder?{folder:draftFolder,existingAttachments:draftAttachments}:{})};}
+function intake(draft=false){return {title:$('pbiTitle').value,description:$('pbiDescription').value,number:$('pbiNumber').value,project:$('customProject').value.trim()||$('targetProject').value,application:$('application').value,references:pbiRefs.slice(),acMode:acMode(),acceptanceCriteria:$('acceptanceCriteria').value,changeType:$('changeType').value,notes:$('pbiNotes').value,scope:$('pbiScope').value,attachments:picked().map(f=>f.name),businessReason:$('businessReason').value,businessExample:$('businessExample').value,businessUnit:$('businessUnit').value,draft,step:STEPS[step-1],...(draftFolder?{folder:draftFolder,existingAttachments:draftAttachments}:{})};}
 function fillProjects(){const sel=$('targetProject'),cur=sel.value,opts=[new Option(config?config.projectName+' (this repository)':'This repository',config?config.projectName:'')];
  if(config)for(const k of ['legacy','dab','cdms'])if(config.sources[k]&&config.sources[k]!=='.'){const v=k.toUpperCase()+' repository ('+config.sources[k]+')';opts.push(new Option(v,v));}
  sel.replaceChildren(...opts);if(opts.some(o=>o.value===cur))sel.value=cur;}
 function reviewText(){const d=intake(true),files=[...draftAttachments.map(a=>a.name),...d.attachments],desc=d.description.trim();
- return ['PBI title: '+(d.title.trim()||'(missing, required)'),'PBI number: '+(d.number.trim()||'Not created'),'Target project: '+(d.project||'This repository'),'Application: '+APP_LABEL[d.application],'Requirement: '+(desc?desc.slice(0,600)+(desc.length>600?' …':''):'(none yet: describe it or attach a document)'),'Acceptance criteria: '+AC_LABEL[d.acMode],'Attachments: '+(files.join(', ')||'None'),'Kind of change: '+(CHANGE_LABEL[d.changeType]||'Not sure')+(d.notes.trim()?'\nNotes: '+d.notes.trim():'')].join('\n');}
+ return ['PBI title: '+(d.title.trim()||'(missing, required)'),'PBI number: '+(d.number.trim()||'Not created'),'Target project: '+(d.project||'This repository'),'Application: '+APP_LABEL[d.application],'Implementation references: '+refText(),'Requirement: '+(desc?desc.slice(0,600)+(desc.length>600?' …':''):'(none yet: describe it or attach a document)'),'Acceptance criteria: '+AC_LABEL[d.acMode],'Attachments: '+(files.join(', ')||'None'),'Kind of change: '+(CHANGE_LABEL[d.changeType]||'Not sure')+(d.notes.trim()?'\nNotes: '+d.notes.trim():'')].join('\n');}
 function showStep(n){step=Math.max(1,Math.min(STEPS.length,n));STEPS.forEach((_,i)=>$('step'+(i+1)).classList.toggle('hidden',i+1!==step));$('wizardProgress').textContent='Step '+step+' of '+STEPS.length+' · '+STEPS[step-1];if(step===1)fillProjects();if(step===STEPS.length)$('reviewSummary').textContent=reviewText();}
 $('wizardNext').onclick=()=>{if(step===1&&!$('pbiTitle').value.trim()){msg('Enter the PBI title to continue.',true);$('pbiTitle').focus();return;}showStep(step+1);};
 $('wizardBack').onclick=()=>showStep(step-1);
 $('attachments').onchange=()=>{$('attachmentList').textContent=[...draftAttachments.map(a=>a.name+' (already saved)'),...picked().map(f=>f.name+' ('+Math.max(1,Math.ceil(f.size/1024))+' KB)')].join('\n');};
-$('wizardCancel').onclick=()=>{for(const id of ['pbiTitle','pbiNumber','customProject','pbiScope','pbiDescription','acceptanceCriteria','pbiNotes','businessReason','businessExample','businessUnit'])$(id).value='';$('attachments').value='';$('acMode').value='draft';$('changeType').value='unsure';$('application').value='unsure';draftFolder='';draftAttachments=[];$('attachmentList').textContent='';showStep(1);msg('Cleared. Nothing was saved.');};
+$('wizardCancel').onclick=()=>{for(const id of ['pbiTitle','pbiNumber','customProject','pbiScope','pbiDescription','acceptanceCriteria','pbiNotes','businessReason','businessExample','businessUnit'])$(id).value='';$('attachments').value='';$('acMode').value='draft';$('changeType').value='unsure';$('application').value='unsure';pbiRefs=[];showRefs();draftFolder='';draftAttachments=[];$('attachmentList').textContent='';showStep(1);msg('Cleared. Nothing was saved.');};
 showStep(1);
+// Select Implementation References: every configured repository except the target; none, one or several.
+let pbiRefs=[];
+function refOptions(){let c=config;if(!c)try{c=getConfig();}catch{c=PBI.normalizeConfig({projectName:'x',role:'other'});}return PBI.referenceOptions(c,$('application').value);}
+function refText(){const o=refOptions();return pbiRefs.map(k=>(o.find(x=>x.key===k)||{label:k}).label).join(', ')||'none selected';}
+function showRefs(){const o=refOptions();pbiRefs=pbiRefs.filter(k=>o.some(x=>x.key===k));$('refSummary').textContent='Implementation references: '+refText();}
+function openRefs(){const list=$('refList');list.replaceChildren(...refOptions().map(o=>{const l=document.createElement('label'),b=document.createElement('input');b.type='checkbox';b.value=o.key;b.checked=pbiRefs.includes(o.key);const t=document.createElement('span');t.textContent=o.label;l.append(b,t);return l;}));const d=$('refDialog');if(d.showModal&&!d.open)d.showModal();}
+$('application').onchange=()=>{showRefs();if($('application').value!=='unsure')openRefs();};
+$('chooseRefs').onclick=openRefs;
+$('refOk').onclick=()=>{pbiRefs=[...$('refList').children].map(l=>l.children[0]).filter(b=>b&&b.checked).map(b=>b.value);const d=$('refDialog');if(d.close)d.close();showRefs();};
 function showPrompt(title,folder,prompt,zipOnly){$('promptOutput').classList.remove('hidden');$('outputTitle').textContent=title;$('outputWhere').textContent=(zipOnly?'ZIP prepared for: ':'Saved in: ')+folder;$('promptText').value=prompt;$('outputInstruction').textContent=(zipOnly?'Extract this ZIP into the intended repository first. ':'')+'In Copilot Chat, select '+needConfig().agentName+', paste this prompt and click Send.';$('promptOutput').scrollIntoView({behavior:'smooth',block:'start'});}
 async function createIntake(zipOnly,draft=false){const c=zipOnly?needConfig():await activeConfig();config=c;const files=picked(),data=intake(draft);
  if(!zipOnly&&!draftFolder){const existing=await PBI.listPbis(root),n=data.number.trim(),match=n&&existing.find(x=>x.number===n);
@@ -2626,7 +2716,7 @@ action('saveRefine',()=>createRefinement(false));
 action('loadDraft',async()=>{config=await activeConfig();const folder=selectedPbi(),raw=await PBI.read(root,folder+'/pbi.json');if(!raw)throw Error('This PBI has no saved intake (pbi.json). Continue it in Copilot instead.');const r=JSON.parse(raw);
  if(r.wizard?.status!=='draft')throw Error('This PBI was already sent for analysis. Continue or refine it instead; its original request is kept unchanged.');
  const v=(id,x)=>{$(id).value=typeof x==='string'?x:'';};v('pbiTitle',r.title);v('pbiNumber',r.number);v('pbiDescription',r.description);v('acceptanceCriteria',r.acceptanceCriteria);v('pbiNotes',r.notes);v('pbiScope',r.scope);v('businessReason',r.businessReason);v('businessExample',r.businessExample);v('businessUnit',r.businessUnit);
- $('acMode').value=AC_LABEL[r.acceptanceCriteriaMode]?r.acceptanceCriteriaMode:'draft';$('changeType').value=CHANGE_LABEL[r.changeType]?r.changeType:'unsure';$('application').value=APP_LABEL[r.application]?r.application:'unsure';
+ $('acMode').value=AC_LABEL[r.acceptanceCriteriaMode]?r.acceptanceCriteriaMode:'draft';$('changeType').value=CHANGE_LABEL[r.changeType]?r.changeType:'unsure';$('application').value=APP_LABEL[r.application]?r.application:'unsure';pbiRefs=Array.isArray(r.references)?r.references.map(String):[];showRefs();
  draftFolder=folder;draftAttachments=Array.isArray(r.attachments)?r.attachments:[];tab('new');showStep(1);
  if([...$('targetProject').children].some(o=>o.value===r.project))$('targetProject').value=r.project;else v('customProject',r.project===config.projectName?'':r.project);
  $('attachments').value='';$('attachments').onchange();showStep(Math.max(1,STEPS.indexOf(r.wizard.step)+1));msg('Draft loaded from '+folder+'. Saving updates this folder; earlier versions go to its history folder.');});

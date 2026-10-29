@@ -172,7 +172,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
    /Source\/Formula\/ImitationRequest\//,/never infer a\s+rule from a file or method name/,/A client-side check is never server enforcement/,/Record one BR\s+with every source as evidence/,/never choose one silently/,
    /Implementation owner: Existing CRM plugin\. Development action: already\s+handled by the plugin; no duplicate CDMS API implementation/,/If registration or runtime is unverified, say so/,
    /function \(Azure Functions HTTP entry point\), handler \(application CQRS\s+command or query handler\), validator \(FluentValidation/,/Do not put every rule into FluentValidation/,/Never invent GraphQL operations, validators or DAB API behavior/,
-   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both, on request\)/,/BUSINESS-RULE-OWNERSHIP\.md \(on request\): one row per rule/,/CDMS-REFINED-PBI\.md and DAB-REFINED-PBI\.md/,/never two versions\s+of the same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
+   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both, on request\)/,/BUSINESS-RULE-OWNERSHIP\.md \(on request\): one row per rule/,/PBI-CDMS\.md and PBI-DAB\.md: the final application PBIs/,/never two versions of the\s+same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
   // The superseded "DAB relies on a plugin" wording is gone from every installed file.
   const all=Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.endsWith('.html')).map(([,t])=>t).join('\n');
   for(const re of [/plugin already runs for DAB/,/reuse when DAB already runs/,/already enforced, do not\s+duplicate/,/do not assign every legacy operation/])assert.doesNotMatch(all,re);
@@ -530,6 +530,48 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   await fs.rm(path.join(d,P.BASE,'sources.yaml'));await P.apply(root,await P.plan(root,setup.files,true),true);const again=await P.uninstallPlan(root,setup.config);
   await P.write(root,again.filter(x=>x.state==='remove').at(-2).path,'edited after review');
   await assert.rejects(P.uninstall(root,again),/changed during uninstall[\s\S]*Removed files were restored/);assert.equal(await P.read(root,P.AGENT),setup.files[P.AGENT]);
+ });
+ await test('multi-repository references: other repositories configured, target excluded, every combination recorded per PBI, read-only comparison instructions',async()=>{
+  const base={projectName:'Refs',ide:'vscode',role:'dab',sources:{legacy:'../Legacy',cdms:'../CDMS'},others:[{name:'Portal',path:'..\\Portal'},{name:'Reports',path:'../Reports'}]};
+  const s=P.setupFiles(base,assets,html),c=s.config;
+  assert.deepEqual(c.others,[{name:'Portal',path:'../Portal'},{name:'Reports',path:'../Reports'}]);
+  assert.match(s.files[P.BASE+'/sources.yaml'],/otherRepositories:\n  - name: "Portal"\n    repositoryPath: "\.\.\/Portal"\n  - name: "Reports"/);
+  assert.match(P.setupFiles({...base,others:undefined},assets,html).files[P.BASE+'/sources.yaml'],/otherRepositories: \[\]/,'older config.json without others');
+  for(const bad of [[{name:'DAB',path:'x'}],[{name:'A',path:'x'},{name:'a',path:'y'}],[{name:'A',path:''}],Array.from({length:11},(_,i)=>({name:'R'+i,path:'p'}))])assert.throws(()=>P.normalizeConfig({...base,others:bad}));
+  const keys=t=>P.referenceOptions(c,t).map(o=>o.key);
+  assert.deepEqual(keys('dab'),['legacy','cdms','Portal','Reports']);assert.deepEqual(keys('cdms'),['legacy','dab','Portal','Reports']);
+  assert.deepEqual(keys('both'),['legacy','Portal','Reports']);assert.deepEqual(keys('unsure'),['legacy','cdms','dab','Portal','Reports']);
+  // Every subset of the offered references, for every target, is recorded exactly; the target itself is refused.
+  for(const target of ['dab','cdms','both','unsure']){const offered=keys(target);
+   for(let m=0;m<1<<offered.length;m++){const refs=offered.filter((_,i)=>m&1<<i),r=P.newPbi(c,{title:'T',description:'d',application:target,references:refs});
+    assert.deepEqual(r.request.references,refs);assert.deepEqual(JSON.parse(r.files[r.folder+'/pbi.json']).references,refs);
+    assert.match(r.files[r.folder+'/REQUEST.md'],refs.length?/## Implementation references \(read-only\)\n\n\S/:/## Implementation references \(read-only\)\n\nNone selected/);
+    assert.match(r.prompt,refs.length?/Implementation references, chosen by the user \(read-only; never modify them\)/:/No implementation references selected: analyze the target repository only/);}}
+  assert.throws(()=>P.newPbi(c,{title:'T',description:'d',application:'dab',references:['dab']}),/not available for this target: dab/);
+  assert.throws(()=>P.newPbi(c,{title:'T',description:'d',application:'both',references:['cdms']}),/not available/);
+  assert.deepEqual(P.newPbi(c,{title:'T',description:'d'}).request.references,[],'older intake without references');
+  const a=s.files[P.AGENT];
+  for(const re of [/## Multi-repository implementation analysis/,/Never carry references over from another PBI/,/Always analyze the target first/,/never create, edit or\s+delete a file in a reference repository/,
+   /never copy reference code blindly/,/"No matching implementation found" with the searches you\s+ran; never invent a reference/,/"Implementation comparison" section of\s+VALIDATION-MATRIX\.md \(no separate report\)/,
+   /\| Requirement \| Legacy reference \| CDMS reference \| Existing target implementation \| Missing functionality \| Recommended target changes \| Validation and regression tests \|/,
+   /"Select Implementation References"/,/4\. the target\s+application \(DAB, CDMS or Both\)/])assert.match(a,re);
+  assert.match(s.files[P.BASE+'/skills/guided-pbi-creation.md'],/"Select Implementation References": a multi-select of every repository in\s+sources\.yaml except the target/);
+ });
+ await test('separate CDMS and DAB PBIs: Both gives exactly PBI-CDMS.md and PBI-DAB.md, one application gives one, no combined plan, 4.0 names still read',async()=>{
+  const o=setup.files[P.BASE+'/skills/business-rule-ownership.md'];
+  for(const re of [/Application CDMS: only\s+PBI-CDMS\.md\. DAB: only PBI-DAB\.md\. Both: exactly these two separate PBIs,\s+never one combined plan and never a gap-analysis report/,
+   /independently understandable and actionable by its own team/,/title, description, functional requirements, business rules\s+and validations[\s\S]{0,80}technical implementation\s+steps, acceptance criteria, test scenarios, dependencies, source file and\s+method references/,
+   /same "Shared requirement" line/,/Legacy is the primary functional\s+reference for both/,/state explicitly every JavaScript validation, workflow and\s+application-side logic CDMS must implement itself/,
+   /explicit C# implementation steps for every applicable legacy\s+rule, including the rules CRM plugins enforce automatically for CDMS/,/Never omit a DAB\s+validation because CDMS relies on a plugin/,/never publish them; the user creates one item per document/])assert.match(o,re);
+  const prompt=app=>P.newPbi(setup.config,{title:'T',description:'d',application:app}).prompt;
+  assert.match(prompt('both'),/exactly two separate PBIs, PBI-CDMS\.md and PBI-DAB\.md/);assert.match(prompt('cdms'),/Final deliverable: only PBI-CDMS\.md/);assert.match(prompt('dab'),/Final deliverable: only PBI-DAB\.md/);
+  assert.doesNotMatch(prompt('dab'),/PBI-CDMS/);assert.doesNotMatch(prompt('unsure'),/Final deliverable/);
+  assert.deepEqual(P.READINESS.finalDocs,{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md']});
+  // A 4.0 PBI folder with CDMS-REFINED-PBI.md is still checked; the 4.1 name wins when both exist.
+  const c=cases.find(x=>x.name==='application PBI missing a rule'),f='playbook/pbis/'+CASE_PBI;
+  const run=async name=>{const {root}=await tempRoot('akzo-split-');await shared.writeCase(P,root,f,{...c,docs:{...c.docs,cdmsRefined:undefined}});await P.write(root,f+'/'+name,c.docs.cdmsRefined);return P.checkPbi(root,f);};
+  const now=await run('PBI-CDMS.md'),old=await run('CDMS-REFINED-PBI.md');
+  assert.deepEqual(old,now);assert.ok(now.issues.some(i=>i.ref==='PBI-CDMS.md/BR-2'),'the CDMS document was checked');
  });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});

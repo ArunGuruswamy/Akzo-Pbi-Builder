@@ -195,6 +195,18 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
   const norm=t=>Object.fromEntries(Object.entries(t).map(([k,v])=>[k.replace(/backups\/uninstall-[^/]+\//,'backups/uninstall-*/'),v]));
   assert.deepEqual(norm(await tree(b)),norm(await tree(a)));
  });
+ await test('other reference repositories: PowerShell -OtherSource writes what the form writes, Repair keeps them, ";" clears them, invalid names refused',async()=>{
+  const cfg={projectName:'Refs',ide:'vscode',role:'dab',includeReferences:false,sources:{legacy:'../Legacy',dab:'',cdms:'../CDMS ಕ'},others:[{name:'Portal',path:'../Portal'},{name:'Reports "R"',path:'..\\Rep orts'}]};
+  const a=await repo(),b=await repo();await jsInstall(a,cfg);
+  let r=ps(pkg,['-RepoPath',b,'-ProjectName','Refs','-Ide','vscode','-Role','dab','-LegacySource','../Legacy','-CdmsSource','../CDMS ಕ','-NoReferences','-OtherSource','Portal=../Portal;Reports "R"=..\\Rep orts']);
+  if(r.code!==0||!(await tree(b))[P.CONFIG]?.includes('Reports \\"R\\"')){// Quotes in a command-line argument are unreliable in PowerShell 5.1 (see the first test): retry from config.json.
+   await fs.rm(b,{recursive:true,force:true});await fs.mkdir(path.join(b,'.git'),{recursive:true});await fs.mkdir(path.join(b,P.BASE),{recursive:true});await fs.copyFile(path.join(a,P.CONFIG),path.join(b,P.CONFIG));r=ps(pkg,['-RepoPath',b]);}
+  assert.equal(r.code,0,r.err+r.out);assert.deepEqual(await tree(b),await tree(a));
+  await fs.rm(path.join(b,P.BASE,'sources.yaml'));r=ps(pkg,['-RepoPath',b,'-Action','Repair']);assert.equal(r.code,0,r.err);assert.deepEqual(await tree(b),await tree(a));
+  r=ps(pkg,['-RepoPath',b,'-OtherSource',';','-AllowUpdates']);assert.equal(r.code,0,r.err+r.out);
+  assert.deepEqual(JSON.parse((await tree(b))[P.CONFIG]).others,[]);assert.match((await tree(b))[P.BASE+'/sources.yaml'],/otherRepositories: \[\]/);
+  for(const bad of ['DAB=../x','A=x;a=y','NoEquals'])assert.equal(ps(pkg,['-RepoPath',b,'-OtherSource',bad,'-Preview']).code,2,bad);
+ });
  console.log(`\n${count} PowerShell installer checks passed (Windows PowerShell, real execution policy, real files).`);
  await fs.rm(tmp,{recursive:true,force:true});
 })().catch(e=>{console.error(e);process.exitCode=1;});

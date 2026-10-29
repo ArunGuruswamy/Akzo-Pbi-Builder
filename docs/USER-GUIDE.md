@@ -88,8 +88,26 @@ When all questions are answered, the agent:
    `Install-PBIBuilder.cmd -RepoPath <repo> -Action CheckPbi -Pbi <folder>`;
 3. presents one consolidated approval request (PO/BA, technical, final user).
 
-`REFINED-PBI.md`, `CDMS-REFINED-PBI.md` and `DAB-REFINED-PBI.md` are created only when the
-check allows it, and only for the applications you chose. The check confirms completeness and
+`REFINED-PBI.md`, `PBI-CDMS.md` and `PBI-DAB.md` are created only when the check allows it,
+and only for the applications you chose: CDMS gives only `PBI-CDMS.md`, DAB only `PBI-DAB.md`,
+and Both exactly two separate PBIs, each complete for its own team (title, description,
+requirements, rules and validations, implementation steps, acceptance criteria, test scenarios,
+dependencies and source references) and linked by a shared requirement line. `PBI-CDMS.md`
+names the JavaScript validations, workflows and application logic CDMS must build besides the
+verified plugins it reuses; `PBI-DAB.md` gives C# steps for every applicable legacy rule,
+including the ones plugins enforce for CDMS. Approval covers the PBI as a whole. Folders from
+4.0 with `CDMS-REFINED-PBI.md` or `DAB-REFINED-PBI.md` are still checked.
+
+## Implementation references
+When you choose the application on the New PBI tab, the form opens **Select Implementation
+References**: every configured repository except the target (Legacy, CDMS, DAB and any other
+repository from setup). Tick none, one or several. The agent always analyzes the target first,
+reads the references only (it never changes them), and adds an "Implementation comparison"
+section to VALIDATION-MATRIX.md: requirement, each reference's implementation, what the target
+already has, what is missing, recommended target changes and tests, with file and method
+references, or "No matching implementation found". In Copilot, Create PBI asks the same
+question. Configure the repositories once: form setup (paths typed as `Name = path`) or the
+setup window's **Repositories...** button (Browse per repository). The check confirms completeness and
 consistency; it cannot confirm that the content is right or who really approved.
 
 ## CDMS, DAB and the legacy rules

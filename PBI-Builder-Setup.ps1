@@ -70,8 +70,8 @@ function Get-SettingArgs([string]$path, [string]$ide, [string]$role) {
     return @('-Ide', $ide, '-Role', $role)
 }
 # Preview, then ask, then apply with backups. Returns the log text and whether anything failed.
-function Invoke-InstallFlow([string]$path, [string]$ide, [string]$role, [scriptblock]$confirm) {
-    $settings = Get-SettingArgs $path $ide $role
+function Invoke-InstallFlow([string]$path, [string]$ide, [string]$role, [scriptblock]$confirm, [string[]]$extra = @()) {
+    $settings = @(Get-SettingArgs $path $ide $role) + $extra
     $p = Invoke-Engine $path ($settings + '-Preview')
     if ($p.code -ne 0) { return [pscustomobject]@{ ok = $false; text = $p.text } }
     if ($p.text -match '(?m)^conflict\s') { return [pscustomobject]@{ ok = $false; text = $p.text + "`r`nNothing was written: files you edited differ from the installed record. Restore or move them, then try again." } }
@@ -110,16 +110,17 @@ $list = New-Object System.Windows.Forms.ListBox -Property @{ Left = 12; Top = 72
 $add = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 72; Width = 130; Height = 30; Text = 'Add repository...' }
 $addPath = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 108; Width = 130; Height = 30; Text = 'Add by path...' }
 $forget = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 144; Width = 130; Height = 30; Text = 'Remove from list' }
-$ideLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = 192; Width = 200; Text = 'For a first install - Editor:' }
-$ideBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 215; Top = 189; Width = 170; DropDownStyle = 'DropDownList' }
+$sourcesButton = New-Object System.Windows.Forms.Button -Property @{ Left = 642; Top = 180; Width = 130; Height = 30; Text = 'Repositories...' }
+$ideLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = 222; Width = 200; Text = 'For a first install - Editor:' }
+$ideBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 215; Top = 219; Width = 170; DropDownStyle = 'DropDownList' }
 [void]$ideBox.Items.AddRange(@('Visual Studio 2026', 'VS Code')); $ideBox.SelectedIndex = $(if ($Ide -eq 'vscode') { 1 } else { 0 })
-$roleLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 400; Top = 192; Width = 120; Text = 'Repository is:' }
-$roleBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 520; Top = 189; Width = 252; DropDownStyle = 'DropDownList' }
+$roleLabel = New-Object System.Windows.Forms.Label -Property @{ Left = 400; Top = 222; Width = 120; Text = 'Repository is:' }
+$roleBox = New-Object System.Windows.Forms.ComboBox -Property @{ Left = 520; Top = 219; Width = 252; DropDownStyle = 'DropDownList' }
 [void]$roleBox.Items.AddRange(@($Roles.Values)); $roleBox.SelectedIndex = @($Roles.Keys).IndexOf($Role)
-$buttons = foreach ($b in 'Install / Upgrade', 'Upgrade all', 'Repair', 'Verify', 'Uninstall', 'Close') { New-Object System.Windows.Forms.Button -Property @{ Text = $b; Width = 118; Height = 32; Top = 224 } }
+$buttons = foreach ($b in 'Install / Upgrade', 'Upgrade all', 'Repair', 'Verify', 'Uninstall', 'Close') { New-Object System.Windows.Forms.Button -Property @{ Text = $b; Width = 118; Height = 32; Top = 254 } }
 for ($i = 0; $i -lt $buttons.Count; $i++) { $buttons[$i].Left = 12 + $i * 127 }
-$log = New-Object System.Windows.Forms.TextBox -Property @{ Left = 12; Top = 266; Width = 760; Height = 284; Multiline = $true; ScrollBars = 'Vertical'; ReadOnly = $true; Font = New-Object System.Drawing.Font('Consolas', 8.5) }
-$form.Controls.AddRange(@($info, $listLabel, $list, $add, $addPath, $forget, $ideLabel, $ideBox, $roleLabel, $roleBox) + $buttons + @($log))
+$log = New-Object System.Windows.Forms.TextBox -Property @{ Left = 12; Top = 296; Width = 760; Height = 254; Multiline = $true; ScrollBars = 'Vertical'; ReadOnly = $true; Font = New-Object System.Drawing.Font('Consolas', 8.5) }
+$form.Controls.AddRange(@($info, $listLabel, $list, $add, $addPath, $forget, $sourcesButton, $ideLabel, $ideBox, $roleLabel, $roleBox) + $buttons + @($log))
 
 $script:paths = @()
 function Show-Repos {
@@ -173,5 +174,41 @@ $buttons[4].Add_Click({
         Invoke-Busy { $r = Invoke-Engine $p @('-Action', 'Uninstall'); if ($r.code -eq 0) { Remove-Repo $p }; Write-Log $r.text }
     })
 $buttons[5].Add_Click({ $form.Close() })
+
+# Repository configuration for the selected installation: Legacy, CDMS, DAB and other reference repositories.
+# Paths are stored relative to the repository when they share a drive; reference repositories are never written.
+function ConvertTo-RepoRelative([string]$base, [string]$path) {
+    try { $u = ([Uri]($base.TrimEnd('\') + '\')).MakeRelativeUri([Uri]$path); if (-not $u.IsAbsoluteUri) { return [Uri]::UnescapeDataString($u.ToString()).TrimEnd('/') } } catch { }
+    return $path   # another drive or share: keep the absolute path
+}
+$sourcesButton.Add_Click({
+        $p = Get-Selected; if (-not $p) { return }
+        $cfgFile = Join-Path $p 'playbook\pbi-builder\config.json'
+        if (-not (Test-Path -LiteralPath $cfgFile)) { [void][System.Windows.Forms.MessageBox]::Show('Install the PBI Builder in this repository first.', 'Repositories', 'OK', 'Information'); return }
+        $cfg = [System.IO.File]::ReadAllText($cfgFile, $Utf8) | ConvertFrom-Json
+        $d = New-Object System.Windows.Forms.Form -Property @{ Text = "Repositories for $(Split-Path -Leaf $p)"; Width = 700; Height = 420; FormBorderStyle = 'FixedDialog'; StartPosition = 'CenterParent'; MinimizeBox = $false; MaximizeBox = $false }
+        $boxes = @{}; $y = 14
+        foreach ($k in 'legacy', 'cdms', 'dab') {
+            $tb = New-Object System.Windows.Forms.TextBox -Property @{ Left = 200; Top = $y; Width = 370; Text = $(if ($cfg.sources.$k -eq '.') { '. (this repository)' } else { [string]$cfg.sources.$k }); Enabled = ($cfg.sources.$k -ne '.') }
+            $bb = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y - 2; Width = 90; Height = 26; Text = 'Browse...'; Enabled = $tb.Enabled; Tag = $tb }
+            $bb.Add_Click({ param($s) $fb = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ Description = 'Select the repository root'; ShowNewFolderButton = $false }; if ($fb.ShowDialog($d) -eq 'OK') { $s.Tag.Text = ConvertTo-RepoRelative $p $fb.SelectedPath } })
+            $d.Controls.AddRange(@((New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = $y + 3; Width = 185; Text = $Roles[$k] }), $tb, $bb)); $boxes[$k] = $tb; $y += 34
+        }
+        $d.Controls.Add((New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = $y + 4; Width = 660; Text = 'Other reference repositories, one per line: Name = path (up to 10):' }))
+        $others = New-Object System.Windows.Forms.TextBox -Property @{ Left = 12; Top = $y + 26; Width = 558; Height = 140; Multiline = $true; ScrollBars = 'Vertical'; Text = (@($cfg.others | Where-Object { $_ } | ForEach-Object { "$($_.name) = $($_.path)" }) -join "`r`n") }
+        $addOther = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y + 24; Width = 90; Height = 26; Text = 'Browse...' }
+        $addOther.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ Description = 'Select another repository root'; ShowNewFolderButton = $false }; if ($fb.ShowDialog($d) -eq 'OK') { $others.AppendText($(if ($others.Text.Trim()) { "`r`n" } else { '' }) + "$(Split-Path -Leaf $fb.SelectedPath) = $(ConvertTo-RepoRelative $p $fb.SelectedPath)") } })
+        $hint = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = $y + 172; Width = 660; Height = 32; ForeColor = [System.Drawing.Color]::DimGray; Text = 'Each PBI chooses which of these to use as read-only implementation references. Save previews the change and asks before writing.' }
+        $save = New-Object System.Windows.Forms.Button -Property @{ Left = 480; Top = $y + 210; Width = 90; Height = 28; Text = 'Save' }
+        $cancel = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y + 210; Width = 90; Height = 28; Text = 'Cancel'; DialogResult = 'Cancel' }
+        $save.Add_Click({ $d.DialogResult = 'OK'; $d.Close() })
+        $d.Controls.AddRange(@($others, $addOther, $hint, $save, $cancel)); $d.CancelButton = $cancel
+        if ($d.ShowDialog($form) -ne 'OK') { return }
+        $extra = @()
+        foreach ($k in 'legacy', 'cdms', 'dab') { if ($boxes[$k].Enabled) { $v = $boxes[$k].Text.Trim().Trim('"'); $extra += @("-$((Get-Culture).TextInfo.ToTitleCase($k))Source", $(if ($v) { $v } else { ' ' })) } }
+        $lines = @($others.Text -split "`r?`n" | Where-Object { $_.Trim() } | ForEach-Object { $_ -replace '^\s*([^=]+?)\s*=\s*', '$1=' })
+        $extra += @('-OtherSource', $(if ($lines.Count) { $lines -join ';' } else { ';' }))
+        Invoke-Busy { $r = Invoke-InstallFlow $p 'visualstudio' 'legacy' $askApply $extra; Write-Log ($r.text + "`r`n== $(if ($r.ok) { 'Repositories saved' } else { 'Stopped: see above' }) ==") }
+    })
 Show-Repos
 [void]$form.ShowDialog()
