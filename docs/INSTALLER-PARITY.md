@@ -21,7 +21,7 @@ file by file, so the two cannot drift without a failing test.
 | Settings: project name, editor, role, other sources, historical reports | Yes | Yes (same defaults) | test-ps (identical files) |
 | Legacy, CDMS, DAB and other reference repositories | Typed paths (`Name = path`); the browser cannot reveal a folder's path | Repositories... with Browse per repository, `-LegacySource`, `-OtherSource "Name=path;..."` | test-ui, test-ps (identical files) |
 | Select Implementation References per PBI | Pop-up after the target is chosen | Copilot Create PBI question | test-core (every combination), test-ui |
-| Review before writing | Review setup | Preview / confirmation | both |
+| Review before writing: same summary (Repository, Agent, Review counts, retire/conflict notes), "Apply these changes?", then "Allow updates...?" when needed, same result messages | Review setup; Install and Repair ask in dialogs | Preview / console questions | test-ui, test-ps |
 | Install and upgrade with backups, ownership check and rollback | Yes | Yes | test-core, test-ps |
 | Retire unchanged earlier-version files; keep edited ones | Yes | Yes | test-ps (v2.1 and 3.0.0 upgrades) |
 | Repair (installed settings, updates allowed, edits never overwritten) | Repair | Repair | test-ui, test-ps |
