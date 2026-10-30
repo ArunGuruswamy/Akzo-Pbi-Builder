@@ -1,4 +1,4 @@
-AKZO SDD PBI BUILDER 4.1.0
+AKZO SDD PBI BUILDER 4.2.0
 Evidence-based PBI refinement | 29 October 2026
 
 WHAT IT DOES
@@ -101,9 +101,9 @@ is no DAB plugin: DAB implements every applicable legacy rule in its own code, w
 CDMS reuses verified plugins. Answers can also be given on the form's Continue tab.
 See docs/USER-GUIDE.md.
 
-UPGRADING FROM 4.0.0
+UPGRADING FROM 4.0.0 OR 4.1.0
 Install as above (Install.cmd, the form, or Upgrade all) and allow reviewed updates.
-The setup window and the form show "update to 4.1.0 available". Files you never
+The setup window and the form show "update to 4.2.0 available". Files you never
 edited are updated with backups; PBIs, decisions and approvals stay valid.
 
 UPGRADING FROM 3.1.0

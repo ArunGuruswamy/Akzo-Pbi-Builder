@@ -128,6 +128,7 @@ action('editPrevious',async()=>{needRoot();const p=PBI.questionProgress(await st
  if(!prev)throw Error('No answered question to edit yet.');await loadQuestion(prev);msg('Change the answer and submit. The earlier decision is kept as superseded.');});
 action('showDecisions',async()=>{needRoot();const d=PBI.questionProgress(await stateOf(selectedPbi())).decisions;msg(d.length?d.map(x=>x.id+' · '+(x.status||'?')+(x.supersedes?' · replaces '+x.supersedes:'')+(x.decision?'\n  '+x.decision:'')+(x.evidence?'\n  '+x.evidence:'')).join('\n'):'No decisions recorded for this PBI yet.');});action('refineZip',()=>createRefinement(true));
 action('copyPrompt',async()=>{try{await navigator.clipboard.writeText($('promptText').value);msg('Prompt copied. Paste it into your project’s PBI Builder in Copilot Chat.');}catch{$('promptText').focus();$('promptText').select();msg('Automatic clipboard access is unavailable. The prompt is selected: press Ctrl+C to copy.');}});
+$('versionBadge').textContent='PBI Builder · '+PBI.VERSION;
 document.addEventListener('DOMContentLoaded',()=>{originalHTML='<!doctype html>\n'+document.documentElement.outerHTML;previewName();if(!window.showDirectoryPicker)msg('Folder access is not available here. Open this downloaded file in desktop Edge or Chrome, or use the ZIP fallback.',true);});
 
 async function createComparison(zipOnly){

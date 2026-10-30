@@ -1,4 +1,4 @@
-# Akzo SDD PBI Builder 4.1.0 — maintainer notes
+# Akzo SDD PBI Builder 4.2.0 — maintainer notes
 
 Self-contained offline HTML utility plus a Windows PowerShell installer. No npm
 dependencies. End users open the compiled HTML or run Install-PBIBuilder.cmd; Node 20+

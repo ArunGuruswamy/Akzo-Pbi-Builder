@@ -1,4 +1,8 @@
-# Migrating to Akzo SDD PBI Builder 4.1.0
+# Migrating to Akzo SDD PBI Builder 4.2.0
+
+## From 4.1.0
+- Install or Upgrade as usual and allow reviewed updates. Only the form changes; PBIs, decisions,
+  approvals and settings are unchanged.
 
 ## From 4.0.0
 - Install or Upgrade as usual and allow reviewed updates. The agent file and its guides change

@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.2.0 — 30 October 2026
+
+- HTML form Install and Repair follow the PowerShell installer: the same review summary
+  (Repository, Agent, Review counts, retire and conflict notes), "Apply these changes?",
+  "Allow updates...?" when needed, a stop on conflicts and the same result messages.
+- The form's badge shows the full package version from core.js (it said 4.0 in 4.1.0).
+- Release ZIPs are written to releases/Akzo-SDD-PBI-Builder-<version>/ in the repository.
+
 ## 4.1.0 — 29 October 2026
 
 ### Implementation references and separate CDMS / DAB PBIs

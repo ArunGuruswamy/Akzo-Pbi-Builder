@@ -1,7 +1,7 @@
-/* Akzo SDD PBI Builder 4.1.0. Offline; no dependencies or network calls. */
+/* Akzo SDD PBI Builder 4.2.0. Offline; no dependencies or network calls. */
 (function (global) {
 'use strict';
-const VERSION='4.1.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
+const VERSION='4.2.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
 const AGENT='.github/agents/akzo-sdd-pbi-builder.agent.md', AGENT_PREFIX='Akzo SDD PBI Builder - ';
 const KNOWLEDGE=BASE+'/knowledge/evidence-index.json';
 // A workspace Agent Skill: Visual Studio 18.5+ and VS Code discover .github/skills/<name>/SKILL.md themselves.

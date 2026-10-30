@@ -1,4 +1,4 @@
-Akzo SDD PBI Builder 4.1.0
+Akzo SDD PBI Builder 4.2.0
 Validation date: 27 October 2026 (Windows 11, Node 20.20.2, Python 3.13.7,
 Windows PowerShell 5.1.22621.6133, CurrentUser execution policy RemoteSigned)
 

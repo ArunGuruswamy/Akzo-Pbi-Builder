@@ -16,6 +16,7 @@ const ctx={console,document,crypto,TextEncoder,Blob,DataView,Uint8Array,Date,JSO
 vm.runInContext(fs.readFileSync(__dirname+'/src/core.js','utf8'),ctx);vm.runInContext(fs.readFileSync(__dirname+'/src/ui.js','utf8'),ctx);handlers.DOMContentLoaded();
 async function click(id){await ids[id].onclick();if(ids.message.className.includes('error'))throw Error(ids.message.textContent);}
 (async()=>{
+ assert.equal(ids.versionBadge.textContent,'PBI Builder · '+ctx.PBI.VERSION);
  await click('pick');assert.equal(ids.projectName.value,root.name);assert.equal(ids.rootConfirmed.checked,true);assert.match(ids.solutions.textContent,/ColorDMS.sln/);
  ids.displayPath.value='C:\\Users\\prasadv\\AN.ColorDMS.Customizations';await click('preview');assert.match(ids.message.textContent,/Repository: .*\nAgent: .*\nReview: \d+ create[^]*No files written/);
  ctx.confirm=()=>false;await click('install');assert.match(ids.message.textContent,/Cancelled\. Nothing was changed/);ctx.confirm=()=>true;assert.equal(await ctx.PBI.read(root,ctx.PBI.AGENT),null);
