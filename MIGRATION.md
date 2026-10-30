@@ -1,4 +1,17 @@
-# Migrating to Akzo SDD PBI Builder 4.2.0
+# Migrating to Akzo SDD PBI Builder 5.0.0
+
+## From 4.x
+- Install or Upgrade as usual and allow reviewed updates. config.json gains an empty shared
+  Angular UI path (sources.ui); set it in setup (or -UiSource) before using UI targets.
+- PBI folders are not changed. A PBI created before 5.0 keeps the 4.x path rules (cdms and
+  dab required), even when its pbi.json records CDMS, DAB or Both; Approve & Generate produces
+  its application's PBI (or REFINED-PBI.md when none was recorded). To use the 5.0 targets
+  (including the shared UI), start a new version of the PBI.
+- Approvals: only the final user approval is required now. Approvals already recorded stay
+  valid; a recorded PO/BA or technical approval is still checked for staleness. A 4.x PBI that
+  waited only for PO/BA or technical approval can be approved with Review & approve.
+- The 4.1 "Approved / Change Requested / Custom Response" choices are replaced by the form's
+  Approve & Generate, Request Changes and Save Draft.
 
 ## From 4.1.0
 - Install or Upgrade as usual and allow reviewed updates. Only the form changes; PBIs, decisions,

@@ -8,11 +8,11 @@ class Element{constructor(x={}){Object.assign(this,{tagName:x.tag||'div',id:x.id
 const elems=descriptors.map(x=>new Element(x)),ids=Object.fromEntries(elems.filter(x=>x.id).map(x=>[x.id,x])),handlers={};
 const document={getElementById:id=>{if(!ids[id])throw Error('Missing HTML id: '+id);return ids[id]},querySelectorAll:s=>elems.filter(x=>s==='button'?x.tagName==='button':s==='nav button'?!!x.dataset.tab:s==='.panel'?x.className.split(' ').includes('panel'):false),createElement:tag=>new Element({tag}),addEventListener:(n,f)=>handlers[n]=f,documentElement:{outerHTML:html}};
 function err(name){return Object.assign(Error(name),{name})}
-class MemFile{constructor(name){this.name=name;this.kind='file';this.text='';}async getFile(){return{text:async()=>this.text,arrayBuffer:async()=>new TextEncoder().encode(this.text).buffer}}async createWritable(){let next;return{write:async t=>{next=t},close:async()=>{this.text=next},abort:async()=>{}}}}
+class MemFile{constructor(name){this.name=name;this.kind='file';this.text='';}async getFile(){const t=this.text,b=typeof t==='string'?new TextEncoder().encode(t):t;return{text:async()=>typeof t==='string'?t:new TextDecoder().decode(t),arrayBuffer:async()=>b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength)}}async createWritable(){let next;return{write:async t=>{next=t},close:async()=>{this.text=next},abort:async()=>{}}}}
 class MemDir{constructor(name){this.name=name;this.kind='directory';this.children=new Map()}async getDirectoryHandle(n,{create=false}={}){let d=this.children.get(n);if(!d&&create){d=new MemDir(n);this.children.set(n,d);}if(!d)throw err('NotFoundError');if(d.kind!=='directory')throw err('TypeMismatchError');return d;}async getFileHandle(n,{create=false}={}){let f=this.children.get(n);if(!f&&create){f=new MemFile(n);this.children.set(n,f)}if(!f)throw err('NotFoundError');if(f.kind!=='file')throw err('TypeMismatchError');return f;}async*entries(){yield*this.children.entries()}async removeEntry(n){if(!this.children.delete(n))throw err('NotFoundError')}async isSameEntry(o){return o===this}}
 const root=new MemDir('AN.ColorDMS.Customizations');root.children.set('.git',new MemDir('.git'));root.children.set('ColorDMS.sln',new MemFile('ColorDMS.sln'));
 const urls=[];let copied='';
-const ctx={console,document,crypto,TextEncoder,Blob,DataView,Uint8Array,Date,JSON,Option:class extends Element{constructor(text,value){super({tag:'option',value,text})}},URL:{createObjectURL:b=>{urls.push(b);return'blob:test'},revokeObjectURL:()=>{}},navigator:{clipboard:{writeText:async s=>{copied=s}}},setTimeout:()=>{},showDirectoryPicker:async()=>root,confirm:()=>true};ctx.window=ctx;vm.createContext(ctx);
+const ctx={console,document,crypto,TextEncoder,TextDecoder,Blob,DataView,Uint8Array,Date,JSON,Option:class extends Element{constructor(text,value){super({tag:'option',value,text})}},URL:{createObjectURL:b=>{urls.push(b);return'blob:test'},revokeObjectURL:()=>{}},navigator:{clipboard:{writeText:async s=>{copied=s}}},setTimeout:()=>{},showDirectoryPicker:async()=>root,confirm:()=>true};ctx.window=ctx;vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(__dirname+'/src/core.js','utf8'),ctx);vm.runInContext(fs.readFileSync(__dirname+'/src/ui.js','utf8'),ctx);handlers.DOMContentLoaded();
 async function click(id){await ids[id].onclick();if(ids.message.className.includes('error'))throw Error(ids.message.textContent);}
 (async()=>{
@@ -22,13 +22,19 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  ctx.confirm=()=>false;await click('install');assert.match(ids.message.textContent,/Cancelled\. Nothing was changed/);ctx.confirm=()=>true;assert.equal(await ctx.PBI.read(root,ctx.PBI.AGENT),null);
  await click('install');assert.match(ids.connectedDetail.textContent,/Installed/);assert.match(ids.promptText.value,/Check this PBI Builder setup/);assert.match(await ctx.PBI.read(root,ctx.PBI.AGENT),/AN.ColorDMS.Customizations/);
  await click('install');assert.match(ids.message.textContent,/Setup complete: 0 files saved\.\nOpen this repository in .* in Copilot Chat\./);
- ids.pbiTitle.value='Create improved formula';ids.pbiDescription.value='A business description';ids.pbiNumber.value='300186';await click('saveNew');assert.match(ids.promptText.value,/Start PBI preparation/);await click('copyPrompt');assert.equal(copied,ids.promptText.value);
- await ids.saveNew.onclick();assert.match(ids.message.textContent,/already exists in playbook\/pbis\/pbi-300186-[\s\S]*Resume it in Continue PBI[\s\S]*Nothing was saved/);assert.equal(ids.existingPbi.value.startsWith("playbook/pbis/pbi-300186-"),true);
- await click('refresh');assert.equal(ids.existingPbi.children.length,2);ids.existingPbi.value=ids.existingPbi.children[1].value;ids.existingPbi.onchange();assert.match(ids.pbiDetails.textContent,/REQUEST.md/);
+ const quick=(n,t)=>{ids.pbiTitle.value=t;ids.pbiDescription.value='A business description';ids.pbiNumber.value=n;ids.acceptanceCriteria.value='1. Given a formula, when saved, then it is valid';ids['target-cdms'].checked=true;ids.wizardNext.onclick();ids.wizardNext.onclick();ids.wizardNext.onclick();};
+ quick('300186','Create improved formula');assert.match(ids.wizardProgress.textContent,/Step 4 of 4/);await click('saveNew');assert.match(ids.promptText.value,/Start PBI preparation/);assert.match(ids.promptText.value,/Development target: CDMS \+ UI/);await click('copyPrompt');assert.equal(copied,ids.promptText.value);
+ // An existing PBI number offers Resume, Review or Start New Version; nothing is overwritten.
+ let dup=0;ids.dupDialog.showModal=()=>{dup++;};ids.dupDialog.close=()=>{};
+ await ids.saveNew.onclick();assert.equal(dup,1);assert.match(ids.message.textContent,/PBI 300186 already exists\. Choose Resume, Review or Start New Version\. Nothing was saved/);assert.match(ids.dupText.textContent,/saved in playbook\/pbis\/pbi-300186-/);
+ await click('dupResume');assert.match(ids.message.textContent,/Selected playbook\/pbis\/pbi-300186-[^ ]+ in Continue PBI/);assert.equal((await ctx.PBI.listPbis(root)).length,1);
+ await ids.saveNew.onclick();assert.equal(dup,2);await click('dupNew');assert.equal((await ctx.PBI.listPbis(root)).filter(x=>x.number==='300186').length,2,'Start New Version: a new folder');ids.separateDraft.checked=false;
+ await ids.saveNew.onclick();ids.dupCancel.onclick();assert.match(ids.message.textContent,/Cancelled\. Nothing was saved/);
+ await click('refresh');assert.equal(ids.existingPbi.children.length,3);ids.existingPbi.value=ids.existingPbi.children[1].value;ids.existingPbi.onchange();assert.match(ids.pbiDetails.textContent,/REQUEST.md/);
  ids.changes.value='Continue from next unresolved question';await click('saveRefine');assert.match(ids.promptText.value,/Refine the existing PBI/);await click('verify');assert.match(ids.message.textContent,/All recorded files match/);
  await click('setupZip');assert.ok(urls.length);assert.match(ids.message.textContent,/does not install files/);
  // ZIP settings must not cause a subsequent direct save to use the wrong project.
- ids.projectName.value='Another project';await click('setupZip');ids.pbiNumber.value='';ids.pbiTitle.value='Another requirement';await click('saveNew');assert.match(ids.outputInstruction.textContent,/AN.ColorDMS.Customizations/);
+ ids.projectName.value='Another project';await click('setupZip');quick('LOCAL-7','Another requirement');await click('saveNew');assert.match(ids.outputInstruction.textContent,/AN.ColorDMS.Customizations/);
  ids.comparisonTitle.value='Status validation';ids.comparisonDescription.value='Keep all errors and partial-success results.';
  ids.comparisonBaseline.value='2.0-original';await click('saveComparison');assert.match(ids.baselineName.textContent,/Baseline v2\.0 Original/);assert.match(ids.currentName.textContent,/^Akzo SDD PBI Builder - /);assert.ok(await ctx.PBI.read(root,ctx.PBI.BASELINES['2.0-original'].path));
  assert.notEqual(ids.baselinePrompt.value,ids.currentPrompt.value);assert.match(ids.message.textContent,/No AI tasks have run/);
@@ -43,28 +49,54 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  await ids.checkReadiness.onclick();assert.match(ids.message.textContent,/Computed status: Ready for Review[\s\S]*Approval basis[\s\S]*poba \(fingerprint [0-9a-f]{16}\): \{"AC-1":"[0-9a-f]{16}"/);
  await ids.exportHandoff.onclick();assert.match(ids.message.textContent,/Wrote playbook\/pbis\/[^\n]*business-rules\.json and [^\n]*BRANCH-COVERAGE-MATRIX\.md\nReadiness: Ready for Review · rules: 2 · branches: 0/);
  assert.equal(JSON.parse(await ctx.PBI.read(root,'playbook/pbis/'+shared.PBI+'/business-rules.json')).rules.length,2);
+ // Review & approve: the only remaining step is the user's approval (the REFINED-PBI.md written too early is ignored and regenerated).
+ let doneOpen=0;ids.doneDialog.showModal=()=>{doneOpen++;};ids.doneDialog.close=()=>{};
+ await click('loadReview');assert.equal(ids.reviewCards.children.length,6);assert.equal(ids.approveGenerate.disabled,false);assert.match(ids.message.textContent,/Ready for your approval/);
+ assert.match(ids.reviewCards.children[5].children[1].textContent,/No blockers\. Your approval is the only step left/);
+ ids.approverName.value='';await ids.approveGenerate.onclick();assert.match(ids.message.textContent,/Enter your name to approve/);
+ ids.approverName.value='Priya (PO)';await click('approveGenerate');assert.equal(doneOpen,1);assert.match(ids.message.textContent,/PBI generated successfully: REFINED-PBI\.md \(with DOCX and JSON\)\. Every file was verified/);
+ assert.match(ids.doneSummary.textContent,/Status: Development-Ready · 1 PBI\(s\) generated and verified/);assert.equal(ids.doneList.children.length,1);
+ const row=ids.doneList.children[0],btn=label=>row.children.find(b=>b.textContent===label),n0=urls.length;
+ await btn('Download DOCX').onclick();await btn('Download MD').onclick();await btn('Download JSON').onclick();assert.equal(urls.length,n0+3);assert.equal(urls.at(-3).type,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+ await btn('Preview').onclick();assert.match(ids.donePreview.textContent,/^# [\s\S]*Status: Development-Ready/);
+ await click('downloadAll');assert.equal(urls.length,n0+4);
+ const st=JSON.parse(await ctx.PBI.read(root,'playbook/pbis/'+shared.PBI+'/pbi-state.json'));assert.equal(st.approvals.user.by,'Priya (PO)');assert.equal(st.status,'Development-Ready');
+ await ctx.PBI.write(root,'playbook/pbis/'+shared.PBI+'/REFINED-PBI.docx','tampered');await btn('Download DOCX').onclick();assert.match(ids.message.textContent,/changed since it was generated/);
+ ids.reviewNote.value='';await ids.requestChanges.onclick();assert.match(ids.message.textContent,/Describe the changes/);
+ ids.reviewNote.value='Split the uniqueness rule per region.';await click('requestChanges');assert.match(ids.promptText.value,/Refine the existing PBI/);assert.match(ids.message.textContent,/Nothing was approved/);
+ await click('saveReviewDraft');assert.match(ids.message.textContent,/Saved as draft in playbook\/pbis\/[^\n]*\/history\/REVIEW-\d+\.md\. Nothing was approved/);
+ // A blocker disables Approve & Generate.
+ const blocked=cases.find(c=>c.name==='decision copied from another PBI is not valid here');await shared.writeCase(ctx.PBI,root,'playbook/pbis/pbi-305965-blocked',{...blocked,state:{...blocked.state,pbi:'pbi-305965-blocked'}});
+ ids.existingPbi.value="";ids.manualPbi.value='playbook/pbis/pbi-305965-blocked';await ids.loadReview.onclick();assert.equal(ids.approveGenerate.disabled,true);assert.match(ids.message.textContent,/Not ready for approval/);assert.match(ids.reviewCards.children[5].children[1].textContent,/FOREIGN_DECISION/);
+ ids.manualPbi.value='playbook/pbis/'+shared.PBI;
  await ids.discoverSources.onclick();assert.match(ids.message.textContent,/Wrote playbook\/pbi-builder\/knowledge\/SOURCE-MAP\.md \(\d+ files scanned\)\.\nSolutions: \d+ · projects: \d+\nlegacy: readable \(read [^)]+\)/);
  assert.ok(await ctx.PBI.read(root,ctx.PBI.SOURCE_MAP));
  // Guided Create PBI wizard: title, description, criteria, attachments, draft, resume, review, start analysis.
  const file=(name,text)=>({name,size:text.length,arrayBuffer:async()=>new TextEncoder().encode(text).buffer});
  // As in browsers, resetting a file input's value clears its selected files.
  Object.defineProperty(ids.attachments,'value',{get(){return '';},set(v){if(v==='')this.files=[];}});
- ids.wizardCancel.onclick();assert.match(ids.wizardProgress.textContent,/Step 1 of 6 · Basic information/);
- ids.wizardNext.onclick();assert.match(ids.message.textContent,/Enter the PBI title/);assert.ok(ids.step2.classList.contains('hidden'));
+ ids.wizardCancel.onclick();assert.match(ids.wizardProgress.textContent,/Step 1 of 4 · Requirements/);
+ ids.wizardNext.onclick();assert.match(ids.message.textContent,/Complete the highlighted fields/);assert.equal(ids.pbiNumberError.textContent,'Enter the PBI number.');assert.equal(ids.pbiTitle['aria-invalid'],'true');assert.equal(ids.acceptanceCriteriaError.textContent,'Enter the acceptance criteria.');assert.ok(ids.step2.classList.contains('hidden'));
+ ids.pbiNumber.value='12 34';ids.wizardNext.onclick();assert.match(ids.pbiNumberError.textContent,/letters, digits/);
  ids.pbiTitle.value='Creation of Adaptation Imitation Request & Paint System';ids.pbiNumber.value='305915';ids.customProject.value='DAB API';
- ids.wizardNext.onclick();assert.match(ids.wizardProgress.textContent,/Step 2 of 6 · Requirement/);assert.ok(ids.step1.classList.contains('hidden'));
- ids.pbiDescription.value='Allow an Adaptation request for an Industrial Market Color Instance and create the Paint System.';ids.wizardNext.onclick();
- ids.acMode.value='attached';ids.wizardNext.onclick();assert.match(ids.wizardProgress.textContent,/Step 4 of 6/);
+ ids.pbiDescription.value='Allow an Adaptation request for an Industrial Market Color Instance and create the Paint System.';ids.acceptanceCriteria.value='1. The request is allowed for a new instance\n2. A Paint System is created on approval';
  ids.attachments.files=[file('Spec v2.pdf','%PDF-1.7 spec'),file('screen.png','PNG')];ids.attachments.onchange();assert.match(ids.attachmentList.textContent,/Spec v2\.pdf[\s\S]*screen\.png/);
+ ids.wizardNext.onclick();assert.match(ids.wizardProgress.textContent,/Step 2 of 4 · Legacy repository/);assert.ok(ids.step1.classList.contains('hidden'));assert.equal(ids.stepLabel2['aria-current'],'step');assert.ok(ids.stepLabel1.classList.contains('done'));
+ assert.equal(ids.legacyRepo.value,'legacy');assert.match(ids.legacyInfo.textContent,/Location: this repository \(AN\.ColorDMS\.Customizations\)/);
+ await click('validateLegacy');assert.match(ids.legacyInfo.textContent,/Validated: folder "AN\.ColorDMS\.Customizations" found with a Git root/);
+ await click('manageRepos');assert.ok(ids.setup.classList.contains('active'));assert.equal(ids.repoDetails.open,true);assert.match(ids.message.textContent,/its folder is never deleted/);ctx.tab('new');
+ ids.wizardNext.onclick();assert.match(ids.wizardProgress.textContent,/Step 3 of 4 · Development target/);ids.wizardNext.onclick();assert.equal(ids.targetError.textContent,'Choose what you are developing this PBI for.');assert.match(ids.wizardProgress.textContent,/Step 3 of 4/);
  await click('saveDraft');const draftDir=ids.outputWhere.textContent.replace('Saved in: ','');assert.match(draftDir,/^playbook\/pbis\/pbi-305915-/);
- let meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.deepEqual(meta.wizard,{step:'Supporting material',status:'draft'});assert.equal(meta.project,'DAB API');
+ let meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.deepEqual(meta.wizard,{step:'Development target',status:'draft'});assert.equal(meta.project,'DAB API');assert.equal(meta.legacy.key,'legacy');
  assert.equal(await ctx.PBI.read(root,draftDir+'/attachments/Spec v2.pdf')!==null,true);assert.match(ids.promptText.value,/saved draft/);
  ids.wizardCancel.onclick();assert.equal(ids.pbiTitle.value,'');
  await click('refresh');ids.existingPbi.value=draftDir;await click('loadDraft');
- assert.equal(ids.pbiTitle.value,'Creation of Adaptation Imitation Request & Paint System');assert.equal(ids.customProject.value,'DAB API');assert.match(ids.wizardProgress.textContent,/Step 4 of 6/);assert.match(ids.attachmentList.textContent,/Spec v2\.pdf \(already saved\)/);
- ids.application.value='both';ids.wizardNext.onclick();ids.changeType.value='migrate';ids.wizardNext.onclick();
- assert.match(ids.reviewSummary.textContent,/PBI title: Creation of Adaptation[\s\S]*PBI number: 305915[\s\S]*Target project: DAB API[\s\S]*Application: Both \(CDMS and DAB\)[\s\S]*Acceptance criteria: In an attachment[\s\S]*Attachments: Spec v2\.pdf, screen\.png[\s\S]*Migrates legacy/);
- await click('saveNew');meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.equal(meta.wizard.status,'ready-for-analysis');assert.equal(meta.application,'both');assert.match(await ctx.PBI.read(root,draftDir+'/REQUEST.md'),/## Application\n\nBoth \(CDMS and DAB\)/);assert.match(ids.promptText.value,/Application: Both \(CDMS and DAB\), chosen by the user[\s\S]*do not ask again/);assert.equal(meta.attachments.length,2);
+ assert.equal(ids.pbiTitle.value,'Creation of Adaptation Imitation Request & Paint System');assert.equal(ids.customProject.value,'DAB API');assert.match(ids.wizardProgress.textContent,/Step 3 of 4/);assert.match(ids.attachmentList.textContent,/Spec v2\.pdf \(already saved\)/);
+ ids['target-both'].checked=true;ids['target-both'].onchange();assert.match(ids.repoRoles.textContent,/Legacy — Business Reference: this repository\nCDMS — Implementation Target: not configured[\s\S]*Angular UI — Shared Frontend: not configured[\s\S]*Analysis order: Legacy → CDMS → DAB → Shared Angular UI/);
+ ids.wizardNext.onclick();ids.changeType.value='migrate';ids['mode-deep'].checked=false;ids['mode-comprehensive'].checked=true;ids.wizardNext.onclick();
+ assert.match(ids.reviewSummary.textContent,/PBI number: 305915[\s\S]*PBI title: Creation of Adaptation[\s\S]*Acceptance criteria: 2 line\(s\), kept as entered[\s\S]*Attachments: Spec v2\.pdf, screen\.png[\s\S]*Legacy repository: Custom \(Legacy CRM\/XRM\) \(\.\)[\s\S]*Development target: Both \(CDMS \+ DAB \+ UI\)[\s\S]*Analysis mode: Comprehensive[\s\S]*Target project: DAB API[\s\S]*Migrates legacy/);
+ await click('saveNew');meta=JSON.parse(await ctx.PBI.read(root,draftDir+'/pbi.json'));assert.equal(meta.wizard.status,'ready-for-analysis');assert.equal(meta.application,'both');assert.equal(meta.analysisMode,'comprehensive');assert.equal(meta.repositories.length,4);assert.equal(meta.acceptanceCriteria,'1. The request is allowed for a new instance\n2. A Paint System is created on approval');
+ assert.match(await ctx.PBI.read(root,draftDir+'/REQUEST.md'),/## Development target\n\nBoth \(CDMS \+ DAB \+ UI\)/);assert.match(ids.promptText.value,/Development target: Both \(CDMS \+ DAB \+ UI\), chosen by the user[\s\S]*do not ask again/);assert.equal(meta.attachments.length,2);
  assert.match(ids.promptText.value,new RegExp('Read '+draftDir.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/REQUEST.md[\\s\\S]*report any you cannot open'));
  const hist=(await ctx.PBI.listPbis(root)).find(x=>x.folder===draftDir);assert.ok(hist);
  ids.existingPbi.value=draftDir;await ids.loadDraft.onclick();assert.match(ids.message.textContent,/already sent for analysis/);
@@ -96,12 +128,14 @@ async function click(id){await ids[id].onclick();if(ids.message.className.includ
  ids.recentRepos.value='0';await ids.recentRepos.onchange();await new Promise(r=>setImmediate(r));assert.equal(ids.connectedName.textContent,root.name);
  // Select Implementation References: opens after the target is chosen, never offers the target, none or several, reset on cancel.
  ids.otherRepos.value='Portal = ../Portal';const opts=()=>ids.refList.children.map(l=>l.children[0].value);let opened=0;ids.refDialog.showModal=()=>{opened++;};
- ids.application.value='dab';ids.application.onchange();assert.equal(opened,1);assert.deepEqual(opts(),['legacy','cdms','Portal']);
- ids.refList.children[0].children[0].checked=true;ids.refList.children[2].children[0].checked=true;ids.refOk.onclick();assert.match(ids.refSummary.textContent,/Custom \(Legacy CRM\/XRM\), Portal/);
- ids.application.value='cdms';ids.application.onchange();assert.deepEqual(opts(),['legacy','dab','Portal']);assert.equal(ids.refList.children[0].children[0].checked,true,'kept when still offered');
- ids.refList.children.forEach(l=>l.children[0].checked=false);ids.refOk.onclick();assert.match(ids.refSummary.textContent,/none selected/);
- ids.application.value='both';ids.application.onchange();assert.deepEqual(opts(),['legacy','Portal']);ids.refList.children[1].children[0].checked=true;ids.refOk.onclick();assert.match(ids.reviewSummary.textContent+'|'+ids.refSummary.textContent,/Portal/);
+ const pick=t=>{for(const k of ['cdms','dab','ui','both'])ids['target-'+k].checked=k===t;ids['target-'+t].onchange();ids.chooseRefs.onclick();};
+ pick('dab');assert.equal(opened,1);assert.deepEqual(opts(),['Portal'],'DAB already reads Legacy and CDMS');
+ ids.refList.children[0].children[0].checked=true;ids.refOk.onclick();assert.match(ids.refSummary.textContent,/Additional implementation references: Portal/);
+ pick('cdms');assert.deepEqual(opts(),['dab','Portal']);assert.equal(ids.refList.children[1].children[0].checked,true,'kept when still offered');
+ ids.refList.children.forEach(l=>l.children[0].checked=false);ids.refList.children[0].children[0].checked=true;ids.refOk.onclick();assert.match(ids.refSummary.textContent,/DAB \(GraphQL\)/);
+ pick('ui');assert.deepEqual(opts(),['Portal']);assert.match(ids.refSummary.textContent,/none selected/,'DAB is a UI Only reference already');
+ pick('both');assert.deepEqual(opts(),['Portal']);ids.refList.children[0].children[0].checked=true;ids.refOk.onclick();assert.match(ids.refSummary.textContent,/Portal/);
  ids.otherRepos.value='no equals sign';assert.throws(()=>ctx.getConfig(),/Name = path/);ids.otherRepos.value='';
  ids.wizardCancel.onclick();assert.match(ids.refSummary.textContent,/none selected/);
- console.log('PASS UI handler smoke: implementation references (dialog, target excluded, none, several, reset); select, review, install, repeat, intake, duplicate number, clipboard, list, refinement, verify, ZIP fallback, config isolation, comparison creation with chosen baseline, comparison clipboard, comparison ZIP, comparison cleanup, readiness check, guided Create PBI wizard (steps, validation, attachments, save draft, resume, review, start analysis, existing-PBI choice), question panel (answer, required name, skip optional, edit previous with custom answer, decisions), evidence refresh, path mismatch, repair, uninstall (cancel, confirm, nothing left), installed version, repositories in this session.');
+ console.log('PASS UI handler smoke: 5.0 intake (required fields with inline errors, legacy repository with validation, development target radios with repository roles, analysis mode, four steps), existing PBI (Resume, Review, Start New Version, Cancel), Review & approve (six cards, name required, Approve & Generate, verified DOCX/MD/JSON/ZIP downloads, preview, tampered file refused, Request Changes, Save Draft, blocker disables approval), additional references (target-implied repositories never offered); select, review, install, repeat, intake, duplicate number, clipboard, list, refinement, verify, ZIP fallback, config isolation, comparison creation with chosen baseline, comparison clipboard, comparison ZIP, comparison cleanup, readiness check, guided Create PBI wizard (steps, validation, attachments, save draft, resume, review, start analysis, existing-PBI choice), question panel (answer, required name, skip optional, edit previous with custom answer, decisions), evidence refresh, path mismatch, repair, uninstall (cancel, confirm, nothing left), installed version, repositories in this session.');
 })().catch(e=>{console.error(e);process.exitCode=1});

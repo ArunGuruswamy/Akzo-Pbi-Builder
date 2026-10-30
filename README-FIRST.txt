@@ -1,15 +1,18 @@
-AKZO SDD PBI BUILDER 4.2.0
-Evidence-based PBI refinement | 29 October 2026
+AKZO SDD PBI BUILDER 5.0.0
+Evidence-based PBI refinement | 30 October 2026
 
 WHAT IT DOES
-One Copilot agent per repository: "Akzo SDD PBI Builder - <your project>".
-It refines PBIs from source evidence, one business question at a time. For each
-business rule it records who enforces it today (plugin, workflow, application,
-API, UI or configuration), whether that enforcement is registered and active, and
-whether CDMS and DAB/OCP/GraphQL requests reach it, with evidence for each claim.
-It asks for PO/BA, technical and final user approval in ONE summary before it
-creates the final REFINED-PBI.md. Each approval is bound to a fingerprint of what
-was reviewed; any later change makes it stale and needs renewed approval.
+One Copilot agent per repository: "Akzo SDD PBI Builder - <your project>", and an
+offline form. The workflow:
+  Start PBI -> requirements -> legacy repository -> development target
+  (CDMS + UI, DAB + UI, UI Only or Both) -> deep analysis -> review ->
+  approve once -> generate -> preview and download.
+The agent reads the actual legacy, CDMS, DAB and shared Angular UI code the target
+needs (DAB always reads CDMS as a reference; the shared UI is planned once), records
+who enforces each business rule with evidence, and asks only genuine business
+decisions, together in one decision review. Review & approve in the form is the one
+approval: it is bound to a fingerprint of what was reviewed and generates the final
+PBIs (PBI-CDMS.md, PBI-DAB.md and/or PBI-UI.md, each also as DOCX and JSON).
 
 INSTALL - OPTION A: BROWSER (no PowerShell needed)
 1. Extract this ZIP (Extract All). Open Akzo-SDD-PBI-Builder.html from the
@@ -36,7 +39,9 @@ window opens:
    The list shows each repository's installed version and whether an update is
    available; it is remembered for next time.
 2. For a first install choose the editor and what the repository is (CDMS,
-   DAB (GraphQL) or Custom (Legacy CRM/XRM)); an upgrade keeps its settings.
+   DAB (GraphQL), Shared Angular UI or Custom (Legacy CRM/XRM)); an upgrade keeps
+   its settings. Repositories... sets the Legacy, CDMS, DAB and shared Angular UI
+   paths (Browse per repository) and other repositories.
 3. Install / Upgrade shows the planned changes and asks before writing.
    Upgrade all does the same for every listed repository with an older version.
    Repair, Verify and Uninstall work on the selected repository.
@@ -45,6 +50,7 @@ reported); replaced files are backed up first. Or run the installer with
 parameters, for example:
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -ProjectName "My Repo" -Ide vscode -Role dab -Preview
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -AllowUpdates
+  Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -UiSource ..\AN.ColorAppsAzure.UI -AllowUpdates
   (the older ColorDMS analysis documents are not installed unless you add -IncludeReferences;
   the agent investigates the repository directly and never needs them)
   powershell -File PBI-Builder-Setup.ps1 -NoGui -Action Upgrade   (all listed repositories)
@@ -86,25 +92,41 @@ settings. It completes the installation; nothing else is needed. Ctrl+C during
 writing restores the files touched so far.
 
 CREATE A PBI
-Choose the target application (CDMS, DAB or Both). The form then opens Select
-Implementation References: tick any other configured repositories (Legacy, CDMS,
-DAB, others) to use as read-only references for this PBI, or none. Both produces
-two separate PBIs, PBI-CDMS.md and PBI-DAB.md. Configure repositories in the form's
-setup, or with Repositories... in the setup window (Browse per repository).
 Open a NEW Copilot chat for every new PBI, so nothing from an earlier PBI is
-carried over. In Copilot type "Create PBI", or use the New PBI tab of the form. The
-agent asks, in one message, only for what is missing: the PBI number or title, the
-requirement, and optionally the investigation scope. It then investigates the source
-on its own and asks only genuine business decisions, each with a recommendation,
-numbered choices and a ready-to-use answer (Business Decision Advisor skill). There
-is no DAB plugin: DAB implements every applicable legacy rule in its own code, while
-CDMS reuses verified plugins. Answers can also be given on the form's Continue tab.
-See docs/USER-GUIDE.md.
+carried over. Use the form's New PBI tab (four steps):
+1. Requirements: PBI number (Azure DevOps or an identifier such as LOCAL-12),
+   title, description and acceptance criteria (required), attachments (optional).
+2. Select Legacy Source Repository: a configured repository; Validate browses to
+   it; Add or remove repositories goes to setup (folders are never deleted).
+3. Which project are you developing the PBI for? CDMS + UI, DAB + UI, UI Only or
+   Both (CDMS + DAB + UI). The form shows each repository's role and path.
+4. Review & start: analysis mode (Quick, Deep - the default - or Comprehensive),
+   optional extra references, then Start analysis and paste the prompt in Copilot.
+Or type "Start PBI" in Copilot (also Create PBI, New PBI, Start Development,
+Implement PBI); the agent asks for the same things in one message. An existing PBI
+number offers Resume, Review or Start New Version; nothing is overwritten.
+The agent investigates on its own and asks only genuine business decisions in one
+decision review (Business Decision Advisor skill); answers can also be given on the
+form's Continue tab. There is no DAB plugin: DAB implements every applicable legacy
+rule in its own code, while CDMS reuses verified plugins.
 
-UPGRADING FROM 4.0.0 OR 4.1.0
+FINISH A PBI: APPROVE ONCE
+Continue tab -> select the PBI -> Review selected PBI. Six cards show the PBI,
+requirements, repository analysis, implementation approach, decisions and technical
+readiness. Approve & Generate records your approval, generates the final PBIs and
+verifies every file; Request Changes and Save Draft approve nothing. The PBI
+Generated Successfully window offers DOCX, MD and JSON per PBI, a preview, and one
+ZIP with everything. PO/BA, security, architecture or technical sign-off your
+organization requires remains a separate step outside this tool. See
+docs/USER-GUIDE.md.
+
+UPGRADING FROM 4.x
 Install as above (Install.cmd, the form, or Upgrade all) and allow reviewed updates.
-The setup window and the form show "update to 4.2.0 available". Files you never
-edited are updated with backups; PBIs, decisions and approvals stay valid.
+The setup window and the form show "update to 5.0.0 available". Files you never
+edited are updated with backups. PBIs, decisions and approvals stay valid; from
+5.0 only the final user approval is required, so a 4.x PBI that was waiting only
+for PO/BA or technical approval can be approved in Review & approve. Add the shared
+Angular UI path in setup when you use UI targets. See MIGRATION.md.
 
 UPGRADING FROM 3.1.0
 Install as above and allow reviewed updates (in the setup window: Install /
@@ -123,16 +145,15 @@ removed only if you never edited them; edited ones are kept and listed. Existing
 PBIs, decisions and history are untouched. See MIGRATION.md.
 
 DAILY USE
-In Copilot select the agent and type "Create PBI", "Resume PBI <number>",
+In Copilot select the agent and type "Start PBI", "Resume PBI <number>",
 "Continue PBI <number or folder>" or "Refine PBI <number>: <what changed>".
 Other commands: Review, Edit, Show Decisions, Analyze Legacy, Analyze Workflows,
 Extract Plugin Rules, Show Technical
 Flow, Generate Acceptance Criteria, Export and Validate PBI <number>. The form's New PBI and Continue PBI tabs
-remain available. Before final approval, run Check PBI readiness (form) or
+remain available. Review & approve runs the readiness check itself; to run it
+alone use Check PBI readiness (form) or
   Install-PBIBuilder.cmd -RepoPath "C:\src\My Repo" -Action CheckPbi -Pbi <folder>
-When the PBI is ready for review, the check prints the approval basis the agent
-records with each approval. It checks completeness and consistency, not business
-correctness or who approved.
+It checks completeness and consistency, not business correctness or who approved.
 
 COMPARE WITH AN EARLIER VERSION
 Compare old & new in the form adds a pinned v2.0 Original or v2.1 Concise agent for

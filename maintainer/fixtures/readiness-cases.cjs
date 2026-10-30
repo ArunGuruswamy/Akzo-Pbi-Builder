@@ -72,7 +72,7 @@ async function load(P){
  await c('decision change invalidates PO/BA and final user approval only',s=>{s.decisions[0].evidence='PO in refinement 2026-10-24';},{expect:'Ready for Review',codes:['APPROVAL_STALE','APPROVAL_STALE',...OVER],refs:['poba: changed DEC-1','user: changed DEC-1']});
  await c('3.0.0 revision-number approvals are unbound',s=>{for(const k in s.approvals)s.approvals[k].basis={'BR-1':1,'BR-2':1};},{expect:'Ready for Review',codes:['APPROVAL_UNBOUND','APPROVAL_UNBOUND','APPROVAL_UNBOUND',...OVER]});
  await c('approval without evidence is incomplete',s=>{s.approvals.user.evidence='';},{expect:'Ready for Review',codes:['APPROVAL_PENDING',...OVER]});
- await c('pending approvals block finalization and REFINED-PBI.md',pending,{docs:(s,st)=>({refined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL']});
+ await c('pending approvals block finalization and REFINED-PBI.md',pending,{docs:(s,st)=>({refined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL']});
  // Ownership, paths and evidence levels.
  await c('plugin code present but registration missing cannot be reused',s=>{s.rules[0].registration='missing';s.rules[0].targetAction='reuse';s.status='Draft';},{rebind:true,expect:'Needs Evidence',codes:['REUSE_NOT_ENFORCED']});
  await c('plugin registration not yet established needs evidence',s=>{s.rules[0].registration='unknown';s.status='Draft';},{rebind:true,expect:'Needs Evidence',codes:['REGISTRATION_UNKNOWN']});
@@ -100,7 +100,7 @@ async function load(P){
  await c('criterion without text is a draft',s=>{delete s.acceptanceCriteria[0].criterion;s.status='Draft';},{rebind:true,expect:'Draft',codes:['CONTENT_MISSING']});
  await c('document text differs from state',null,{docs:(s,st)=>({draft:doc(st,s).replace('within its business unit','across all business units')}),expect:'Ready for Review',codes:['DOC_CONTENT_MISMATCH',...OVER],refs:['BR-2']});
  await c('document status and IDs must match state',null,{docStatus:'Draft',docs:(s,st)=>({draft:doc(st,s).replace(/\| AC-[3-7] \|/g,'| x |').replace('DEP-1','')}),expect:'Ready for Review',codes:['DOC_STATUS_MISMATCH','DOC_MISSING_ID','DOC_MISSING_ID','DOC_MISSING_ID','DOC_MISSING_ID','DOC_MISSING_ID','DOC_MISSING_ID',...OVER]});
- await c('decision copied from another PBI is not valid here',s=>{s.decisions[0].pbi='pbi-111-other';pending(s);},{expect:'Awaiting PO/BA Decision',codes:['FOREIGN_DECISION','APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING',...OVER]});
+ await c('decision copied from another PBI is not valid here',s=>{s.decisions[0].pbi='pbi-111-other';pending(s);},{expect:'Awaiting PO/BA Decision',codes:['FOREIGN_DECISION','APPROVAL_PENDING',...OVER]});
  await c('decision missing from DECISION-LOG.md',null,{docs:()=>({decisionLog:'DEC-1 only'}),expect:'Ready for Review',codes:['DECISION_NOT_LOGGED',...OVER],refs:['DEC-2']});
  await c('decision superseding an unknown decision',s=>{s.decisions[1].supersedes='DEC-0';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['DECISION_SUPERSEDES_INVALID',...OVER]});
  await c('open blocking PO/BA question awaits decision',s=>{s.questions[0].status='open';s.status='Awaiting PO/BA Decision';},{rebind:true,expect:'Awaiting PO/BA Decision',codes:['BLOCKING_QUESTION']});
@@ -141,9 +141,18 @@ async function load(P){
  await c('the same rule recorded twice from different sources',s=>{s.rules[1].rule=s.rules[0].rule;},{rebind:true,expect:'Ready for Review',codes:['RULE_DUPLICATE',...OVER],refs:['BR-2']});
  await c('JavaScript and web resource evidence components are accepted',s=>{s.evidence[4].component='javascript';s.rules[1].owner={type:'multiple',types:['ui','application']};},{rebind:true,expect:'Development-Ready',codes:[]});
  await c('approved PBI may have CDMS and DAB final documents',null,{docs:(s,st)=>({refined:doc(st,s),cdmsRefined:doc(st,s),dabRefined:doc(st,s)}),expect:'Development-Ready',codes:[]});
- await c('application PBI before approval is blocked',pending,{docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL'],refs:['PBI-DAB.md']});
+ await c('application PBI before approval is blocked',pending,{docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['APPROVAL_PENDING','FINAL_WITHOUT_APPROVAL'],refs:['PBI-DAB.md']});
  await c('application PBI missing a rule',null,{docs:(s,st)=>({cdmsRefined:doc(st,{...s,rules:s.rules.slice(0,1)})}),expect:'Ready for Review',codes:['DOC_MISSING_ID','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['PBI-CDMS.md/BR-2','PBI-CDMS.md']});
  await c('DAB PBI for a CDMS-only PBI',s=>{s.paths.dab={applies:false,reason:'CDMS only'};for(const r of s.rules)delete r.paths.dab;},{rebind:true,docs:(s,st)=>({dabRefined:doc(st,s)}),expect:'Ready for Review',codes:['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['PBI-DAB.md']});
+ // 5.0: one required approval; development targets decide which paths are required and which may not apply.
+ await c('PO/BA and technical approvals are optional; only the final user approval is required',s=>{s.approvals.poba={status:'pending'};s.approvals.technical={status:'pending'};},{expect:'Development-Ready',codes:[]});
+ const cdmsOnly=s=>{s.paths.dab={applies:false,reason:'Development target CDMS + UI'};s.paths.ui={applies:false,reason:'Requirement: no UI changes in this PBI'};for(const r of s.rules)delete r.paths.dab;};
+ await c('CDMS + UI target requires the UI path and excludes DAB work',null,{docs:()=>({application:'cdms'}),expect:'Needs Evidence',codes:['PATH_SCOPE_MISSING','TARGET_SCOPE_CONFLICT',...OVER],refs:['ui','dab']});
+ await c('CDMS + UI target with UI excluded by the requirement',cdmsOnly,{rebind:true,docs:()=>({application:'cdms'}),expect:'Development-Ready',codes:[]});
+ await c('UI PBI for a target whose UI path does not apply',cdmsOnly,{rebind:true,docs:(s,st)=>({application:'cdms',uiRefined:doc(st,s)}),expect:'Ready for Review',codes:['DOC_OUT_OF_SCOPE','FINAL_WITHOUT_APPROVAL','STATUS_OVERCLAIMED'],refs:['PBI-UI.md']});
+ await c('DAB + UI target: CDMS is a reference, never an applying path',s=>{s.paths.ui={applies:false,reason:'Requirement: no UI changes in this PBI'};},{rebind:true,docs:()=>({application:'dab'}),expect:'Awaiting PO/BA Decision',codes:['TARGET_SCOPE_CONFLICT',...OVER],refs:['cdms']});
+ await c('a 4.1 PBI records its application without repositories: 4.x path rules',null,{docs:()=>({legacyApplication:'cdms'}),expect:'Development-Ready',codes:[]});
+ await c('Both target requires the shared UI path',null,{docs:()=>({application:'both'}),expect:'Needs Evidence',codes:['PATH_SCOPE_MISSING',...OVER],refs:['ui']});
  // Branch completeness: a Yes branch covered by the plugin does not cover the No branch.
  const br=(s,y={},n={})=>{s.rules[0].branches=[{id:'BR-1.Y',condition:'User answers Yes',expected:'Status Actual; Master measurement replaced',cdms:'covered',dab:'missing',evidence:['EV-1'],acceptance:['AC-1','AC-2'],...y},
   {id:'BR-1.N',condition:'User answers No',expected:'Status Actual; Master measurement unchanged',cdms:'missing',dab:'missing',acceptance:['AC-3'],risk:'Activation may run the replacing plugin',...n}];};
@@ -171,13 +180,15 @@ async function load(P){
  await c('unsupported schema is a draft',null,{expect:'Draft',codes:['STATE_SCHEMA']});
  out.at(-1).state={schemaVersion:3};
  await c('malformed records are drafts, not crashes',s=>{s.rules.push('oops',{id:'BR-1',rev:'1'});s.acceptanceCriteria.push({id:'AC-9',rev:1,type:'odd',rules:[]});s.evidence.push(7);s.questions=[null];s.paths.cdms='yes';s.approvals=null;s.status='Draft';},
-  {expect:'Draft',codes:['DUPLICATE_ID','PATH_SCOPE_MISSING','PATH_CONFLICT','PATH_CONFLICT','RULE_INCOMPLETE','RULE_INCOMPLETE','AC_INCOMPLETE','EVIDENCE_INCOMPLETE','APPROVAL_PENDING','APPROVAL_PENDING','APPROVAL_PENDING']});
+  {expect:'Draft',codes:['DUPLICATE_ID','PATH_SCOPE_MISSING','PATH_CONFLICT','PATH_CONFLICT','RULE_INCOMPLETE','RULE_INCOMPLETE','AC_INCOMPLETE','EVIDENCE_INCOMPLETE','APPROVAL_PENDING']});
  return {PBI,cases:out};
 }
 // Writes a case as real files: PBI documents, state and evidence sources (null documents are not written).
 async function writeCase(P,root,folder,c){
  if(c.state!==null)await P.write(root,folder+'/pbi-state.json',JSON.stringify(c.state,null,2));
- for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['cdmsRefined','PBI-CDMS.md'],['dabRefined','DAB-REFINED-PBI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
+ for(const [k,f] of [['request','REQUEST.md'],['draft','DRAFT-PBI.md'],['refined','REFINED-PBI.md'],['cdmsRefined','PBI-CDMS.md'],['dabRefined','DAB-REFINED-PBI.md'],['uiRefined','PBI-UI.md'],['decisionLog','DECISION-LOG.md']])if(c.docs[k]!=null)await P.write(root,folder+'/'+f,c.docs[k]);
+ if(c.docs.application)await P.write(root,folder+'/pbi.json',JSON.stringify({application:c.docs.application,repositories:[]}));
+ if(c.docs.legacyApplication)await P.write(root,folder+'/pbi.json',JSON.stringify({application:c.docs.legacyApplication,references:[]}));
  for(const [p,t] of Object.entries(c.sources))await P.write(root,p,t);
 }
 module.exports={PBI,load,writeCase};

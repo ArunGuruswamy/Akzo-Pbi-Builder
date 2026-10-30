@@ -19,8 +19,10 @@ file by file, so the two cannot drift without a failing test.
 | Several repositories, each with its own config.json | This session (list) | Remembered list | test-ui, test-ps |
 | Upgrade every listed repository in one action | No: the browser needs a folder dialog per repository | Upgrade all | test-ps |
 | Settings: project name, editor, role, other sources, historical reports | Yes | Yes (same defaults) | test-ps (identical files) |
-| Legacy, CDMS, DAB and other reference repositories | Typed paths (`Name = path`); the browser cannot reveal a folder's path | Repositories... with Browse per repository, `-LegacySource`, `-OtherSource "Name=path;..."` | test-ui, test-ps (identical files) |
-| Select Implementation References per PBI | Pop-up after the target is chosen | Copilot Create PBI question | test-core (every combination), test-ui |
+| Legacy, CDMS, DAB, shared Angular UI and other repositories | Typed paths (`Name = path`); the browser cannot reveal a folder's path | Repositories... with Browse per repository, `-LegacySource`, `-UiSource`, `-OtherSource "Name=path;..."` | test-ui, test-ps (identical files) |
+| Legacy repository, development target and analysis mode per PBI | New PBI steps 2 to 4 | Copilot Start PBI questions | test-core, test-ui |
+| Additional implementation references per PBI | Add implementation references | Copilot Start PBI | test-core (every combination), test-ui |
+| Review & approve: one final approval, generation of the final PBIs (MD, DOCX, JSON), verified downloads | Continue tab | Not offered: PBI work is in the form and Copilot; `-Action CheckPbi` gives the same readiness result | test-core, test-ui |
 | Review before writing: same summary (Repository, Agent, Review counts, retire/conflict notes), "Apply these changes?", then "Allow updates...?" when needed, same result messages | Review setup; Install and Repair ask in dialogs | Preview / console questions | test-ui, test-ps |
 | Install and upgrade with backups, ownership check and rollback | Yes | Yes | test-core, test-ps |
 | Retire unchanged earlier-version files; keep edited ones | Yes | Yes | test-ps (v2.1 and 3.0.0 upgrades) |

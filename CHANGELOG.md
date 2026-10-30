@@ -1,5 +1,57 @@
 # Changelog
 
+## 5.0.0 — 30 October 2026
+
+One workflow: Start PBI → requirements → legacy repository → development target → deep
+analysis → review → approve once → generate → preview and download. Root causes and regression
+coverage: docs/REGRESSION-305965.md.
+
+### Intake and repositories
+- One intake form (New PBI tab, four steps): PBI number (Azure DevOps or a manual identifier such
+  as LOCAL-12), title, description and acceptance criteria required, attachments optional, with
+  inline validation. Start PBI, Create PBI, New PBI, Start Development and Implement PBI start the
+  same intake; an existing PBI number offers Resume, Review or Start New Version.
+- Select Legacy Source Repository: configured repositories, Validate (browse to the folder: name
+  and Git root), Add or remove repositories (configuration only; folders are never deleted),
+  last choice remembered.
+- Development target, single choice: CDMS + UI, DAB + UI, UI Only, Both (CDMS + DAB + UI). The
+  form shows each repository's role (Legacy — Business Reference; CDMS/DAB — Implementation
+  Target or Reference; Angular UI — Shared Frontend). DAB always reads CDMS as a read-only
+  reference; CDMS + UI never involves DAB; UI Only creates no backend work; Both gives three PBIs
+  with the shared UI work once. Recorded in pbi.json (application, legacy, repositories,
+  analysisMode) and REQUEST.md.
+- Shared Angular UI repository (config.json sources.ui, sources.yaml ui, role ui): form setup,
+  setup window Repositories... (Browse), -UiSource. A 4.x config.json gains an empty ui source.
+- Analysis modes Quick, Deep (default) and Comprehensive; findings classified Verified, Proposed,
+  Unverified or Contradicted.
+
+### Decisions and the one approval
+- Rules the request states explicitly are recorded as decisions ("source": "request") without a
+  question; remaining questions come together in one decision review; conflicting acceptance
+  criteria are always asked.
+- Only the user's final approval is required. Review & approve (Continue tab) shows six cards and
+  offers Approve & Generate, Request Changes and Save Draft. The approval is bound to the
+  check's fingerprint of the reviewed content. PO/BA and technical approvals are optional
+  external records: checked when recorded, never implied.
+- Approve & Generate writes history copies first, records the approval, sets Development-Ready,
+  generates PBI-CDMS.md, PBI-DAB.md and/or PBI-UI.md (each also .docx and .json) from
+  pbi-state.json, reads every file back, reruns the check, and restores every touched file if
+  anything fails. Final documents of an earlier run move to history/.
+- PBI Generated Successfully: Download DOCX, MD and JSON per PBI, Preview, Download Complete
+  Package — ZIP. Downloads are verified against the generation hashes; the save location can be
+  chosen where the browser supports it.
+
+### Readiness (identical in the form and PowerShell)
+- Required paths follow the development target (CDMS + UI: cdms and ui; DAB + UI: dab and ui;
+  UI Only: ui; Both: all three; no target: cdms and dab as before). A path the target excludes
+  that is recorded as applying is TARGET_SCOPE_CONFLICT.
+- PBI-UI.md is a final document; approvals.user is the only required approval.
+
+### Agent
+- Development targets, Shared Angular UI, Legacy to CDMS to DAB mapping and Analysis modes
+  sections; history copies are the agent's job (it never asks for a snapshot command); the agent
+  never writes the final approval or the final PBIs.
+
 ## 4.2.0 — 30 October 2026
 
 - HTML form Install and Repair follow the PowerShell installer: the same review summary

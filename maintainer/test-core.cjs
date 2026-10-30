@@ -15,7 +15,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  const raw={projectName:'Customizations & QA',ide:'visualstudio',role:'legacy',sources:{dab:'../DAB',legacy:'',cdms:''},includeReferences:true};
  const setup=P.setupFiles(raw,assets,html);
  await test('one agent: VS and VS Code names, tools and relative source registry',async()=>{assert.equal(setup.config.sources.legacy,'.');assert.match(setup.files[P.AGENT],/readfile/);assert.match(setup.files[P.AGENT],/Customizations & QA/);assert.equal(Object.keys(setup.files).filter(p=>p.startsWith('.github/agents/')).length,1);assert.ok(!Object.keys(setup.files).includes('.github/copilot-instructions.md'));const c=P.setupFiles({...raw,projectName:'Other project',ide:'vscode',role:'dab'},assets,html);assert.match(c.files[P.AGENT],/\["read", "search", "edit", "vscode\/askQuestions"\]/);assert.equal(c.config.sources.dab,'.');assert.ok(!Object.values(c.files).some(x=>x.includes('C:\\Users\\prasadv')));assert.ok(!/dynamic/i.test(Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.includes('REFERENCES-INDEX')&&!p.endsWith('.html')).map(([p,t])=>p+t).join('')))});
- await test('agent carries ownership, readiness and final-approval rules; guides load on demand',async()=>{const a=setup.files[P.AGENT];for(const re of [/four evidence levels/i,/Plugin source alone does not prove/,/ONE consolidated approval summary/,/PO\/BA approval/,/Technical approval/,/Final user approval/,/Never\s+infer approval from silence/,/marks the affected\s+approvals stale even when no rev changed/,/copied unchanged/,/Do not\s+change application code, tests, dependencies/,/hidden or disabled button/])assert.match(a,re);for(const s of ['execution-path-analysis','readiness-and-approval','repository-knowledge'])assert.ok(setup.files[P.BASE+'/skills/'+s+'.md']);assert.match(setup.files[P.BASE+'/PBI-TEMPLATE.md'],/Validation ownership/);assert.match(setup.files[P.BASE+'/REFERENCES-INDEX.md'],/^- L\d+ #/m)});
+ await test('agent carries ownership, readiness and final-approval rules; guides load on demand',async()=>{const a=setup.files[P.AGENT];for(const re of [/four evidence levels/i,/Plugin source alone does not prove/,/one approval screen/,/Only Approve & Generate\s+records the user's final approval/,/never ask for separate PO\/BA, technical or per-document approvals/,/The user's approval of the draft is never\s+PO\/BA or technical approval/,/Never infer approval from silence/,/the check marks the approval stale/,/copied unchanged/,/Do not\s+change application code, tests, dependencies/,/hidden or disabled button/])assert.match(a,re);for(const s of ['execution-path-analysis','readiness-and-approval','repository-knowledge'])assert.ok(setup.files[P.BASE+'/skills/'+s+'.md']);assert.match(setup.files[P.BASE+'/PBI-TEMPLATE.md'],/Validation ownership/);assert.match(setup.files[P.BASE+'/REFERENCES-INDEX.md'],/^- L\d+ #/m)});
  await test('generation contract: bundle placeholders render to setupFiles and fail on unknown tokens',async()=>{const b=JSON.parse(JSON.stringify(P.bundle(assets)));assert.equal(b.schemaVersion,1);for(const t of b.setup)if(t.template)for(const m of t.template.matchAll(/\{\{PBI:([A-Z0-9_]+)\}\}/g))assert.ok(b.tokens.includes(m[1]),m[1]);assert.deepEqual(b.setup.map(t=>t.path).filter(p=>p in setup.files),Object.keys(setup.files));assert.throws(()=>P.render('x {{PBI:NOPE}}',{},'t'),/Unresolved placeholder \{\{PBI:NOPE\}\}/);assert.throws(()=>P.normalizeConfig({...raw,schemaVersion:2}),/Unsupported config schemaVersion/);assert.equal(P.render('{{PBI:A}}',{A:'{{PBI:B}} $&'},'t'),'{{PBI:B}} $&')});
  await test('fresh install writes and verifies files while preserving unrelated instructions',async()=>{await P.write(root,'.github/copilot-instructions.md','KEEP ME');const rows=await P.plan(root,setup.files,true);assert.ok(rows.every(r=>r.state==='create'));const r=await P.apply(root,rows);assert.equal(r.written,Object.keys(setup.files).length+1);assert.equal(await P.read(root,'.github/copilot-instructions.md'),'KEEP ME');for(const [p,t]of Object.entries(setup.files))assert.equal(await P.read(root,p),t)});
  await test('unchanged reinstallation is idempotent',async()=>{const rows=await P.plan(root,setup.files,true);assert.ok(rows.every(r=>r.state==='unchanged'));assert.equal((await P.apply(root,rows)).written,0)});
@@ -143,10 +143,10 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  });
  await test('4.0 agent: commands, guided creation, business-only questions, interactive or numbered answers, evidence scope; two new guides',async()=>{
   const a=setup.files[P.AGENT],g=setup.files[P.BASE+'/skills/guided-pbi-creation.md'],c=setup.files[P.BASE+'/skills/crm-plugin-workflow-intelligence.md'];
-  for(const re of [/Create PBI \(also New PBI, Create User Story/,/Resume PBI <n>[\s\S]*Validate PBI <n>/,/never ask them about plugin registration/,/does not stop business\s+refinement and is never a business question/,
+  for(const re of [/Start PBI \(also Create PBI, New PBI, Start Development, Implement PBI, Create\s+User Story/,/Resume PBI <n>[\s\S]*Validate PBI <n>/,/never ask them about plugin registration/,/does not stop business\s+refinement and is never a business question/,
    /vscode\/askQuestions/,/then Custom\s+answer and Decide later as the last two numbers/,/Also accept back[\s\S]*status/,/do\s+not ask for a second confirmation of the same answer/,/It never approves the\s+whole PBI/,
    /explicit requirement, approved business decision,\s+proposed interpretation, technical observation, unverified technical detail or\s+open business question/,/Legacy CRM plugin and workflow behavior is historical\s+context, never proof/,/do not challenge it again/])assert.match(a,re);
-  for(const re of [/ask nothing: start the analysis/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/Resume\s+existing, Create separate draft or Cancel/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
+  for(const re of [/ask nothing: start the analysis/,/Never show buttons, upload controls or progress bars that do not exist/,/never guess its content/,/offer Resume,\s+Review or Start New Version/,/Statuses: unanswered, answered, approved, deferred, superseded, not-applicable/])assert.match(g,re);
   for(const re of [/visited list of methods; stop at\s+a method already visited \(cycle\)/,/registration\s+unverified/,/Simple explanation/,/Important difference/,/"system": "legacy-crm"/])assert.match(c,re);
   // Plugin rules for DAB and the speed rules.
   for(const re of [/Extract Plugin Rules <n> \[plugin, entity or operation\]/,/## Work fast/,/read\s+pbi-state.json first/,/PLUGIN-RULES.md\s+\(Extract Plugin Rules\)/])assert.match(a,re);
@@ -168,11 +168,11 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
  await test('ownership guide: no DAB plugin, application choice, JavaScript/HTML/ribbon sources, one canonical rule, CDMS and DAB owners, documents',async()=>{
   const o=setup.files[P.BASE+'/skills/business-rule-ownership.md'],a=setup.files[P.AGENT];
   for(const re of [/## There is no DAB plugin/,/Never create a DAB plugin task,\s+contract, handoff or dependency/,/business-rule-ownership.md: for the application choice/,/kind of change,\s+application areas/])assert.match(a,re);
-  for(const re of [/DAB_PLUGIN_ASSIGNED/,/CDMS, DAB or\s+Both, plus a custom answer/,/Never ask again\s+unless the user changes it/,/OnLoad, OnSave and OnChange/,/HTML web resources/,/RibbonDiffXml/,/Source\/Formula\/PaintSystem\/PaintSystem\//,/Source\/Formula\/CustomWorkflow\//,
+  for(const re of [/DAB_PLUGIN_ASSIGNED/,/CDMS \+ UI, DAB \+ UI, UI Only\s+or Both/,/Never ask again unless the user changes it/,/OnLoad, OnSave and OnChange/,/HTML web resources/,/RibbonDiffXml/,/Source\/Formula\/PaintSystem\/PaintSystem\//,/Source\/Formula\/CustomWorkflow\//,
    /Source\/Formula\/ImitationRequest\//,/never infer a\s+rule from a file or method name/,/A client-side check is never server enforcement/,/Record one BR\s+with every source as evidence/,/never choose one silently/,
    /Implementation owner: Existing CRM plugin\. Development action: already\s+handled by the plugin; no duplicate CDMS API implementation/,/If registration or runtime is unverified, say so/,
    /function \(Azure Functions HTTP entry point\), handler \(application CQRS\s+command or query handler\), validator \(FluentValidation/,/Do not put every rule into FluentValidation/,/Never invent GraphQL operations, validators or DAB API behavior/,
-   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both, on request\)/,/BUSINESS-RULE-OWNERSHIP\.md \(on request\): one row per rule/,/PBI-CDMS\.md and PBI-DAB\.md: the final application PBIs/,/never two versions of the\s+same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
+   /LEGACY-BUSINESS-RULE-CATALOG\.md/,/SHARED-BUSINESS-RULES\.md \(Both, on request\)/,/BUSINESS-RULE-OWNERSHIP\.md \(on request\): one row per rule/,/PBI-CDMS\.md, PBI-DAB\.md and PBI-UI\.md: the final PBIs, generated from\s+pbi-state\.json/,/never two versions of the\s+same decision/,/DAB must enforce the same rule itself/])assert.match(o,re);
   // The superseded "DAB relies on a plugin" wording is gone from every installed file.
   const all=Object.entries(setup.files).filter(([p])=>!p.includes('/references/')&&!p.endsWith('.html')).map(([,t])=>t).join('\n');
   for(const re of [/plugin already runs for DAB/,/reuse when DAB already runs/,/already enforced, do not\s+duplicate/,/do not assign every legacy operation/])assert.doesNotMatch(all,re);
@@ -484,7 +484,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   // Intake: scope is recorded and handed to the agent; an unchosen application is inferred, not asked up front.
   const n=P.newPbi(setup.config,{title:'Paint System actualization',description:'Ask before actualization.',scope:'Legacy only'});
   assert.equal(n.request.scope,'Legacy only');assert.match(n.files[n.folder+'/REQUEST.md'],/## Investigation scope\n\nLegacy only/);
-  assert.match(n.prompt,/Investigation scope, chosen by the user: Legacy only/);assert.match(n.prompt,/Infer whether this PBI is for CDMS, DAB or Both/);assert.match(n.prompt,/Investigate autonomously, without asking permission/);
+  assert.match(n.prompt,/Investigation scope, chosen by the user: Legacy only/);assert.match(n.prompt,/Infer the development target \(CDMS \+ UI, DAB \+ UI, UI Only or Both\)/);assert.match(n.prompt,/Investigate autonomously, without asking permission/);
   const plain=P.newPbi(setup.config,{title:'X title',description:'Some requirement text'});assert.equal(plain.request.scope,'');assert.ok(!/Investigation scope, chosen/.test(plain.prompt));
   assert.match(setup.files['.github/prompts/akzo-pbi-new.prompt.md'],/ask only for what is missing/);
  });
@@ -512,7 +512,7 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
    /Give file paths, class and method names and line numbers for every claim/,/establish whether the behavior already exists/,/never\s+duplicate a validation or business rule/,
    /Not Verified\s+\(UNKNOWN in pbi-state\.json\)/,/ANALYSIS\.md, REFERENCE-ANALYSIS\.md, architecture summaries, earlier SDDs,\s+cached or generated reports are never proof/,
    /Skip what \.gitignore excludes/,/Never copy secrets or sensitive files/,/test cases and\s+implementation recommendations/,
-   /1\. Approved; 2\. Change\s+Requested[\s\S]{0,200}nothing is approved\); 3\. Custom Response/,/never as text to type/])assert.match(a,re);
+   /Approve & Generate, Request Changes and Save Draft/,/Never write the final approval or the final PBI documents yourself/])assert.match(a,re);
  });
  await test('HTML uninstall: same rows as the PowerShell installer, backups first, PBIs, knowledge and edited files kept, rollback on failure',async()=>{
   const d=path.join(tmp,'uninstall-core');await fs.mkdir(d);const root=new DirectoryHandle(d);
@@ -539,39 +539,143 @@ async function tempRoot(prefix){const d=await fs.mkdtemp(path.join(os.tmpdir(),p
   assert.match(P.setupFiles({...base,others:undefined},assets,html).files[P.BASE+'/sources.yaml'],/otherRepositories: \[\]/,'older config.json without others');
   for(const bad of [[{name:'DAB',path:'x'}],[{name:'A',path:'x'},{name:'a',path:'y'}],[{name:'A',path:''}],Array.from({length:11},(_,i)=>({name:'R'+i,path:'p'}))])assert.throws(()=>P.normalizeConfig({...base,others:bad}));
   const keys=t=>P.referenceOptions(c,t).map(o=>o.key);
-  assert.deepEqual(keys('dab'),['legacy','cdms','Portal','Reports']);assert.deepEqual(keys('cdms'),['legacy','dab','Portal','Reports']);
-  assert.deepEqual(keys('both'),['legacy','Portal','Reports']);assert.deepEqual(keys('unsure'),['legacy','cdms','dab','Portal','Reports']);
+  // 5.0: what the target already implements or reads is not offered again (DAB always reads CDMS).
+  assert.deepEqual(keys('dab'),['Portal','Reports']);assert.deepEqual(keys('cdms'),['dab','Portal','Reports']);assert.deepEqual(keys('ui'),['Portal','Reports']);
+  assert.deepEqual(keys('both'),['Portal','Reports']);assert.deepEqual(keys('unsure'),['legacy','dab','cdms','ui','Portal','Reports']);
   // Every subset of the offered references, for every target, is recorded exactly; the target itself is refused.
-  for(const target of ['dab','cdms','both','unsure']){const offered=keys(target);
+  for(const target of ['dab','cdms','ui','both','unsure']){const offered=keys(target);
    for(let m=0;m<1<<offered.length;m++){const refs=offered.filter((_,i)=>m&1<<i),r=P.newPbi(c,{title:'T',description:'d',application:target,references:refs});
     assert.deepEqual(r.request.references,refs);assert.deepEqual(JSON.parse(r.files[r.folder+'/pbi.json']).references,refs);
-    assert.match(r.files[r.folder+'/REQUEST.md'],refs.length?/## Implementation references \(read-only\)\n\n\S/:/## Implementation references \(read-only\)\n\nNone selected/);
-    assert.match(r.prompt,refs.length?/Implementation references, chosen by the user \(read-only; never modify them\)/:/No implementation references selected: analyze the target repository only/);}}
+    assert.match(r.files[r.folder+'/REQUEST.md'],refs.length?/## Additional implementation references \(read-only\)\n\n\S/:/## Additional implementation references \(read-only\)\n\nNone selected/);
+    if(refs.length)assert.match(r.prompt,/Additional implementation references, chosen by the user \(read-only; never modify them\)/);else assert.doesNotMatch(r.prompt,/Additional implementation references/);}}
   assert.throws(()=>P.newPbi(c,{title:'T',description:'d',application:'dab',references:['dab']}),/not available for this target: dab/);
   assert.throws(()=>P.newPbi(c,{title:'T',description:'d',application:'both',references:['cdms']}),/not available/);
+  assert.throws(()=>P.newPbi(c,{title:'T',description:'d',application:'dab',references:['cdms']}),/not available/,'CDMS is already a DAB reference');
   assert.deepEqual(P.newPbi(c,{title:'T',description:'d'}).request.references,[],'older intake without references');
   const a=s.files[P.AGENT];
-  for(const re of [/## Multi-repository implementation analysis/,/Never carry references over from another PBI/,/Always analyze the target first/,/never create, edit or\s+delete a file in a reference repository/,
+  for(const re of [/## Multi-repository implementation analysis/,/Never carry references over from another PBI/,/Always analyze the target first/,/Reference repositories are read-only: never\s+create, edit or delete a file there/,/a\s+reference never becomes an implementation target or changes scope/,
    /never copy reference code blindly/,/"No matching implementation found" with the searches you\s+ran; never invent a reference/,/"Implementation comparison" section of\s+VALIDATION-MATRIX\.md \(no separate report\)/,
    /\| Requirement \| Legacy reference \| CDMS reference \| Existing target implementation \| Missing functionality \| Recommended target changes \| Validation and regression tests \|/,
-   /"Select Implementation References"/,/4\. the target\s+application \(DAB, CDMS or Both\)/])assert.match(a,re);
-  assert.match(s.files[P.BASE+'/skills/guided-pbi-creation.md'],/"Select Implementation References": a multi-select of every repository in\s+sources\.yaml except the target/);
+   /"Which project\s+are you developing the PBI for\?"/,/1\. CDMS \+ UI; 2\. DAB \+ UI; 3\. UI Only; 4\. Both \(CDMS \+ DAB \+ UI\)/,/"Select Legacy Source Repository"/])assert.match(a,re);
+  assert.match(s.files[P.BASE+'/skills/guided-pbi-creation.md'],/"Select Legacy Source Repository"/);
  });
  await test('separate CDMS and DAB PBIs: Both gives exactly PBI-CDMS.md and PBI-DAB.md, one application gives one, no combined plan, 4.0 names still read',async()=>{
   const o=setup.files[P.BASE+'/skills/business-rule-ownership.md'];
-  for(const re of [/Application CDMS: only\s+PBI-CDMS\.md\. DAB: only PBI-DAB\.md\. Both: exactly these two separate PBIs,\s+never one combined plan and never a gap-analysis report/,
+  for(const re of [/CDMS \+ UI:\s+only PBI-CDMS\.md, with its shared UI section/,/Both: PBI-CDMS\.md, PBI-DAB\.md and one PBI-UI\.md; the UI work appears once,\s+in PBI-UI\.md/,/Never\s+one combined plan and never a gap-analysis report/,
    /independently understandable and actionable by its own team/,/title, description, functional requirements, business rules\s+and validations[\s\S]{0,80}technical implementation\s+steps, acceptance criteria, test scenarios, dependencies, source file and\s+method references/,
    /same "Shared requirement" line/,/Legacy is the primary functional\s+reference for both/,/state explicitly every JavaScript validation, workflow and\s+application-side logic CDMS must implement itself/,
-   /explicit C# implementation steps for every applicable legacy\s+rule, including the rules CRM plugins enforce automatically for CDMS/,/Never omit a DAB\s+validation because CDMS relies on a plugin/,/never publish them; the user creates one item per document/])assert.match(o,re);
+   /explicit C# implementation steps for every applicable legacy\s+rule, including the rules CRM plugins enforce automatically for CDMS/,/Never omit a DAB\s+validation because CDMS relies on a plugin/,/never publish them and never invent work\s+item IDs/])assert.match(o,re);
   const prompt=app=>P.newPbi(setup.config,{title:'T',description:'d',application:app}).prompt;
-  assert.match(prompt('both'),/exactly two separate PBIs, PBI-CDMS\.md and PBI-DAB\.md/);assert.match(prompt('cdms'),/Final deliverable: only PBI-CDMS\.md/);assert.match(prompt('dab'),/Final deliverable: only PBI-DAB\.md/);
-  assert.doesNotMatch(prompt('dab'),/PBI-CDMS/);assert.doesNotMatch(prompt('unsure'),/Final deliverable/);
-  assert.deepEqual(P.READINESS.finalDocs,{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md']});
+  assert.match(prompt('both'),/Final deliverables, generated by the wizard after the one final approval: PBI-CDMS\.md, PBI-DAB\.md, PBI-UI\.md \(the shared UI work once, in PBI-UI\.md only\)/);
+  assert.match(prompt('cdms'),/final approval: PBI-CDMS\.md\.\n/);assert.match(prompt('dab'),/final approval: PBI-DAB\.md\.\n/);assert.match(prompt('ui'),/final approval: PBI-UI\.md\.\n/);
+  assert.doesNotMatch(prompt('dab'),/PBI-CDMS/);assert.doesNotMatch(prompt('unsure'),/Final deliverables/);
+  assert.deepEqual(P.READINESS.finalDocs,{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md'],uiRefined:['ui','PBI-UI.md']});
   // A 4.0 PBI folder with CDMS-REFINED-PBI.md is still checked; the 4.1 name wins when both exist.
   const c=cases.find(x=>x.name==='application PBI missing a rule'),f='playbook/pbis/'+CASE_PBI;
   const run=async name=>{const {root}=await tempRoot('akzo-split-');await shared.writeCase(P,root,f,{...c,docs:{...c.docs,cdmsRefined:undefined}});await P.write(root,f+'/'+name,c.docs.cdmsRefined);return P.checkPbi(root,f);};
   const now=await run('PBI-CDMS.md'),old=await run('CDMS-REFINED-PBI.md');
   assert.deepEqual(old,now);assert.ok(now.issues.some(i=>i.ref==='PBI-CDMS.md/BR-2'),'the CDMS document was checked');
+ });
+ await test('5.0 development targets: CDMS + UI, DAB + UI (CDMS always a reference), UI Only, Both; legacy selection, analysis mode, identifiers, UI repository',async()=>{
+  const raw={projectName:'Targets',ide:'vscode',role:'cdms',sources:{legacy:'../AN.ColorDMS.Customizations',dab:'../DAB',ui:'..\\AN.ColorAppsAzure.UI'},others:[{name:'Legacy2',path:'../Old'}]};
+  const s=P.setupFiles(raw,assets,html),c=s.config;
+  assert.equal(c.sources.ui,'../AN.ColorAppsAzure.UI');assert.match(s.files[P.BASE+'/sources.yaml'],/  ui:\n    area: "Shared Angular UI"\n    repositoryPath: "\.\.\/AN\.ColorAppsAzure\.UI"/);
+  assert.equal(P.normalizeConfig({projectName:'x',role:'ui'}).sources.ui,'.');assert.equal(P.normalizeConfig({projectName:'x',role:'legacy'}).sources.ui,'','4.x config.json without ui');
+  assert.throws(()=>P.normalizeConfig({...raw,others:[{name:'UI',path:'x'}]}),/not Legacy, DAB, CDMS or UI/);
+  const pbi=(application,extra={})=>P.newPbi(c,{title:'T',number:'305965',description:'d',acceptanceCriteria:'1. A',application,legacy:'legacy',...extra});
+  const roles=r=>r.request.repositories.map(x=>x.key+':'+x.use).join(',');
+  assert.equal(roles(pbi('cdms')),'legacy:reference,cdms:implement,ui:implement');
+  assert.equal(roles(pbi('dab')),'legacy:reference,cdms:reference,dab:implement,ui:implement','DAB always reads CDMS, never implements it');
+  assert.equal(roles(pbi('ui')),'legacy:reference,cdms:reference,dab:reference,ui:implement','UI Only creates no backend work');
+  assert.equal(roles(pbi('both')),'legacy:reference,cdms:implement,dab:implement,ui:implement');
+  assert.ok(!pbi('cdms').request.repositories.some(x=>x.key==='dab'),'CDMS + UI never involves DAB');
+  for(const t of ['cdms','dab','ui','both'])assert.equal(pbi(t).request.repositories.filter(x=>x.key==='ui').length,1,'one shared UI');
+  const d=pbi('dab');assert.match(d.prompt,/Analysis order: Legacy → CDMS \(reference\) → DAB → Shared Angular UI/);assert.match(d.prompt,/Read-only references: Custom \(Legacy CRM\/XRM\), CDMS/);
+  assert.match(d.files[d.folder+'/REQUEST.md'],/## Development target\n\nDAB \+ UI/);assert.match(d.files[d.folder+'/REQUEST.md'],/- CDMS — Implementation reference \(read-only\): \n?/);
+  assert.match(d.files[d.folder+'/REQUEST.md'],/- Shared Angular UI — Shared frontend \(implementation target\): \.\.\/AN\.ColorAppsAzure\.UI/);
+  assert.deepEqual(d.request.legacy,{key:'legacy',name:'Custom (Legacy CRM/XRM)',path:'../AN.ColorDMS.Customizations'});
+  assert.equal(pbi('cdms',{legacy:'Legacy2'}).request.legacy.path,'../Old');assert.throws(()=>pbi('cdms',{legacy:'Nope'}),/not configured: Nope/);
+  assert.equal(d.request.analysisMode,'deep');assert.equal(pbi('ui',{analysisMode:'comprehensive'}).request.analysisMode,'comprehensive');assert.throws(()=>pbi('ui',{analysisMode:'fast'}),/Quick, Deep or Comprehensive/);
+  assert.equal(pbi('cdms',{number:'LOCAL-12'}).request.number,'LOCAL-12');assert.throws(()=>pbi('cdms',{number:'12 34'}),/PBI number/);assert.throws(()=>pbi('cdms',{number:'../x'}),/PBI number/);
+  assert.match(pbi('cdms',{number:'LOCAL-12'}).folder,/^playbook\/pbis\/pbi-LOCAL-12-t-/);
+  const a=s.files[P.AGENT];
+  for(const re of [/## Development targets/,/CDMS \+ UI \(cdms\): analyze Legacy → CDMS → Shared Angular UI/,/No DAB work/,/Always inspect\s+CDMS as an implementation reference, even though only DAB was chosen/,/Never modify CDMS or plan CDMS\s+work/,
+   /No backend implementation work/,/PBI-UI\.md \(shared\s+UI, once\)/,/never put the UI work in both/,/## Shared Angular UI/,/Never create a duplicate\s+component for equivalent functionality/,/## Legacy to CDMS to DAB mapping/,/Never copy CRM plugin or workflow code into\s+DAB/,
+   /## Analysis modes/,/quick: search the relevant symbols/,/comprehensive: everything in deep/,/Verified[\s\S]{0,80}Proposed[\s\S]{0,80}Unverified[\s\S]{0,120}Contradicted/,/not finding a feature in the inspected\s+source never proves the whole application lacks it/,
+   /"source":\s+"request"/,/Never record an\s+inference, a recommendation or existing legacy behavior that way/,/one consolidated decision review/,/Contradictory acceptance criteria are a conflict/,
+   /never ask\s+the user to run a snapshot or backup command/,/Start Development, Implement PBI/,/Start\s+Development and Implement PBI prepare the PBI and never change application code/])assert.match(a,re);
+ });
+ // A Ready for Review state per target: only the user's final approval is missing.
+ const reviewCase=(target)=>{const c=JSON.parse(JSON.stringify(cases.find(x=>x.name==='fully approved PBI may be finalized')));const st=c.state;
+  st.approvals={poba:{status:'pending'},technical:{status:'pending'},user:{status:'pending'}};st.status='Ready for Review';
+  const no=r=>({applies:false,reason:r});
+  if(target==='cdms'){st.paths={cdms:{applies:true},dab:no('Development target CDMS + UI'),ui:no('Requirement: no UI changes')};for(const r of st.rules)delete r.paths.dab;}
+  if(target==='dab'){st.paths={dab:{applies:true},cdms:no('Reference only'),ui:no('Requirement: no UI changes')};for(const r of st.rules)delete r.paths.cdms;}
+  if(target==='ui'){st.paths={ui:{applies:true},cdms:no('Reference only'),dab:no('Reference only')};for(const r of st.rules)r.paths={ui:{status:'reaches',evidence:['EV-6']}};}
+  if(target==='both'){st.paths={cdms:{applies:true},dab:{applies:true},ui:{applies:true}};st.rules[0].paths.ui={status:'not-applicable',reason:'No UI change for this rule'};st.rules[1].paths.ui={status:'reaches',evidence:['EV-6']};}
+  return {...c,docs:{...c.docs,draft:c.docs.refined.replace(/^Status:.*$/m,'Status: Ready for Review'),refined:null}};};
+ const setupCase=async(target,mutate)=>{const {root}=await tempRoot('akzo-approve-');const fo='playbook/pbis/'+CASE_PBI,c=reviewCase(target);if(mutate)mutate(c);await shared.writeCase(P,root,fo,c);
+  await P.write(root,fo+'/pbi.json',JSON.stringify({title:'Formula status',number:'305965',application:target,repositories:[],description:'Keep Released formulas Released.',acceptanceCriteria:'1. Released stays Released'}));return {root,fo};};
+ await test('Approve & Generate: one final approval bound to the reviewed content generates exactly the target PBIs (MD, DOCX, JSON), verified, with history',async()=>{
+  for(const target of ['cdms','dab','ui','both']){const {root,fo}=await setupCase(target);
+   const before=await P.checkPbi(root,fo);assert.deepEqual(before.issues.map(i=>i.code),['APPROVAL_PENDING'],target+': only the final approval is missing');
+   const stateBefore=await P.read(root,fo+'/pbi-state.json'),r=await P.approveAndGenerate(root,fo,'Arun Test');
+   assert.deepEqual(r.documents,P.TARGETS[target].documents.filter(n=>target!=='cdms'&&target!=='dab'||n!=='PBI-UI.md'),target);
+   assert.equal(r.check.computedStatus,'Development-Ready');assert.deepEqual(r.check.issues,[]);
+   const st=JSON.parse(await P.read(root,fo+'/pbi-state.json'));assert.equal(st.status,'Development-Ready');assert.equal(st.approvals.user.by,'Arun Test');assert.deepEqual(st.approvals.user.basis,before.review.user.basis);
+   assert.equal(st.approvals.poba.status,'pending','the user approval is never PO/BA approval');
+   assert.match(await P.read(root,fo+'/DRAFT-PBI.md'),/^Status: Development-Ready$/m);
+   for(const n of r.documents){const b=n.replace(/\.md$/,'');for(const ext of ['.md','.json','.docx'])assert.ok(r.files.some(x=>x.name===b+ext&&x.bytes>0),target+' '+b+ext);
+    const md=await P.read(root,fo+'/'+n);assert.match(md,/^Status: Development-Ready$/m);assert.match(md,/Local draft identifier: pbi-300186[^\n]*\(no Azure DevOps work item was created\)/);assert.match(md,/Final user approval: Arun Test/);assert.match(md,/PO\/BA approval: not recorded by this tool/);
+    assert.equal(JSON.parse(await P.read(root,fo+'/'+b+'.json')).document,n);
+    const docx=Buffer.from(await (await (await (await root.getDirectoryHandle('playbook')).getDirectoryHandle('pbis')).getDirectoryHandle(CASE_PBI)).getFileHandle(b+'.docx').then(h=>h.getFile()).then(f=>f.arrayBuffer()));
+    assert.equal(docx.subarray(0,2).toString(),'PK');assert.ok(docx.includes('word/document.xml')&&docx.includes('Status: Development-Ready'),target+' docx content');}
+   assert.ok(!r.files.some(x=>x.name==='PBI-UI.md')||target==='ui'||target==='both');
+   let hist=[];for await(const [n] of (await (await (await (await root.getDirectoryHandle('playbook')).getDirectoryHandle('pbis')).getDirectoryHandle(CASE_PBI)).getDirectoryHandle('history')).entries())hist.push(n);
+   assert.ok(hist.some(n=>/^pbi-state\.\d+\.json$/.test(n))&&hist.some(n=>/^DRAFT-PBI\.\d+\.md$/.test(n)),'automatic history before the change');
+   const histState=hist.find(n=>n.startsWith('pbi-state.'));assert.equal(await P.read(root,fo+'/history/'+histState),stateBefore);
+   if(target==='both'){const ui=await P.read(root,fo+'/PBI-UI.md'),cd=await P.read(root,fo+'/PBI-CDMS.md');
+    assert.match(ui,/## Business requirements\n\n### BR-2/);assert.match(ui,/## Related requirements owned by other PBIs\n\n- BR-1:/);assert.match(cd,/Shared Angular UI work is in PBI-UI\.md, once, for both backends/);assert.match(cd,/Related PBIs: PBI-DAB\.md, PBI-UI\.md/);}
+   if(target==='dab')assert.match(await P.read(root,fo+'/PBI-DAB.md'),/CDMS was analyzed as a read-only implementation reference/);
+   if(target==='cdms'){assert.equal(await P.read(root,fo+'/PBI-DAB.md'),null,'no DAB work for CDMS + UI');assert.equal(await P.read(root,fo+'/PBI-UI.md'),null,'UI excluded by the requirement');}}
+ });
+ await test('Approve & Generate refuses with blockers, rolls back a failed generation, and renews a stale approval with history (PBI 305965 regressions)',async()=>{
+  // Conflicting acceptance criteria recorded as an open blocking question: no approval possible, nothing written.
+  {const {root,fo}=await setupCase('both',c=>{c.state.questions.push({id:'Q-9',blocking:true,owner:'po-ba',status:'open',question:'AC-2 and AC-3 conflict on when the code is set: which applies?'});});
+   const st0=await P.read(root,fo+'/pbi-state.json');await assert.rejects(P.approveAndGenerate(root,fo,'Arun'),/Not ready for the final approval[\s\S]*BLOCKING_QUESTION\] Q-9/);
+   assert.equal(await P.read(root,fo+'/pbi-state.json'),st0);assert.equal(await P.read(root,fo+'/PBI-CDMS.md'),null);}
+  // A UI scope excluded by the requirement: Both gives the two backend PBIs only; a reference never becomes a target.
+  {const {root,fo}=await setupCase('both',c=>{c.state.paths.ui={applies:false,reason:'Requirement: no UI changes'};for(const r of c.state.rules)delete r.paths.ui;});
+   const r=await P.approveAndGenerate(root,fo,'Arun');assert.deepEqual(r.documents,['PBI-CDMS.md','PBI-DAB.md']);}
+  {const {root,fo}=await setupCase('dab',c=>{c.state.paths.cdms={applies:true};});
+   await assert.rejects(P.approveAndGenerate(root,fo,'Arun'),/TARGET_SCOPE_CONFLICT\] cdms/);}
+  // The agent claimed Development-Ready too early: the check reports it, and the one approval settles it.
+  {const {root,fo}=await setupCase('cdms',c=>{c.state.status='Development-Ready';c.docs.draft=c.docs.draft.replace(/^Status:.*$/m,'Status: Development-Ready');});
+   assert.deepEqual((await P.checkPbi(root,fo)).issues.map(i=>i.code),['APPROVAL_PENDING','STATUS_OVERCLAIMED']);assert.equal((await P.approveAndGenerate(root,fo,'Arun')).check.computedStatus,'Development-Ready');}
+  // A failed write restores every touched file and reports the failure; nothing is approved.
+  {const {root,fo}=await setupCase('dab');const st0=await P.read(root,fo+'/pbi-state.json'),d0=await P.read(root,fo+'/DRAFT-PBI.md');
+   const pbis=await (await root.getDirectoryHandle('playbook')).getDirectoryHandle('pbis'),dir=await pbis.getDirectoryHandle(CASE_PBI),proto=Object.getPrototypeOf(dir),orig=proto.getFileHandle;
+   proto.getFileHandle=async function(n,o){if(n==='PBI-DAB.docx'&&o&&o.create)throw Error('Simulated disk full');return orig.call(this,n,o);};
+   try{await assert.rejects(P.approveAndGenerate(root,fo,'Arun'),/Generation failed; nothing was approved\. Earlier files were restored\. Simulated disk full/);}finally{proto.getFileHandle=orig;}
+   assert.equal(await P.read(root,fo+'/pbi-state.json'),st0);assert.equal(await P.read(root,fo+'/DRAFT-PBI.md'),d0);assert.equal(await P.read(root,fo+'/PBI-DAB.md'),null);assert.equal(await P.read(root,fo+'/PBI-DAB.json'),null);}
+  // Request Changes after approval: the approval goes stale; a new approval replaces it, keeps the old one in approvalHistory and regenerates.
+  {const {root,fo}=await setupCase('cdms');await P.approveAndGenerate(root,fo,'First');
+   const st=JSON.parse(await P.read(root,fo+'/pbi-state.json'));st.rules[1].rule='Formula name is unique within its business unit and region';st.status='Ready for Review';await P.write(root,fo+'/pbi-state.json',JSON.stringify(st,null,2));
+   await P.write(root,fo+'/DRAFT-PBI.md',(await P.read(root,fo+'/DRAFT-PBI.md')).replace(/^Status:.*$/m,'Status: Ready for Review').replace('Formula name is unique within its business unit','Formula name is unique within its business unit and region'));
+   const stale=await P.checkPbi(root,fo,true);assert.ok(stale.issues.some(i=>i.code==='APPROVAL_STALE'&&i.ref==='user: changed BR-2'));
+   const r=await P.approveAndGenerate(root,fo,'Second');assert.equal(r.check.computedStatus,'Development-Ready');
+   const now=JSON.parse(await P.read(root,fo+'/pbi-state.json'));assert.equal(now.approvals.user.by,'Second');assert.equal(now.approvalHistory.at(-1).by,'First');assert.equal(now.approvalHistory.at(-1).status,'stale');
+   assert.match(await P.read(root,fo+'/PBI-CDMS.md'),/and region/);}
+ });
+ await test('a 4.1 pbi.json with application but no repositories keeps the 4.x path rules',async()=>{
+  const c=cases.find(x=>x.name==='fully approved PBI may be finalized'),fo='playbook/pbis/'+CASE_PBI;
+  for(const app of ['cdms','dab','both']){const {root}=await tempRoot('akzo-41-');await shared.writeCase(P,root,fo,c);await P.write(root,fo+'/pbi.json',JSON.stringify({title:'Old',application:app,references:[]}));
+   const r=await P.checkPbi(root,fo);assert.equal(r.computedStatus,'Development-Ready',app);assert.deepEqual(r.issues,[]);}
+ });
+ await test('DOCX output is a valid Word package (Expand-Archive and XML parse in Windows PowerShell)',async()=>{
+  const d=await fs.mkdtemp(path.join(os.tmpdir(),'akzo-docx-'));await fs.writeFile(path.join(d,'t.zip'),Buffer.from(await P.docx('# Title & <x>\n\nStatus: Ready\n\n## Part\n\n- one\n  - two\nplain "text"\n').arrayBuffer()));
+  const r=require('node:child_process').spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',"Expand-Archive -LiteralPath (Join-Path $env:D 't.zip') -DestinationPath (Join-Path $env:D 'x'); foreach($p in 'word/document.xml','word/styles.xml','[Content_Types].xml','_rels/.rels','word/_rels/document.xml.rels'){ [void][xml][IO.File]::ReadAllText((Join-Path (Join-Path $env:D 'x') $p)) }; ([xml][IO.File]::ReadAllText((Join-Path $env:D 'x/word/document.xml'))).document.body.p.Count"],{encoding:'utf8',env:{...process.env,D:d}});
+  assert.equal(r.status,0,r.stderr);assert.equal(r.stdout.trim(),'6');await fs.rm(d,{recursive:true,force:true});
  });
  console.log(`\n${count} meaningful workflow checks passed. Real browser picker and Visual Studio remain machine checks.`);
  await fs.rm(tmp,{recursive:true,force:true});

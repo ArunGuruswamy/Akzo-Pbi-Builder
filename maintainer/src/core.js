@@ -1,7 +1,7 @@
-/* Akzo SDD PBI Builder 4.2.0. Offline; no dependencies or network calls. */
+/* Akzo SDD PBI Builder 5.0.0. Offline; no dependencies or network calls. */
 (function (global) {
 'use strict';
-const VERSION='4.2.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
+const VERSION='5.0.0', BASE='playbook/pbi-builder', CONFIG=BASE+'/config.json', MANIFEST=BASE+'/installed-files.json';
 const AGENT='.github/agents/akzo-sdd-pbi-builder.agent.md', AGENT_PREFIX='Akzo SDD PBI Builder - ';
 const KNOWLEDGE=BASE+'/knowledge/evidence-index.json';
 // A workspace Agent Skill: Visual Studio 18.5+ and VS Code discover .github/skills/<name>/SKILL.md themselves.
@@ -12,6 +12,8 @@ const IDE={visualstudio:{TOOLS:'["readfile", "code_search", "find_references", "
 const enc=new TextEncoder();
 const yaml=s=>JSON.stringify(String(s));
 const esc=s=>yaml(s).slice(1,-1);
+const SOURCE_KEYS=['legacy','dab','cdms','ui'];
+const AREAS={legacy:'Custom (Legacy CRM/XRM)',dab:'DAB (GraphQL)',cdms:'CDMS',ui:'Shared Angular UI'};
 function safePath(path){
  // Windows device names and trailing dots/spaces silently alias other files, so they are rejected too.
  if(typeof path!=='string'||!path||path.includes('\\')||path.startsWith('/')||path.split('/').some(s=>!s||s==='.'||s==='..'||/[\x00-\x1f<>:"|?*]/.test(s)||/[. ]$/.test(s)||/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i.test(s)))throw Error('Invalid relative file path: '+path);
@@ -21,22 +23,30 @@ function line(s,max=200){s=String(s??'').trim();if(!s||/[\r\n\x00-\x1f]/.test(s)
 function normalizeConfig(c){
  if(c.schemaVersion!==undefined&&c.schemaVersion!==1)throw Error('Unsupported config schemaVersion '+c.schemaVersion+'; this package reads version 1.');
  const projectName=line(c.projectName,100), ide=c.ide==='vscode'?'vscode':'visualstudio';
- if(!['legacy','dab','cdms','other'].includes(c.role))throw Error('Choose the role of this repository.');
+ if(!['legacy','dab','cdms','ui','other'].includes(c.role))throw Error('Choose the role of this repository.');
  const sources={};
- for(const key of ['legacy','dab','cdms']){const val=String(c.sources?.[key]??'').trim();if(/[\r\n\x00-\x1f]/.test(val))throw Error('Source paths must be on one line.');sources[key]=val.replace(/\\/g,'/');}
+ for(const key of SOURCE_KEYS){const val=String(c.sources?.[key]??'').trim();if(/[\r\n\x00-\x1f]/.test(val))throw Error('Source paths must be on one line.');sources[key]=val.replace(/\\/g,'/');}
  if(c.role!=='other')sources[c.role]='.';
  // Other repositories: named, read-only implementation references (Install-PBIBuilder.ps1 New-Config mirrors this).
  const others=[],raw=Array.isArray(c.others)?c.others:[];if(raw.length>10)throw Error('Configure at most 10 other repositories.');
  for(const o of raw){const name=line(o?.name,60),path=String(o?.path??'').trim().replace(/\\/g,'/');
   if(!path||/[\r\n\x00-\x1f]/.test(path))throw Error('Give each other repository one path on one line: '+name);
-  if(['legacy','dab','cdms'].includes(name.toLowerCase())||others.some(x=>x.name.toLowerCase()===name.toLowerCase()))throw Error('Other repository names must be unique and not Legacy, DAB or CDMS: '+name);
+  if(SOURCE_KEYS.includes(name.toLowerCase())||others.some(x=>x.name.toLowerCase()===name.toLowerCase()))throw Error('Other repository names must be unique and not Legacy, DAB, CDMS or UI: '+name);
   others.push({name,path});}
  return {schemaVersion:1,packageVersion:VERSION,projectName,ide,role:c.role,agentName:AGENT_PREFIX+projectName,includeReferences:!!c.includeReferences,sources,others};
 }
-// Reference repositories a PBI can use: every configured repository except the target application.
+// Development targets: the repositories each choice implements in and the ones it always analyzes read-only.
+// DAB always reads CDMS as a reference; the shared Angular UI is implemented once, never per backend.
+const TARGETS={
+ cdms:{label:'CDMS + UI',implement:['cdms','ui'],reference:['legacy'],documents:['PBI-CDMS.md'],order:'Legacy → CDMS → Shared Angular UI'},
+ dab:{label:'DAB + UI',implement:['dab','ui'],reference:['legacy','cdms'],documents:['PBI-DAB.md'],order:'Legacy → CDMS (reference) → DAB → Shared Angular UI'},
+ ui:{label:'UI Only',implement:['ui'],reference:['legacy','cdms','dab'],documents:['PBI-UI.md'],order:'Legacy → CDMS/DAB contracts (reference) → Shared Angular UI'},
+ both:{label:'Both (CDMS + DAB + UI)',implement:['cdms','dab','ui'],reference:['legacy'],documents:['PBI-CDMS.md','PBI-DAB.md','PBI-UI.md'],order:'Legacy → CDMS → DAB → Shared Angular UI'},
+ unsure:{label:'Not decided yet',implement:[],reference:[],documents:[],order:''}};
+// Additional references a PBI can choose: every configured repository the target does not already use.
 function referenceOptions(c,application){
- const target=application==='both'?['cdms','dab']:[application],out=[];
- for(const key of ['legacy','cdms','dab'])if(!target.includes(key))out.push({key,label:AREAS[key]});
+ const t=TARGETS[application]||TARGETS.unsure,used=[...t.implement,...t.reference],out=[];
+ for(const key of SOURCE_KEYS)if(!used.includes(key))out.push({key,label:AREAS[key]});
  for(const o of c.others||[])out.push({key:o.name,label:o.name});
  return out;
 }
@@ -44,7 +54,7 @@ function referenceOptions(c,application){
 const NO_DOCS=' []';
 function analysisDocs(referenceNames){return referenceNames.map(n=>`\n  - path: "${esc(BASE+'/references/'+n)}"\n    status: "Historical reference; not verified against the current checkout."`).join('');}
 function values(c,referenceNames){
- return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,OTHER_SOURCES:c.others.length?c.others.map(o=>`\n  - name: "${esc(o.name)}"\n    repositoryPath: "${esc(o.path)}"`).join(''):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
+ return {PROJECT:c.projectName,PROJECT_ESC:esc(c.projectName),ROLE:c.role,SRC_LEGACY_ESC:esc(c.sources.legacy),SRC_DAB_ESC:esc(c.sources.dab),SRC_CDMS_ESC:esc(c.sources.cdms),SRC_UI_ESC:esc(c.sources.ui),ANALYSIS_DOCS:c.includeReferences?analysisDocs(referenceNames):NO_DOCS,OTHER_SOURCES:c.others.length?c.others.map(o=>`\n  - name: "${esc(o.name)}"\n    repositoryPath: "${esc(o.path)}"`).join(''):NO_DOCS,CONFIG_JSON:JSON.stringify(c,null,2),...IDE[c.ide]};
 }
 function render(template,v,label){return template.replace(/\{\{PBI:([A-Z0-9_]+)\}\}/g,(m,k)=>{if(!Object.prototype.hasOwnProperty.call(v,k))throw Error('Unresolved placeholder '+m+' in '+label);return v[k];});}
 
@@ -133,7 +143,9 @@ At the end of each analysis add to EVIDENCE.md: files read, searches run,
 evidence index entries reused and refreshed, so runs can be compared.
 
 ## Commands
-Create PBI (also New PBI, Create User Story, Refine New Requirement, Start PBI);
+Start PBI (also Create PBI, New PBI, Start Development, Implement PBI, Create
+User Story, Refine New Requirement): all start the same intake below; Start
+Development and Implement PBI prepare the PBI and never change application code.
 Resume PBI <n>; Continue PBI <n>; Refine PBI <n>: <change>; Review PBI <n>;
 Edit PBI <n>; Show Decisions <n>; Analyze Legacy <n>; Show Technical Flow <n>;
 Extract Plugin Rules <n> [plugin, entity or operation];
@@ -150,9 +162,11 @@ contract, handoff or dependency. CDMS reuses verified existing plugin behavior
 and adds what is missing. business-rule-ownership.md has the details.
 
 ## Application areas
-There are three application areas, and only these names are used:
+There are four application areas, and only these names are used:
 - CDMS: the new CDMS application (sources.yaml key cdms).
 - DAB (GraphQL): DAB, its Azure Functions and its GraphQL API (key dab).
+- Shared Angular UI: the one Angular application CDMS and DAB share (key ui,
+  for example AN.ColorAppsAzure.UI).
 - Custom (Legacy CRM/XRM): the legacy CRM customizations: plugins, classic
   workflows, custom workflow activities, JavaScript web resources and ribbon
   (key legacy; evidence system legacy-crm). It is where CDMS and DAB business
@@ -170,13 +184,18 @@ it appears in rules and criteria, and never infer a separate codebase, area or
 question scope from it.
 
 ## Start a PBI: one compact intake
-Create PBI needs only these, asked together in one message and only when
-missing: 1. the PBI number or title; 2. the requirement or acceptance criteria;
-3. optionally, the investigation scope (for example legacy only); 4. the target
-application (DAB, CDMS or Both). Then one "Select Implementation References"
-question (multi-select, none allowed; guided-pbi-creation.md). When the
-message, a REQUEST.md, pbi.json or an attachment already gives them, ask
-nothing and start investigating. Infer everything else (module, kind of change,
+The wizard's New PBI tab is the intake form; prefer it. In chat, Start PBI needs
+only these, asked together in one message and only when missing: 1. PBI number
+(Azure DevOps or a manual identifier); 2. PBI title; 3. description; 4.
+acceptance criteria, preserved exactly as given; 5. optional attachments. Then,
+without waiting for anything else: "Select Legacy Source Repository" (the
+configured legacy repository or another configured one), then "Which project
+are you developing the PBI for?" with exactly these single-choice options:
+1. CDMS + UI; 2. DAB + UI; 3. UI Only; 4. Both (CDMS + DAB + UI). Record the
+choices in pbi.json and do not ask them again unless the user changes the target.
+When the message, a REQUEST.md, pbi.json or an attachment already gives them, ask
+nothing and start investigating. When a PBI with the same number exists, offer
+Resume, Review or Start New Version; never overwrite its records. Infer everything else (module, kind of change,
 application areas, criteria to draft, supporting material) from the
 requirement and the repository, and show the inferences in the first progress
 summary for correction. Never ask for separate approval of the title, module,
@@ -206,8 +225,8 @@ knowledge notes that you verify against current source.
   reusable code facts only.
 Create its folder under playbook/pbis/
 only once a title or number exists; inspect existing folders first and, when one
-matches, offer Resume existing, Create separate draft or Cancel. Never overwrite
-an existing request.
+matches, offer Resume, Review or Start New Version (a new folder). Never
+overwrite an existing request.
 
 ## Continue or refine an existing PBI
 When the user says "Continue PBI" or "Refine PBI", resolve the folder from the
@@ -297,14 +316,86 @@ analysis, solution design, the SDD handoff, acceptance criteria, test cases and
 implementation recommendations; every technical recommendation names the files
 and execution path it rests on.
 
+## Development targets
+pbi.json application is the development target; pbi.json repositories lists
+each repository with its role. The wizard resolves them; in chat resolve them
+from sources.yaml the same way. Reference repositories are read-only: never
+create, edit or delete a file there, never propose changes there, and a
+reference never becomes an implementation target or changes scope.
+- CDMS + UI (cdms): analyze Legacy → CDMS → Shared Angular UI. Existing legacy
+  behavior, existing CDMS implementation, missing CDMS functionality, existing
+  UI, required backend and UI changes, API dependencies, validation and tests.
+  No DAB work. Deliverable: PBI-CDMS.md, with the applicable shared UI work in a
+  clearly owned "Shared Angular UI" section.
+- DAB + UI (dab): analyze Legacy → CDMS → DAB → Shared Angular UI. Always inspect
+  CDMS as an implementation reference, even though only DAB was chosen: what
+  CDMS already implements, differences between CDMS and DAB, reusable business
+  logic, backend API integration differences. Never modify CDMS or plan CDMS
+  work. Deliverable: PBI-DAB.md with verified CDMS references and the
+  applicable shared UI section.
+- UI Only (ui): analyze Legacy → the relevant CDMS and DAB contracts → Shared
+  Angular UI: components, routes and guards, services and API clients, forms
+  and validation, reusable controls. No backend implementation work.
+  Deliverable: PBI-UI.md.
+- Both (both): analyze Legacy → CDMS → DAB → Shared Angular UI. Deliverables:
+  PBI-CDMS.md (CDMS backend), PBI-DAB.md (DAB backend) and PBI-UI.md (shared
+  UI, once). Both backend PBIs reference PBI-UI.md and keep their own API
+  contracts, validation rules and dependencies; never put the UI work in both.
+Record each target as a path in pbi-state.json (paths.cdms, paths.dab,
+paths.ui) and every path the target excludes as applies false with a reason.
+When the requirement explicitly excludes UI changes, keep that decision:
+paths.ui applies false with the quoted requirement as reason; the UI
+repository may still be read as a reference.
+
+## Shared Angular UI
+CDMS and DAB use one Angular application (sources.yaml ui). Before any UI work,
+inspect its existing components, services and API clients, routes and guards,
+form validations, reusable controls and relevant project configuration, and
+decide whether a UI change is genuinely needed. Never create a duplicate
+component for equivalent functionality and never plan separate CDMS and DAB
+implementations of one user-facing feature: when the two backends need
+different API integrations, put that integration logic inside the shared UI
+architecture. When the ui source is not configured or unreadable, report it as
+inaccessible and continue with the evidence available.
+
+## Legacy to CDMS to DAB mapping
+For each business capability record in VALIDATION-MATRIX.md: legacy
+implementation; existing CDMS implementation; existing DAB implementation;
+required new implementation; shared UI impact; authorization; integration
+dependencies; regression tests. Inspect legacy plugins, workflows, JavaScript,
+custom actions, entity operations, security rules and integrations, and
+translate the business behavior into each target's own architecture (for DAB:
+Clean Architecture, CQRS commands and handlers, FluentValidation, application
+services, GraphQL clients, dependency injection, naming and test patterns, as
+the DAB code actually uses them). Never copy CRM plugin or workflow code into
+DAB. Keep existing error messages and validation behavior where the PBI needs
+compatibility, and name every difference.
+
+## Analysis modes
+pbi.json analysisMode (default deep):
+- quick: search the relevant symbols, identify the likely implementation files,
+  focused dependency review.
+- deep: trace the business logic and method call chains, validation and
+  authorization, service and repository dependencies, relevant configuration,
+  compare legacy and modern implementations, identify affected tests.
+- comprehensive: everything in deep, plus cross-repository dependencies,
+  execution paths, architectural and integration impact, comparison of related
+  implementations and detailed implementation traceability.
+In every mode read actual code; never conclude from file names or keyword hits
+alone, and never claim to have analyzed a file you could not open. Classify
+each finding Verified (read in source, with path and symbol), Proposed (your
+design), Unverified (not established; say what would verify it) or
+Contradicted (sources or requirements disagree; name both). Source presence is
+not deployed runtime behavior, and not finding a feature in the inspected
+source never proves the whole application lacks it.
+
 ## Multi-repository implementation analysis
-Each PBI has one target application (pbi.json application) and zero or more
-implementation references (pbi.json references) that the user chose for this
-PBI only: legacy, cdms, dab or the name of a repository under
-otherRepositories in sources.yaml. Never carry references over from another PBI.
+Besides the references the target implies, the user may choose additional
+implementation references for this PBI only (pbi.json references): legacy,
+cdms, dab, ui or the name of a repository under otherRepositories in
+sources.yaml. Never carry references over from another PBI.
 Always analyze the target first: its actual source, what already exists and
-what is missing. Then analyze each reference, read-only: never create, edit or
-delete a file in a reference repository and never propose changes there.
+what is missing. Then analyze each reference, read-only.
 - Legacy: business rules, CRM workflows, validations and database operations
   that must be preserved.
 - CDMS (when it is a reference): similar features and modernized patterns:
@@ -363,11 +454,19 @@ goes into the technical assessment as a gap; it does not stop business
 refinement and is never a business question. Do not ask the user to confirm a
 technical fact you can find in code. Never assume that missing code means a
 business rule does not exist.
-Ask one decision at a time, or at most three related decisions in one message,
-after analysis, and only for a genuine business ambiguity, missing functional behavior, a conflict or a material
-product-owner choice. Before asking, check the request, this conversation, the
-PBI's questions and decisions, DECISION-LOG.md and the evidence; skip the
-question if any of them already answers it, including in different words.
+Before asking anything, read the description and acceptance criteria, the
+PBI's questions and decisions, DECISION-LOG.md, verified legacy behavior and the
+relevant CDMS and DAB implementation; skip any question they already answer,
+including in different words. A business rule the request states explicitly
+needs no question: record it at once as an approved decision with "source":
+"request" and evidence quoting REQUEST.md (section and words). Never record an
+inference, a recommendation or existing legacy behavior that way.
+Ask only what materially changes requirements or implementation: a genuine
+business ambiguity, missing functional behavior, a conflict or a material
+product-owner choice. Contradictory acceptance criteria are a conflict: name
+both criteria and ask; never resolve them silently. After analysis, present all
+remaining questions together in one consolidated decision review (each
+question numbered, with its own choices), not one message per question.
 Present every question as the Business Decision Advisor describes: what happens
 today, what the requirement expects, what is missing, your recommendation and
 why, numbered choices (recommended option first, real alternatives, then Custom
@@ -412,10 +511,14 @@ Keep each PBI under its own playbook/pbis/<folder>/:
   covered), then concise source references, revisions, findings, confidence
   and gaps.
 - pbi-state.json: the structured record defined in readiness-and-approval.md.
-- REFINED-PBI.md, or PBI-CDMS.md and/or PBI-DAB.md for the selected
-  applications (business-rule-ownership.md): the final PBI, created only as
-  described below.
-- history/: prior versions of every changed document.
+- PBI-CDMS.md, PBI-DAB.md and/or PBI-UI.md for the development target, each
+  with a .docx and a .json copy (business-rule-ownership.md): generated from
+  pbi-state.json by the wizard's Approve & Generate, never by you. A PBI
+  without a development target gets REFINED-PBI.md the same way.
+- history/: prior versions of every changed document. Copy a document there
+  yourself (history/<name>.<timestamp>.<ext>) before every change; never ask
+  the user to run a snapshot or backup command. Keep pbi-state.json the one
+  authoritative workflow state and update the other documents from it.
 Only on request, never as a step of investigation or readiness: PLUGIN-RULES.md
 (Extract Plugin Rules), PLUGIN-WORKFLOW-COVERAGE.md (Analyze Workflows),
 LEGACY-BUSINESS-RULE-CATALOG.md, SHARED-BUSINESS-RULES.md,
@@ -441,39 +544,38 @@ correctness, and you cannot authenticate an approval: record what was stated.
 The aim is to resolve foreseeable blockers before development; new
 implementation evidence may still need clarification later.
 
-## Final revalidation and approval
-When all business rules and acceptance criteria have been reviewed, cross-check
-them against the original request, current source evidence, plugin/workflow
-ownership, target execution paths and recorded decisions. Confirm that every rule
-maps to acceptance criteria, that the relevant positive, negative, boundary and
-permission scenarios are covered, and that no blocking question, contradiction or
-unsupported assumption remains. Every path in scope (CDMS, DAB and any other
-recorded path) must be assessed for every rule, with evidence or an explicit
-reason. Resolve blocking business questions with the PO/BA and technical ones
-with the technical owner. Ask the user to run Check PBI readiness in the
-wizard or PowerShell and resolve every reported issue; repeat this after any
-change.
-Then present ONE consolidated approval summary, quoting the approval
-fingerprints from the check, requesting:
-1. PO/BA approval: business rules, scope, exceptions and acceptance criteria.
-2. Technical approval: feasibility, dependencies, permissions, evidence and
-   CDMS versus DAB/OCP/GraphQL validation responsibilities.
-3. Final user approval: permission to generate the final REFINED-PBI.md.
-Offer each approval as numbered choices the user selects (the interactive
-question tool where available), never as text to type: 1. Approved; 2. Change
-Requested (ask what to change, apply it, rerun the check and present the summary
-again; nothing is approved); 3. Custom Response (record it word for word; it
-approves only when it explicitly approves).
-Record each explicit approval separately with the basis the check printed for
-it, copied unchanged. Keep documents as drafts while approval is pending. Create
-or update REFINED-PBI.md and set Development-Ready only after all three
-approvals are recorded and the check reports that the final document is
-allowed. Never infer approval from silence, from an earlier unrelated decision
-or from another PBI. If approved material changes, the check marks the affected
-approvals stale even when no rev changed: keep the old approval in
-approvalHistory, mark it stale, revalidate and request renewed approval.
-Once the PBI is Development-Ready, stop asking refinement questions and provide
-the reviewable deliverables. Do not invent additional blockers.
+## Final revalidation and the one approval
+Record business decisions, evidence, validation-matrix rows, analysis steps,
+history copies and documents yourself as you go; none of them needs the user's
+confirmation. When all business rules and acceptance criteria have been
+reviewed, cross-check them against the original request, current source
+evidence, plugin/workflow ownership, target execution paths and recorded
+decisions. Confirm that every rule maps to acceptance criteria, that the
+relevant positive, negative, boundary and permission scenarios are covered, and
+that no blocking question, contradiction or unsupported assumption remains.
+Every path the target includes must be assessed for every rule, with evidence
+or an explicit reason. Write DRAFT-PBI.md with Status: Ready for Review.
+Then send the user to the wizard's Continue tab, Review & approve: it runs the
+readiness check and shows one approval screen (requirements, repository
+analysis, implementation approach, decisions, technical readiness) with
+Approve & Generate, Request Changes and Save Draft. Only Approve & Generate
+records the user's final approval, bound to the fingerprint of the reviewed
+content; the wizard then generates the final PBIs, verifies them and offers the
+downloads. Never write the final approval or the final PBI documents yourself,
+and never ask for separate PO/BA, technical or per-document approvals.
+PO/BA, security, architecture or technical sign-off that the organization
+requires happens outside this tool: list it in the summary as an external
+approval still to obtain, and record approvals.poba or approvals.technical only
+when the user states that a named person actually gave it (with the basis the
+check printed, copied unchanged). The user's approval of the draft is never
+PO/BA or technical approval. Never claim Development-Ready while the check
+reports a blocker. Never infer approval from silence, from an earlier unrelated
+decision or from another PBI. Request Changes writes a refinement brief: apply it, rerun
+the check and send the user back to Review & approve. If approved material
+changes, the check marks the approval stale: keep the old one in
+approvalHistory and ask for a new approval in the wizard.
+Once the PBI is Development-Ready, stop asking refinement questions. Do not
+invent additional blockers.
 
 ## Communication
 Use short, complete English sentences suitable for PO and BA. Default summary,
@@ -663,17 +765,22 @@ status proposed, approved, superseded. coverage defaults to positive and negativ
 - A rule may carry "branches" (business-rule-branch-completeness.md): each with
   id, condition, expected, cdms/dab coverage for the applications in scope,
   evidence, acceptance (AC IDs of this rule) and risk when conflicting.
-- PBI-CDMS.md and PBI-DAB.md (earlier name: CDMS-/DAB-REFINED-PBI.md, still
-  read) are final documents like
-  REFINED-PBI.md: blocked before approval, checked for the same text, and
-  reported when their application does not apply (DOC_OUT_OF_SCOPE).
+- PBI-CDMS.md, PBI-DAB.md and PBI-UI.md (earlier names CDMS-/DAB-REFINED-PBI.md
+  are still read) are final documents like REFINED-PBI.md: blocked before
+  approval, checked for the same text, and reported when their path does not
+  apply (DOC_OUT_OF_SCOPE). The wizard's Approve & Generate writes them.
 - Evidence may carry "component": cdms-api, xrm-service, plugin, workflow,
   custom-activity, javascript, web-resource, ribbon, dab or other. When a rule's code evidence names components,
   each plugin, workflow, custom-activity or xrm-service owner needs code
   evidence from that component (OWNER_MISATTRIBUTED otherwise).
-- paths lists every application path considered for this PBI. cdms and dab are
-  always required; add ocp, graphql or others when relevant. Every rule assesses
-  every path that applies, with evidence of level reach for reaches or bypasses.
+- paths lists every application path considered for this PBI. The development
+  target in pbi.json decides which must be recorded: CDMS + UI cdms and ui;
+  DAB + UI dab and ui; UI Only ui; Both cdms, dab and ui; no target cdms and
+  dab. A required path may apply false only with a reason (for example the
+  requirement excludes UI changes). A path the target excludes must not apply
+  (TARGET_SCOPE_CONFLICT): a reference repository never becomes a target. Add
+  ocp, graphql or others when relevant. Every rule assesses every path that
+  applies, with evidence of level reach for reaches or bypasses.
 - IDs are unique across all lists. Every rule and criterion has an integer rev
   starting at 1; increase it when meaning, evidence or scope changes.
 - Write each rule and criterion in full. The PBI document must contain the same
@@ -690,8 +797,8 @@ status proposed, approved, superseded. coverage defaults to positive and negativ
   dependency; rule or criterion text missing, a placeholder (TBD/TODO/TBC) or
   under 12 characters; a rule lacking a required coverage type; a link to an
   unknown rule or dependency; duplicate IDs.
-- Needs Evidence: cdms or dab missing from paths, or a path ruled out without a
-  reason; an applicable path not assessed for a rule, unknown, or not-applicable
+- Needs Evidence: a path the target requires missing from paths, or a path
+  ruled out without a reason; an applicable path not assessed for a rule, unknown, or not-applicable
   without a reason; a rule claiming a path the PBI scope excludes; an evidence ID
   without a record; an owner without code-level evidence; a registration claim
   without registration-level evidence; a path claim without reach-level
@@ -705,33 +812,44 @@ status proposed, approved, superseded. coverage defaults to positive and negativ
   question open, or resolved without a resolution and a decisionRef to an
   approved decision; an open assumption that changes behavior; a proposed or
   evidence-less decision; a decision recorded for another PBI; a supersedes link
-  to a decision not marked superseded.
-- Ready for Review: a PO/BA, technical or final user approval that is missing,
-  incomplete (needs status approved, by, at, evidence), unbound or stale; a
+  to a decision not marked superseded; a path the development target excludes
+  recorded as applying.
+- Ready for Review: the final user approval missing, incomplete (needs status
+  approved, by, at, evidence), unbound or stale; a recorded PO/BA or technical
+  approval that is incomplete, unbound or stale; a
   document whose status, IDs or rule/criterion text differs from the state; a
   decision missing from DECISION-LOG.md; REFINED-PBI.md present before
   Development-Ready; a claimed status above the computed one.
 - Development-Ready: none of the above.
 
 ## Approvals bound to the reviewed content
+One approval is required: the user's final approval (approvals.user), given
+with Approve & Generate on the wizard's Review & approve screen. The wizard runs
+the check, records {"status": "approved", "by", "at", "evidence", "basis"}
+with the basis the check computed, and generates the final PBIs. Never write or
+edit approvals.user or any basis yourself.
 The check fingerprints every record each approval covers:
-- PO/BA: rules, criteria, actors, decisions, questions, assumptions, paths.
-- Technical: rules, criteria, actors, evidence (including the content of local
-  evidence files), dependencies, questions, feasibility, paths.
-- Final user: all of the above.
-When it reports Ready for Review, the check prints an approval basis per
-approval. Ask the user to run it and paste the result; quote each fingerprint in
-the consolidated approval request. When an approval is given, record:
-{"status": "approved", "by": "<name as stated>", "at": "<date as stated>",
-"evidence": "<where and how it was given>", "basis": <that approval's basis,
-copied unchanged>}. Never write or edit basis values yourself.
+- Final user: rules, criteria, actors, decisions, questions, assumptions,
+  evidence (including the content of local evidence files), dependencies,
+  feasibility, paths.
+- PO/BA (optional, external): rules, criteria, actors, decisions, questions,
+  assumptions, paths.
+- Technical (optional, external): rules, criteria, actors, evidence,
+  dependencies, questions, feasibility, paths.
+PO/BA and technical sign-off are organizational requirements outside this tool.
+Record approvals.poba or approvals.technical only when the user states that a
+named person actually gave it: {"status": "approved", "by": "<name as stated>",
+"at": "<date as stated>", "evidence": "<where and how>", "basis": <that
+approval's basis as the check printed it, copied unchanged>}. A recorded one is
+checked like the final approval; one not recorded does not block, and the
+user's approval never stands in for it.
 Any change, addition or removal in covered material makes the approval stale,
 even when no rev changed; the check names the changed IDs. Reformatting
 whitespace does not. When an approval is stale or replaced, append the old
 record unchanged to approvalHistory with "scope", "status": "stale" and
 "staleReason" naming what changed, set the approval to {"status": "pending"},
-revalidate and ask for renewed approval. Never delete history or decisions;
-supersede a decision with a new one.
+revalidate and ask for a new approval in the wizard. Never delete history or
+decisions; supersede a decision with a new one.
 
 ## Migrating a 3.0.0 pbi-state.json (schemaVersion 1)
 Copy the file to history/ first. Set schemaVersion 2; add paths, evidence
@@ -743,10 +861,12 @@ each rule's paths to {"status", "evidence"} or {"status", "reason"}. Move every
 check never accepts a 3.0.0 approval, so the PBI needs renewed approval.
 
 ## Finalizing
-After all three approvals are recorded, set status Development-Ready in
-pbi-state.json and DRAFT-PBI.md and ask the user to run the check. Create or
-update REFINED-PBI.md only when it reports "Final REFINED-PBI.md allowed: yes",
-then ask for one more check.
+When the check reports Ready for Review and only the final approval is
+missing, set status Ready for Review in pbi-state.json and DRAFT-PBI.md and send
+the user to Review & approve. Approve & Generate records the approval, sets
+Development-Ready in pbi-state.json and DRAFT-PBI.md, writes the final PBIs
+(Markdown, DOCX and JSON), reruns the check and verifies every file; if any
+step fails it restores the earlier files and reports the failure.
 
 ## What the check enforces and what depends on you
 Enforced by code, identically in the wizard and PowerShell: every condition
@@ -757,17 +877,18 @@ current, or whether a basis was copied honestly. It reports; it does not stop a
 file from being written.
 Depends on you following these instructions: investigation quality, asking the
 right owner, recording words and dates as stated, keeping history, never
-editing basis values, and not creating REFINED-PBI.md or claiming
-Development-Ready before the check allows it.
+editing basis values, and never writing final PBIs or claiming
+Development-Ready yourself.
 
 ## Consolidated approval summary
-After final revalidation, present one summary with: the rules and exceptions;
-scope and the paths that apply; acceptance criteria per rule; validation
-ownership and CDMS versus DAB/OCP/GraphQL responsibilities with evidence
-levels; permissions; dependencies; feasibility; evidence gaps and remaining
-risks; and the approval fingerprints. Then ask for PO/BA approval, technical
-approval and final user approval to generate REFINED-PBI.md. Record each answer
-separately before finalizing.
+The wizard's Review & approve screen is the summary: PBI number and title;
+requirements and acceptance criteria with completion status; repository
+analysis; implementation approach (CDMS, DAB and shared UI responsibilities);
+business decisions and outstanding issues; technical readiness with the actual
+blockers. Before sending the user there, make sure DRAFT-PBI.md states the
+rules and exceptions, the paths that apply, validation ownership with evidence
+levels, permissions, dependencies, feasibility, evidence gaps and remaining
+risks, and the external approvals the organization still needs.
 `;
 
 const SKILL_GUIDED=`# Guide: guided PBI creation, commands and business questions
@@ -794,18 +915,22 @@ plugins or workflows; keep that vocabulary out of the default flow.
 When the user's message, a REQUEST.md, pbi.json or an attachment already holds
 the PBI number or title and the requirement, ask nothing: start the analysis.
 Otherwise ask once, in one message, only for what is missing:
-1. PBI number or title.
-2. Requirement or acceptance criteria, in the user's own words (any length,
-   pasted Azure DevOps text, Markdown, rules or code).
-3. Optional: investigation scope (for example legacy only, or one workflow).
-4. Target application: DAB, CDMS or Both (the application that gets the change).
-Then, unless pbi.json already records references, show one question titled
-"Select Implementation References": a multi-select of every repository in
-sources.yaml except the target (Legacy, CDMS, DAB, each otherRepositories name).
-In VS Code use the interactive question tool with multiple selection; elsewhere
-list them numbered and accept several numbers, or 0 for none. Record the target
-and the selected references in pbi.json and REQUEST.md, then investigate as
-"Multi-repository implementation analysis" describes.
+1. PBI number (Azure DevOps or a manual identifier).
+2. PBI title.
+3. Description, in the user's own words (any length, pasted Azure DevOps text,
+   Markdown, rules or code).
+4. Acceptance criteria, kept exactly as given (numbered, bullets or pasted).
+5. Optional attachments.
+Then "Select Legacy Source Repository": the configured legacy repository and the
+other configured repositories, numbered; say that new ones are added in the
+wizard's Setup tab (removing one there never deletes its folder). Then "Which
+project are you developing the PBI for?", single choice: 1. CDMS + UI;
+2. DAB + UI; 3. UI Only; 4. Both (CDMS + DAB + UI). Show each repository's role
+(Legacy — Business Reference; CDMS or DAB — Implementation Target or Reference;
+Angular UI — Shared Frontend) and any missing path, then record the choices in
+pbi.json and REQUEST.md and investigate as "Development targets" describes.
+Additional implementation references and the analysis mode (Quick, Deep —
+the default — or Comprehensive) are optional; ask only if the user brings them up.
 Then infer the rest and show it in the first progress summary for correction:
 - Acceptance criteria not given: draft Given/When/Then criteria, each traced to
   a sentence of the requirement and marked proposed; an outcome the requirement
@@ -830,8 +955,8 @@ change type or criteria. Create the folder playbook/pbis/pbi-<number>-<short-tit
 (Windows-safe) once a title or number exists, and write REQUEST.md and pbi.json
 with "wizard": {"step": "<current step>", "status": "draft" or
 "ready-for-analysis"} after each step, so Save draft and Resume work after a
-restart. If a folder for the same number or title exists, offer Resume
-existing, Create separate draft or Cancel; never overwrite its files.
+restart. If a folder for the same number or title exists, offer Resume,
+Review or Start New Version; never overwrite its files.
 
 ## Start analysis
 Save the original requirement, then investigate autonomously (the agent's
@@ -877,9 +1002,11 @@ meaning, not only wording; the check flags identical text.
   on the PBI's operations and write PLUGIN-WORKFLOW-COVERAGE.md
   (xrm-workflow-intelligence.md), within the evidence scope.
 - Generate Acceptance Criteria: draft proposed Given/When/Then criteria.
-- Export PBI: produce REFINED-PBI.md only when readiness allows it; otherwise
-  export DRAFT-PBI.md clearly marked as a draft.
-- Validate PBI: ask the user to run Check PBI readiness and explain the result.
+- Export PBI: the final PBIs come from the wizard's Review & approve (Approve &
+  Generate, then the download dialog); before that, export DRAFT-PBI.md
+  clearly marked as a draft.
+- Validate PBI: ask the user to run Check PBI readiness (or open Review &
+  approve) and explain the result.
 
 ## Generated PBI
 Business objective, user story, scope, functional requirements, business rules,
@@ -1221,12 +1348,14 @@ write passes through the CRM pipeline, record that as a technical observation
 (possible double enforcement); it does not change DAB's responsibility.
 
 ## Application selection
-Infer it from the requirement and source (the areas whose code implements or
-must implement the rules) and state it in the first progress summary. Ask once,
-only when they cannot establish it: CDMS, DAB or Both, plus a custom answer.
-Record the answer as an approved decision and as paths.cdms and paths.dab "applies" in
-pbi-state.json (with a reason for the one that does not apply). Never ask again
-unless the user changes it.
+The development target (pbi.json application) is CDMS + UI, DAB + UI, UI Only
+or Both; the wizard asks for it. When it is missing, infer it from the
+requirement and source and ask once, only when they cannot establish it. Record
+it as an approved decision and as paths in pbi-state.json: every path the
+target includes (cdms, dab, ui) with applies true, or false with a reason only
+when the requirement excludes it; a path the target excludes never applies.
+Never ask again unless the user changes it. DAB + UI always reads CDMS as a
+read-only implementation reference (the agent's "Development targets").
 
 ## Sources to read
 Legacy rules may live in any of these; read the actual code, never infer a
@@ -1333,13 +1462,19 @@ pbi-state.json and DRAFT-PBI.md.
   implementation status, CDMS development action, DAB implementation owner
   (layer), DAB implementation status, DAB development action, acceptance
   criteria, evidence confidence.
-- PBI-CDMS.md and PBI-DAB.md: the final application PBIs, created only when
-  the check allows a final document (the check also reports an application
-  document for an application not in scope). Application CDMS: only
-  PBI-CDMS.md. DAB: only PBI-DAB.md. Both: exactly these two separate PBIs,
-  never one combined plan and never a gap-analysis report. PBI-CDMS.md and
-  PBI-DAB.md were called CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md before 4.1;
-  existing ones are still read, and new ones use the new names.
+- PBI-CDMS.md, PBI-DAB.md and PBI-UI.md: the final PBIs, generated from
+  pbi-state.json by the wizard's Approve & Generate (with .docx and .json
+  copies) after the one final approval; never write them yourself. CDMS + UI:
+  only PBI-CDMS.md, with its shared UI section. DAB + UI: only PBI-DAB.md, with
+  its verified CDMS references and shared UI section. UI Only: only PBI-UI.md.
+  Both: PBI-CDMS.md, PBI-DAB.md and one PBI-UI.md; the UI work appears once,
+  in PBI-UI.md, and both backend PBIs reference it. A rule belongs to a
+  document when its path for that application applies (rule paths.cdms,
+  paths.dab, paths.ui); the other rules are listed there as related
+  requirements, so every document stays traceable to the whole request. Never
+  one combined plan and never a gap-analysis report. Before 4.1 PBI-CDMS.md and
+  PBI-DAB.md were called CDMS-REFINED-PBI.md and DAB-REFINED-PBI.md; existing
+  ones are still read.
   Each one is independently understandable and actionable by its own team and
   contains its own title, description, functional requirements, business rules
   and validations (full rule and criterion text), technical implementation
@@ -1356,10 +1491,14 @@ pbi-state.json and DRAFT-PBI.md.
     (DAB never reaches those plugins): workflows, validations, handlers,
     domain services, GraphQL integration and tests. Never omit a DAB
     validation because CDMS relies on a plugin.
-  Each can be reviewed and edited on its own; the approvals in pbi-state.json
-  cover the PBI as a whole, so a change requested for one document renews the
-  approval for both. Creating Azure DevOps work items is outside this agent:
-  never publish them; the user creates one item per document.
+  - PBI-UI.md: the shared Angular UI work once: existing components,
+    services, routes, guards and validations to reuse, required changes, the
+    API integration per backend, and tests.
+  The one final approval in pbi-state.json covers the PBI as a whole, so a
+  change requested for one document renews it for all. Creating Azure DevOps
+  work items is outside this agent: never publish them and never invent work
+  item IDs; the documents carry local draft identifiers, and the user creates
+  one item per document.
 - VALIDATION-MATRIX.md, DECISION-LOG.md, EVIDENCE.md and pbi-state.json as
   usual; ACCEPTANCE-CRITERIA.md on request. DRAFT-PBI.md remains the working document; with a
   single application the final document is REFINED-PBI.md or that application's
@@ -1574,8 +1713,10 @@ a technical fact that source can establish; investigate that instead.
 - Check the request, its attachments, this conversation, the questions and
   decisions in pbi-state.json and DECISION-LOG.md. Skip the question if any of
   them already answers it, even in other words.
-- Finish investigating independent rules first. Ask one decision at a time, or
-  at most three related decisions in one message.
+- Finish investigating first, then present every remaining decision together
+  in one consolidated decision review, each question in the format below.
+- A rule the request states explicitly is not a question: record it as an
+  approved decision with "source": "request" and the quoted request text.
 - Check every option before recommending it:
   1. Does it satisfy the explicit acceptance criteria?
   2. Does it conflict with an approved decision?
@@ -1638,10 +1779,14 @@ First-time check: ask "Check this PBI Builder setup. Read ${BASE}/config.json
 and sources.yaml, read one relevant source file, and report missing sources.
 Do not modify files."
 
-Every new PBI: select the agent and type "Create PBI". It asks only for what is
-missing (number or title, requirement, optional investigation scope),
-investigates the source on its own and asks only genuine business decisions,
-each with a recommendation and numbered choices. To resume: "Continue PBI <number, title or folder>". To request changes:
+Every new PBI: use the form's New PBI tab, or select the agent and type "Start
+PBI". It collects the number, title, description, acceptance criteria and
+attachments together, then the legacy repository and the development target
+(CDMS + UI, DAB + UI, UI Only or Both), investigates the source on its own and
+asks only genuine business decisions, together in one decision review, each
+with a recommendation and numbered choices. When the analysis is done, open the
+form's Review & approve: one approval generates the final PBIs (Markdown, DOCX
+and JSON) and offers them for download. To resume: "Continue PBI <number, title or folder>". To request changes:
 "Refine PBI <number, title or folder>: <what changed>". A new PBI gets a new
 folder and starts without decisions; refinement preserves the PBI and its decisions.
 
@@ -1654,8 +1799,9 @@ folder and starts without decisions; refinement preserves the PBI and its decisi
 - pbi-state.json per PBI and a deterministic readiness check (wizard button or
   Install-PBIBuilder.ps1 -Action CheckPbi). It checks completeness and
   consistency, not business correctness or approval authenticity.
-- A final revalidation and one consolidated approval request (PO/BA, technical,
-  final user) before REFINED-PBI.md is created. Drafts live in DRAFT-PBI.md.
+- A final revalidation and one final approval (Review & approve in the form)
+  before the final PBIs are generated. Drafts live in DRAFT-PBI.md. PO/BA and
+  technical sign-off stay organizational steps outside this tool.
 - Reusable knowledge in ${BASE}/knowledge/ with content fingerprints that flag
   changed source as stale.
 
@@ -1953,7 +2099,7 @@ project:
   repositoryPath: "."
   role: "{{PBI:ROLE}}"
 sources:
-${['legacy','dab','cdms'].map(k=>`  ${k}:\n    area: "${AREAS[k]}"\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
+${SOURCE_KEYS.map(k=>`  ${k}:\n    area: "${AREAS[k]}"\n    repositoryPath: "{{PBI:SRC_${k.toUpperCase()}_ESC}}"\n    availability: "Must verify by reading relevant files; an empty path is not configured."`).join('\n')}
 otherRepositories:{{PBI:OTHER_SOURCES}}
 analysisDocuments:{{PBI:ANALYSIS_DOCS}}
 `},
@@ -1963,7 +2109,7 @@ analysisDocuments:{{PBI:ANALYSIS_DOCS}}
   {path:BASE+'/README.md',template:README_TEMPLATE},{path:BASE+'/PBI-Builder.html',source:'html'}];
  for(const [name,text] of Object.entries(assets.references)){safePath(name);t.push({path:BASE+'/references/'+name,text,when:'includeReferences'});}
  t.push({path:BASE+'/REFERENCES-INDEX.md',text:referencesIndex(assets),when:'includeReferences'});
- for(const mode of ['new','refine'])t.push({path:`.github/prompts/akzo-pbi-${mode}.prompt.md`,template:`---\nname: akzo-pbi-${mode}\ndescription: ${yaml(mode==='new'?'Start a new PBI with a compact intake.':'Continue an existing PBI using saved decisions.')}\nagent: "${AGENT_PREFIX}{{PBI:PROJECT_ESC}}"\n---\n\n${mode==='new'?'Start a new PBI. In one message, ask only for what is missing: the PBI number or title, the requirement, and optionally the investigation scope. Then investigate autonomously following your installed workflow.':'Refine an existing PBI. Ask for its number, title or folder if missing; resolve it, read saved documents and ask what changed.'}\n`});
+ for(const mode of ['new','refine'])t.push({path:`.github/prompts/akzo-pbi-${mode}.prompt.md`,template:`---\nname: akzo-pbi-${mode}\ndescription: ${yaml(mode==='new'?'Start a new PBI with one intake form.':'Continue an existing PBI using saved decisions.')}\nagent: "${AGENT_PREFIX}{{PBI:PROJECT_ESC}}"\n---\n\n${mode==='new'?'Start PBI. In one message, ask only for what is missing: PBI number, title, description, acceptance criteria and optional attachments; then the legacy source repository and the development target (CDMS + UI, DAB + UI, UI Only or Both). Then investigate autonomously following your installed workflow.':'Refine an existing PBI. Ask for its number, title or folder if missing; resolve it, read saved documents and ask what changed.'}\n`});
  return t;
 }
 function setupFiles(raw,assets,html){const c=normalizeConfig(raw),v=values(c,Object.keys(assets.references)),files={};
@@ -1974,7 +2120,7 @@ function baselineAgent(c,key){const b=BASELINES[key];if(!b)throw Error('Unknown 
 // Generation contract consumed by Install-PBIBuilder.ps1. Bump schemaVersion on any incompatible change.
 function bundle(assets){
  return {schemaVersion:1,packageVersion:VERSION,base:BASE,agentPath:AGENT,agentPrefix:AGENT_PREFIX,manifest:MANIFEST,knowledgeIndex:KNOWLEDGE,
-  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','ANALYSIS_DOCS','OTHER_SOURCES','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
+  tokens:['PROJECT','PROJECT_ESC','ROLE','SRC_LEGACY_ESC','SRC_DAB_ESC','SRC_CDMS_ESC','SRC_UI_ESC','ANALYSIS_DOCS','OTHER_SOURCES','CONFIG_JSON','TOOLS','BASE_TOOLS','IDE_LABEL'],
   analysisDocs:{included:analysisDocs(Object.keys(assets.references)),excluded:NO_DOCS},ideProfiles:IDE,legacyFiles:LEGACY_FILES,setup:templates(assets),
   baselines:Object.fromEntries(Object.entries(BASELINES).map(([k,b])=>[k,{label:b.label,path:b.path,template:b.template}])),
   readiness:READINESS};
@@ -2040,8 +2186,8 @@ function slug(s){return String(s).normalize('NFKD').replace(/[\u0300-\u036f]/g,'
 function stamp(){return new Date().toISOString().replace(/[-:TZ.]/g,'');}
 function uid(){return global.crypto.randomUUID().slice(0,8);}
 const CHANGE_TYPES={'new':'A new feature','enhance':'Enhances existing functionality','fix':'Fixes an existing issue','migrate':'Migrates legacy functionality','unsure':'Not sure'};
-const AREAS={legacy:'Custom (Legacy CRM/XRM)',dab:'DAB (GraphQL)',cdms:'CDMS'};
-const APPLICATIONS={cdms:'CDMS',dab:'DAB',both:'Both (CDMS and DAB)',unsure:'Not decided yet'};
+const APPLICATIONS=Object.fromEntries(Object.entries(TARGETS).map(([k,t])=>[k,t.label]));
+const ANALYSIS_MODES={quick:'Quick',deep:'Deep',comprehensive:'Comprehensive'};
 const AC_MODES={enter:'Entered by the user',draft:'Agent drafts Given/When/Then criteria for review',attached:'In an attachment',skip:'Skipped for now'};
 // Attachment names become one safe file name inside the PBI's attachments/ folder.
 function attachmentPath(folder,name,taken=[]){let n=String(name??'').replace(/[\x00-\x1f<>:"|?*\\/]/g,'_').replace(/[. ]+$/,'').trim().slice(-120)||'attachment';
@@ -2049,7 +2195,8 @@ function attachmentPath(folder,name,taken=[]){let n=String(name??'').replace(/[\
  let path=folder+'/attachments/'+n,i=2;while(taken.includes(path))path=folder+'/attachments/'+n.replace(/(\.[^.]*)?$/,'-'+(i++)+'$1');safePath(path);return path;}
 function newPbi(c,data){
  const title=line(data.title,240),description=String(data.description??'').trim(),draft=data.draft===true;
- const number=String(data.number??'').trim();if(number&&!/^\d{1,12}$/.test(number))throw Error('PBI number must contain digits only; leave it blank if not created.');
+ // Azure DevOps numbers or manual identifiers such as LOCAL-12; they become part of the folder name.
+ const number=String(data.number??'').trim();if(number&&!/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/.test(number))throw Error('PBI number: use the Azure DevOps number or an identifier of letters, digits, dots, dashes or underscores (up to 40).');
  const names=Array.isArray(data.attachments)?data.attachments.map(String):[];
  // Resuming a draft keeps its folder and the attachments already copied into it.
  let folder;if(data.folder!==undefined){folder=String(data.folder);safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');}
@@ -2062,18 +2209,25 @@ function newPbi(c,data){
  if(!draft&&acMode==='attached'&&!names.length&&!kept.length)throw Error('Attach the file that contains the acceptance criteria, or choose another option.');
  const changeType=data.changeType===undefined||data.changeType===''?'unsure':data.changeType;if(!CHANGE_TYPES[changeType])throw Error('Choose what kind of change this is.');
  const project=data.project?line(data.project,100):c.projectName;
- const application=data.application===undefined||data.application===''?'unsure':data.application;if(!APPLICATIONS[application])throw Error('Choose the application: CDMS, DAB or Both.');
+ const application=data.application===undefined||data.application===''?'unsure':data.application;if(!APPLICATIONS[application])throw Error('Choose the development target: CDMS + UI, DAB + UI, UI Only or Both.');
  const offered=referenceOptions(c,application),references=[];
  for(const r of Array.isArray(data.references)?data.references:[]){const o=offered.find(x=>x.key===r);if(!o)throw Error('Implementation reference not available for this target: '+r);if(!references.includes(r))references.push(r);}
  const refLabels=references.map(r=>offered.find(x=>x.key===r).label);
+ const analysisMode=data.analysisMode===undefined||data.analysisMode===''?'deep':data.analysisMode;if(!ANALYSIS_MODES[analysisMode])throw Error('Choose the analysis mode: Quick, Deep or Comprehensive.');
+ // Legacy source chosen for this PBI: the configured legacy repository or a named other repository.
+ let legacy=null;if(data.legacy!==undefined&&data.legacy!==null&&data.legacy!==''){const key=String(data.legacy),o=key==='legacy'?{name:AREAS.legacy,path:c.sources.legacy}:c.others.find(x=>x.name===key);
+  if(!o||!o.path)throw Error('The selected legacy repository is not configured: '+key+'. Add it in Setup first.');legacy={key,name:o.name,path:o.path};}
+ const T=TARGETS[application],pathOf=k=>k==='legacy'&&legacy?legacy.path:c.sources[k]||'';
+ const repositories=[...T.reference.map(k=>({key:k,use:'reference'})),...T.implement.map(k=>({key:k,use:'implement'}))].map(r=>({...r,area:AREAS[r.key],path:pathOf(r.key)}));
  folder=folder||'playbook/pbis/'+(number?'pbi-'+number+'-':'pbi-')+slug(title)+'-'+stamp()+'-'+uid();
  const attachments=[],taken=kept.map(x=>x.path);for(const n of names){const at=attachmentPath(folder,n,taken);taken.push(at);attachments.push(at);}
  const all=[...kept,...attachments.map((path,i)=>({name:names[i],path}))];
- const request={schemaVersion:1,title,number,project,application,references,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
+ const request={schemaVersion:1,title,number,project,application,references,legacy,analysisMode,repositories,description,changeType,notes:String(data.notes??'').trim(),scope:String(data.scope??'').trim(),acceptanceCriteriaMode:acMode,acceptanceCriteria:acMode==='enter'?acceptanceCriteria:'',
   attachments:all,businessReason:String(data.businessReason??'').trim(),businessExample:String(data.businessExample??'').trim(),businessUnit:String(data.businessUnit??'').trim(),
   createdAt:new Date().toISOString(),wizard:{step:draft?String(data.step??'review'):'analysis',status:draft?'draft':'ready-for-analysis'},status:draft?'Draft intake — not sent for analysis':'Intake — AI refinement not started'};
  const list=all.length?all.map(x=>'- '+x.name+' → '+x.path.slice(folder.length+1)).join('\n'):'None';
- const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Application',APPLICATIONS[application]],['Implementation references (read-only)',refLabels.length?refLabels.join(', '):'None selected'],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
+ const roles=repositories.map(r=>'- '+r.area+' — '+(r.key==='legacy'?'Business reference':r.key==='ui'?'Shared frontend (implementation target)':r.use==='implement'?'Implementation target':'Implementation reference (read-only)')+': '+(r.key==='legacy'&&legacy?legacy.name+' ('+(r.path||'path not configured')+')':r.path||'not configured')).join('\n');
+ const fields=[['Title',title],['PBI number',number||'Not created'],['Target project',project],['Development target',APPLICATIONS[application]],['Repositories',roles||'Resolved by the agent'],['Analysis mode',ANALYSIS_MODES[analysisMode]],['Additional implementation references (read-only)',refLabels.length?refLabels.join(', '):'None selected'],['Kind of change',CHANGE_TYPES[changeType]],['Description',description||'See attachments'],
   ['Acceptance criteria',acMode==='enter'?acceptanceCriteria:AC_MODES[acMode]],['Attachments (not yet reviewed)',list],['Investigation scope',request.scope||'Not limited'],['Additional notes',request.notes||'None'],
   ['Business reason',request.businessReason||'Not known yet'],['Business example',request.businessExample||'Not known yet'],['Business Unit / Sub-BU',request.businessUnit||'Not known yet']];
  const md='# Original PBI request\n\n'+fields.map(([k,v])=>'## '+k+'\n\n'+v).join('\n\n')+'\n\nStatus: '+request.status+'. No approvals recorded.\n';
@@ -2081,11 +2235,13 @@ function newPbi(c,data){
   :`Start PBI preparation for ${yaml(title)}.\nRead ${folder}/REQUEST.md and pbi.json and follow your installed PBI Builder workflow (guide: guided-pbi-creation.md).\n`
   +(all.length?`Read the attachments listed there; report any you cannot open instead of guessing their content.\n`:'')
   +(request.scope?`Investigation scope, chosen by the user: ${request.scope}. Stay within it unless an essential dependency needs clarifying.\n`:'')
-  +(application==='unsure'?`Infer whether this PBI is for CDMS, DAB or Both from the requirement and source; ask once only if they cannot establish it.
-`:`Application: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again.
+  +(application==='unsure'?`Infer the development target (CDMS + UI, DAB + UI, UI Only or Both) from the requirement and source; ask once only if they cannot establish it.
+`:`Development target: ${APPLICATIONS[application]}, chosen by the user; record it as an approved decision and do not ask again. Analysis order: ${T.order}. Implement in: ${T.implement.map(k=>AREAS[k]).join(', ')}. Read-only references: ${T.reference.map(k=>AREAS[k]).join(', ')} (never modify them; follow "Development targets").
 `)
-  +(application==='both'?`Final deliverables: exactly two separate PBIs, PBI-CDMS.md and PBI-DAB.md, each complete for its own team (business-rule-ownership.md); never one combined plan.\n`:application==='unsure'?'':`Final deliverable: only ${application==='cdms'?'PBI-CDMS.md':'PBI-DAB.md'}.\n`)
-  +(refLabels.length?`Implementation references, chosen by the user (read-only; never modify them): ${refLabels.join(', ')}. Analyze the target first, then each reference, and write the implementation comparison as described in "Multi-repository implementation analysis".\n`:`No implementation references selected: analyze the target repository only.\n`)
+  +(legacy?`Legacy source repository for this PBI: ${legacy.name} (${legacy.path}).\n`:'')
+  +`Analysis mode: ${ANALYSIS_MODES[analysisMode]} (see "Analysis modes").\n`
+  +(T.documents.length?`Final deliverables, generated by the wizard after the one final approval: ${T.documents.join(', ')}${application==='both'?' (the shared UI work once, in PBI-UI.md only)':''}.\n`:'')
+  +(refLabels.length?`Additional implementation references, chosen by the user (read-only; never modify them): ${refLabels.join(', ')}. Write the implementation comparison as described in "Multi-repository implementation analysis".\n`:'')
   +(acMode==='draft'?`Draft Given/When/Then acceptance criteria from the description, each traced to the text and marked proposed for review.\n`:'')
   +`Save this PBI's documents in ${folder}/. Investigate autonomously, without asking permission, until the rules have evidence or a genuine business decision blocks progress; then ask through the Business Decision Advisor.\nThis PBI starts with no decisions or approvals. Start fresh: use nothing from earlier PBIs, earlier chats or Copilot memory; take requirements only from this request and its attachments, and facts only from source you read for it.\nDo not change application code or publish a work item.`;
  return {folder,request,prompt,attachments,files:{[folder+'/REQUEST.md']:md,[folder+'/pbi.json']:JSON.stringify(request,null,2)+'\n',[folder+'/START-PROMPT.txt']:prompt+'\n'}};
@@ -2200,10 +2356,14 @@ const READINESS={
  branchCoverage:['covered','partial','missing','conflicting','unverified','not-applicable'],branchApps:['cdms','dab'],
  // Bundled reference reports describe past code; they never count as evidence levels.
  historicalPaths:[BASE+'/references/',BASE+'/REFERENCES-INDEX.md'],
- finalDocs:{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md']},registration:['active','disabled','missing','unknown'],
+ finalDocs:{cdmsRefined:['cdms','PBI-CDMS.md'],dabRefined:['dab','PBI-DAB.md'],uiRefined:['ui','PBI-UI.md']},registration:['active','disabled','missing','unknown'],
  pathStatus:['reaches','bypasses','unknown','not-applicable'],actions:['reuse','verify','extend','implement','resolve-gap'],
  acTypes:['positive','negative','boundary','permission'],identities:['caller','impersonated','service','unknown'],approvals:['poba','technical','user'],
- requiredPaths:['cdms','dab'],evidenceLevels:['code','registration','reach','runtime'],evidenceKinds:['repo-file','external'],
+ // Only the user's final approval is required; PO/BA and technical approvals are checked only when recorded.
+ requiredApprovals:['user'],
+ requiredPaths:['cdms','dab'],targetKeys:['cdms','dab','ui'],
+ // Paths each development target must record (pbi.json application); requiredPaths applies without a target.
+ targetPaths:Object.fromEntries(['cdms','dab','ui','both'].map(k=>[k,TARGETS[k].implement])),evidenceLevels:['code','registration','reach','runtime'],evidenceKinds:['repo-file','external'],
  evidenceSystems:['legacy-crm','cdms','dab','ocp','graphql','other'],questionResolved:['resolved','answered','approved','not-applicable'],
  lists:['rules','acceptanceCriteria','actors','evidence','decisions','dependencies','questions','assumptions'],
  // Material each approval is bound to; a change, addition or removal in it makes that approval stale.
@@ -2260,6 +2420,7 @@ const READINESS={
   DOC_STATUS_MISMATCH:'Document Status line differs from pbi-state.json.',DOC_MISSING_ID:'Rule, criterion or dependency ID is missing from the PBI document.',
   DOC_CONTENT_MISMATCH:'Rule or criterion text in the PBI document differs from pbi-state.json.',
   DECISION_NOT_LOGGED:'Decision ID is missing from DECISION-LOG.md.',
+  TARGET_SCOPE_CONFLICT:'A path the development target excludes is recorded as applying; a reference repository never becomes an implementation target. Change the target or record the path as not applying.',
   FINAL_WITHOUT_APPROVAL:'REFINED-PBI.md exists before the PBI is Development-Ready.',STATUS_OVERCLAIMED:'Claimed status is higher than the computed status.'}};
 const norm=s=>s.replace(/[ \t\r\n]+/g,' ').replace(/^ | $/g,'');
 // Canonical JSON for fingerprints: sorted keys, whitespace runs in text collapsed (reformatting is not a change).
@@ -2297,8 +2458,10 @@ async function readiness(state,docs,pbi){
   const evScope=obj(state.evidenceScope)?state.evidenceScope:{},excluded=arr(evScope.exclude).filter(x=>typeof x==='string');
   if(excluded.length&&byId(decisions,evScope.decisionRef)?.status!=='approved')add('SCOPE_DECISION_MISSING',2,pbi);
   const scope=obj(state.paths)?state.paths:{},applies=[];
-  for(const k of R.requiredPaths)if(!has(scope,k))add('PATH_SCOPE_MISSING',1,k);
+  const target=typeof docs.application==='string'&&has(R.targetPaths,docs.application)?R.targetPaths[docs.application]:null;
+  for(const k of target||R.requiredPaths)if(!has(scope,k))add('PATH_SCOPE_MISSING',1,k);
   for(const k of Object.keys(scope).sort()){const v=scope[k];if(!obj(v)||typeof v.applies!=='boolean'||(!v.applies&&!str(v.reason)))add('PATH_SCOPE_MISSING',1,k);else if(v.applies)applies.push(k);}
+  if(target)for(const k of R.targetKeys)if(!target.includes(k)&&applies.includes(k))add('TARGET_SCOPE_CONFLICT',2,k);
   const ruleIds=rules.filter(r=>obj(r)&&str(r.id)).map(r=>r.id),ruleTexts=[];
   rules.forEach((r,i)=>{
    const id=obj(r)&&str(r.id)?r.id:'rule '+(i+1);
@@ -2390,7 +2553,7 @@ async function readiness(state,docs,pbi){
   for(const k of R.approvals){const m=new Map();for(const n of R.scopes[k])for(const [key,v] of part[n])m.set(key,v);
    const basis=Object.fromEntries([...m.keys()].sort().map(key=>[key,m.get(key)]));review[k]={fingerprint:await fp(basis),basis};}
   for(const k of R.approvals){const a=obj(state.approvals)?state.approvals[k]:undefined;
-   if(!obj(a)||a.status!=='approved'||!str(a.by)||!str(a.at)||!str(a.evidence)){add('APPROVAL_PENDING',3,k);continue;}
+   if(!obj(a)||a.status!=='approved'||!str(a.by)||!str(a.at)||!str(a.evidence)){if(R.requiredApprovals.includes(k))add('APPROVAL_PENDING',3,k);continue;}
    const b=a.basis;
    if(!obj(b)||!Object.keys(b).length||Object.values(b).some(v=>typeof v!=='string'||!/^[0-9a-f]{16}$/.test(v))){add('APPROVAL_UNBOUND',3,k);continue;}
    const cur=review[k].basis,changed=[],added=[],removed=[];
@@ -2416,11 +2579,126 @@ async function readiness(state,docs,pbi){
  const computed=R.statuses[capOf()];
  return {schemaVersion:2,pbi,claimedStatus:claimed,computedStatus:computed,finalAllowed:computed==='Development-Ready',issues,review};
 }
-async function checkPbi(root,folder){safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');
+// ignoreFinal: judge the working draft only, as Approve & Generate does before it regenerates the final PBIs.
+async function checkPbi(root,folder,ignoreFinal=false){safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');
  const raw=await read(root,folder+'/pbi-state.json');let state=null;if(raw!==null){try{state=JSON.parse(raw);}catch{state=null;}}
  const at=f=>read(root,folder+'/'+f),files=[];
  for(const e of Array.isArray(state?.evidence)?state.evidence:[])if(e&&typeof e==='object'&&e.kind==='repo-file'&&isSafe(e.source)&&!files.some(([p])=>p===e.source))files.push([e.source,await sourceHash(root,e.source)]);
- return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await at('REFINED-PBI.md'),cdmsRefined:(await at('PBI-CDMS.md'))??await at('CDMS-REFINED-PBI.md'),dabRefined:(await at('PBI-DAB.md'))??await at('DAB-REFINED-PBI.md'),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
+ const fin=ignoreFinal?async()=>null:at;
+ return readiness(state,{request:await at('REQUEST.md'),draft:await at('DRAFT-PBI.md'),refined:await fin('REFINED-PBI.md'),cdmsRefined:(await fin('PBI-CDMS.md'))??await fin('CDMS-REFINED-PBI.md'),dabRefined:(await fin('PBI-DAB.md'))??await fin('DAB-REFINED-PBI.md'),uiRefined:await fin('PBI-UI.md'),application:await applicationOf(root,folder),decisionLog:await at('DECISION-LOG.md'),files:Object.fromEntries(files)},folder.split('/').pop());}
+// The development target of a 5.0 intake (pbi.json with repositories); 4.x PBIs record application without it and keep the 4.x path rules.
+async function applicationOf(root,folder){try{const p=JSON.parse(await read(root,folder+'/pbi.json')??'null');return typeof p?.application==='string'&&Array.isArray(p.repositories)?p.application:null;}catch{return null;}}
+// ---- Final PBIs: generated from pbi-state.json after the one final approval (Approve & Generate) ----
+const FINAL_NAMES=['REFINED-PBI.md','PBI-CDMS.md','PBI-DAB.md','PBI-UI.md','CDMS-REFINED-PBI.md','DAB-REFINED-PBI.md'];
+const DOC_KEY={'PBI-CDMS.md':'cdms','PBI-DAB.md':'dab','PBI-UI.md':'ui'},DOC_TITLE={cdms:'CDMS backend',dab:'DAB backend',ui:'Shared Angular UI'};
+// Issues the final approval itself resolves; anything else blocks Approve & Generate.
+// A status claimed above the computed one is corrected by the approval itself.
+function approvalBlockers(result){return result.issues.filter(i=>!(((i.code==='APPROVAL_PENDING'||i.code==='APPROVAL_UNBOUND')&&i.ref==='user')||(i.code==='APPROVAL_STALE'&&i.ref.startsWith('user:'))||i.code==='STATUS_OVERCLAIMED'));}
+// One Markdown document per development-target deliverable. Each lists every rule, criterion and dependency
+// (the readiness check requires them in every final document): its own work in full, the rest as related requirements.
+function finalDocuments(request,state,folder){
+ const app=TARGETS[request?.application]&&request.application!=='unsure'?request.application:null,applies=k=>state.paths?.[k]?.applies===true;
+ // A deliverable whose path the requirement excludes (for example no UI change) is not produced.
+ const names=app?TARGETS[app].documents.filter(n=>applies(DOC_KEY[n])):['REFINED-PBI.md'];
+ if(!names.length)throw Error('No final PBI applies: every path of the development target '+APPLICATIONS[app]+' is recorded as not applying. Change the target or the paths.');
+ const arr=x=>Array.isArray(x)?x.filter(y=>y&&typeof y==='object'):[],rules=arr(state.rules),acs=arr(state.acceptanceCriteria),evidence=arr(state.evidence),deps=arr(state.dependencies);
+ const ref=request?.number?'PBI '+request.number:String(request?.title??state.pbi);
+ const a=state.approvals?.user||{},ext=k=>{const x=state.approvals?.[k];return x?.status==='approved'?'recorded: '+x.by+', '+x.at+' ('+x.evidence+')':'not recorded by this tool; obtain it as your organization requires';};
+ return names.map(name=>{
+  const key=DOC_KEY[name]||null,own=!key?null:app==='both'?[key]:TARGETS[app].implement;
+  const mine=r=>!own||own.some(k=>applies(k)&&r.paths?.[k]&&r.paths[k].status!=='not-applicable');
+  const ownRules=rules.filter(mine),ownIds=ownRules.map(r=>r.id),otherRules=rules.filter(r=>!mine(r));
+  const ownAcs=acs.filter(x=>Array.isArray(x.rules)&&x.rules.some(id=>ownIds.includes(id))),otherAcs=acs.filter(x=>!ownAcs.includes(x));
+  const cited=[...new Set(ownRules.flatMap(r=>[...(Array.isArray(r.evidence)?r.evidence:[]),...Object.values(r.paths||{}).flatMap(p=>Array.isArray(p?.evidence)?p.evidence:[])]))].map(id=>evidence.find(e=>e.id===id)).filter(Boolean);
+  const related=names.filter(n=>n!==name),label=key?DOC_TITLE[key]:'Refined PBI',L=[];
+  const ruleBlock=r=>{L.push('### '+r.id+' (rev '+r.rev+')','',String(r.rule),'');
+   if(r.context)L.push('- Context: '+r.context);if(r.owner)L.push('- Enforced today by: '+r.owner.type+(r.owner.component?' ('+r.owner.component+')':'')+(Array.isArray(r.owner.types)?' ('+r.owner.types.join(', ')+')':''));
+   if(r.targetAction)L.push('- Development action: '+r.targetAction);if(r.dab)L.push('- DAB: '+r.dab.status+(r.dab.layer?', layer '+r.dab.layer:'')+(r.dab.reason?' ('+r.dab.reason+')':''));
+   for(const [k,p] of Object.entries(r.paths||{}))if(p)L.push('- Path '+k+': '+p.status+(Array.isArray(p.evidence)&&p.evidence.length?' ('+p.evidence.join(', ')+')':'')+(p.reason?' — '+p.reason:''));
+   if(r.decisionRef)L.push('- Decision: '+r.decisionRef);if(Array.isArray(r.dependencies)&&r.dependencies.length)L.push('- Dependencies: '+r.dependencies.join(', '));L.push('');};
+  const acLine=x=>'- '+x.id+' ('+x.type+'; '+(x.rules||[]).join(', ')+'): '+x.criterion;
+  L.push('# '+(request?.title||state.pbi)+' — '+label,'','Status: '+state.status,'',
+   '- PBI number: '+(request?.number||'Not created')+'. Local draft identifier: '+state.pbi+(key?'-'+key.toUpperCase():'')+' (no Azure DevOps work item was created).',
+   '- Shared requirement: '+ref+', '+folder+'/REQUEST.md','- Development target: '+(app?APPLICATIONS[app]:'Not recorded'),
+   '- Related PBIs: '+(related.join(', ')||'None'),'- Generated from pbi-state.json by Akzo SDD PBI Builder '+VERSION+'.','',
+   '## Description','',String(request?.description||'See REQUEST.md.'),'',
+   '## Original acceptance criteria (as submitted)','',String(request?.acceptanceCriteria||'None entered in the intake; see Acceptance criteria.'),'',
+   '## Business requirements','');
+  ownRules.length?ownRules.forEach(ruleBlock):L.push('No business rule of this PBI applies to '+label+'.','');
+  L.push('## Acceptance criteria','',...(ownAcs.length?ownAcs.map(acLine):['None for this document.']),'',
+   '## Technical implementation approach','');
+  for(const r of ownRules){L.push('- '+r.id+': '+(r.targetAction||'see rule')+(own?' in '+own.filter(applies).map(k=>AREAS[k]).join(' and '):'')+'.');
+   for(const b of Array.isArray(r.branches)?r.branches:[])if(b&&b.id)L.push('  - Branch '+b.id+': when '+b.condition+', '+b.expected+'.');}
+  if(app==='both'&&key!=='ui')L.push('- Shared Angular UI work is in PBI-UI.md, once, for both backends.');
+  if(key==='dab')L.push('- CDMS was analyzed as a read-only implementation reference; see the code references.');
+  L.push('','## Existing code references','',...(cited.length?cited.map(e=>'- '+e.id+' ['+e.level+'] '+e.source+' — '+e.location+': '+e.summary+(e.revision?' ('+e.revision+')':'')):['None cited.']),'',
+   '## Dependencies','',...(deps.length?deps.map(d=>'- '+d.id+' ('+d.repository+'): '+d.responsibility):['None.']),'',
+   '## Validation requirements','');
+  for(const r of ownRules)L.push('- '+r.id+': '+(Array.isArray(r.coverage)&&r.coverage.length?r.coverage:['positive','negative']).join(', ')+' scenarios'+(r.owner?.type?'; enforced by '+r.owner.type:'')+'.');
+  if(!ownRules.length)L.push('None.');
+  L.push('','## Test scenarios','',...(ownAcs.length?ownAcs.map(x=>'- Verify '+x.id+' ('+x.type+')'):['None for this document.']),'',
+   '## Business decisions','',...(arr(state.decisions).filter(d=>d.status==='approved').map(d=>'- '+d.id+': '+(d.decision||d.summary||'')+' ('+d.evidence+')')),'',
+   '## Open issues and assumptions','');
+  const open=[...arr(state.assumptions).filter(x=>x.status!=='resolved').map(x=>'- '+x.id+': '+(x.text||x.assumption||x.description||'assumption')+' (open)'),
+   ...arr(state.questions).filter(q=>q.status==='deferred').map(q=>'- '+q.id+': '+q.question+' (decide later)')];
+  L.push(...(open.length?open:['None recorded.']),'','## Related requirements owned by other PBIs','');
+  for(const r of otherRules)L.push('- '+r.id+': '+r.rule);for(const x of otherAcs)L.push(acLine(x));if(!otherRules.length&&!otherAcs.length)L.push('None.');
+  L.push('','## Approval','','- Final user approval: '+(a.status==='approved'?a.by+', '+a.at+' ('+a.evidence+')':'pending'),
+   '- PO/BA approval: '+ext('poba'),'- Technical approval: '+ext('technical'),'');
+  const markdown=L.join('\n');
+  const json={schemaVersion:1,generatedBy:'Akzo SDD PBI Builder '+VERSION,document:name,target:key,developmentTarget:app,pbi:{number:request?.number||'',title:request?.title||'',folder},status:state.status,
+   approval:{user:a.status==='approved'?{by:a.by,at:a.at,evidence:a.evidence}:null},rules:ownRules,relatedRules:otherRules.map(r=>r.id),acceptanceCriteria:ownAcs,evidence:cited,dependencies:deps,
+   decisions:arr(state.decisions).filter(d=>d.status==='approved'),openIssues:open.map(s=>s.slice(2))};
+  return {name,key,markdown,json:JSON.stringify(json,null,2)+'\n'};});
+}
+// Minimal WordprocessingML document: headings, bullets and paragraphs from the generated Markdown.
+function docx(markdown){
+ const x=s=>String(s).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const p=(t,style)=>'<w:p>'+(style?'<w:pPr><w:pStyle w:val="'+style+'"/></w:pPr>':'')+'<w:r><w:t xml:space="preserve">'+x(t)+'</w:t></w:r></w:p>',body=[];
+ for(const l of markdown.split(/\r?\n/)){let m;if(!l.trim())continue;
+  if((m=/^(#{1,3})\s+(.*)$/.exec(l)))body.push(p(m[2],'Heading'+m[1].length));
+  else if((m=/^(\s*)[-*]\s+(.*)$/.exec(l)))body.push(p((m[1]?'    ◦ ':'• ')+m[2]));
+  else body.push(p(l));}
+ const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main',R='http://schemas.openxmlformats.org/package/2006/relationships',H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+ return zip({'[Content_Types].xml':H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>',
+  '_rels/.rels':H+'<Relationships xmlns="'+R+'"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+  'word/_rels/document.xml.rels':H+'<Relationships xmlns="'+R+'"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+  'word/styles.xml':H+'<w:styles xmlns:w="'+W+'"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'
+   +[32,26,22].map((sz,i)=>'<w:style w:type="paragraph" w:styleId="Heading'+(i+1)+'"><w:name w:val="heading '+(i+1)+'"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/><w:outlineLvl w:val="'+i+'"/></w:pPr><w:rPr><w:b/><w:sz w:val="'+sz+'"/></w:rPr></w:style>').join('')+'</w:styles>',
+  'word/document.xml':H+'<w:document xmlns:w="'+W+'"><w:body>'+body.join('')+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>'});
+}
+async function bytesOf(root,path){const f=await file(root,path);return f===null?null:new Uint8Array(await f.arrayBuffer());}
+// Records the user's final approval bound to the reviewed content, generates the final PBIs (Markdown, DOCX, JSON),
+// verifies every file and the readiness check, and restores every touched file when any step fails.
+async function approveAndGenerate(root,folder,who){safePath(folder);if(!/^playbook\/pbis\/[^/]+$/.test(folder))throw Error('Select one PBI folder under playbook/pbis.');
+ const by=line(who,120),before=await checkPbi(root,folder,true),blockers=approvalBlockers(before);
+ if(blockers.length)throw Error('Not ready for the final approval ('+before.computedStatus+'). Resolve these first:\n'+blockers.map(i=>'['+i.code+'] '+i.ref+': '+i.message).join('\n'));
+ const state=JSON.parse(await read(root,folder+'/pbi-state.json'));let request={};try{request=JSON.parse(await read(root,folder+'/pbi.json')??'{}')||{};}catch{}
+ const old=state.approvals?.user,at=new Date().toISOString();state.approvals={...(state.approvals||{})};
+ if(old&&old.status==='approved')state.approvalHistory=[...(Array.isArray(state.approvalHistory)?state.approvalHistory:[]),{...old,scope:'user',status:'stale',staleReason:'Replaced by a new final approval'}];
+ state.approvals.user={status:'approved',by,at,evidence:'Approve & Generate in the PBI Builder wizard',basis:before.review.user.basis};state.status='Development-Ready';
+ const draft=await read(root,folder+'/DRAFT-PBI.md'),docs=finalDocuments(request,state,folder),out={'pbi-state.json':JSON.stringify(state,null,2)+'\n'};
+ if(draft!==null)out['DRAFT-PBI.md']=draft.replace(/^Status:.*$/m,'Status: Development-Ready');
+ for(const d of docs){const base=d.name.replace(/\.md$/,'');out[d.name]=d.markdown;out[base+'.json']=d.json;out[base+'.docx']=new Uint8Array(await docx(d.markdown).arrayBuffer());}
+ // Final documents of an earlier run or target that this run does not produce move to history/.
+ const retire=[];for(const n of FINAL_NAMES)if(!(n in out)&&await file(root,folder+'/'+n)!==null)retire.push(n);
+ const touched=[...Object.keys(out),...retire],prior={},stampv=stamp(),written=[];
+ for(const n of touched)prior[n]=await bytesOf(root,folder+'/'+n);
+ try{
+  for(const n of touched)if(prior[n]!==null)await write(root,folder+'/history/'+n.replace(/(\.[^.]+)$/,'.'+stampv+'$1'),prior[n]);
+  for(const [n,v] of Object.entries(out)){written.push(n);await write(root,folder+'/'+n,v);}
+  for(const n of retire){written.push(n);await remove(root,folder+'/'+n);}
+  const files=[];
+  for(const [n,v] of Object.entries(out)){const b=await bytesOf(root,folder+'/'+n),want=typeof v==='string'?enc.encode(v):v;
+   if(b===null||await hashBytes(b)!==await hashBytes(want))throw Error('Written file does not match: '+n);
+   if(n!=='pbi-state.json'&&n!=='DRAFT-PBI.md')files.push({path:folder+'/'+n,name:n,document:n.replace(/\.(md|json|docx)$/,'.md'),kind:n.split('.').pop(),bytes:b.length,sha256:await hashBytes(b)});}
+  const after=await checkPbi(root,folder);
+  if(after.computedStatus!=='Development-Ready'||after.issues.length)throw Error('The generated PBIs did not pass the readiness check: '+after.issues.map(i=>i.code+' '+i.ref).join('; '));
+  return {folder,documents:docs.map(d=>d.name),files,retired:retire,check:after};
+ }catch(e){const failed=[];
+  for(const n of written){try{if(prior[n]!==null)await write(root,folder+'/'+n,prior[n]);else if(await file(root,folder+'/'+n)!==null)await remove(root,folder+'/'+n);}catch{failed.push(n);}}
+  throw Error('Generation failed; nothing was approved. '+(failed.length?'Could not restore: '+failed.join(', ')+'. ':'Earlier files were restored. ')+e.message);}
+}
 async function sourceHash(root,path){try{const f=await file(root,path);return f===null?null:await hashBytes(await f.arrayBuffer());}catch(e){if(e.name==='TypeMismatchError')return null;throw e;}}
 
 async function hashBytes(bytes){return Array.from(new Uint8Array(await global.crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');}
@@ -2563,6 +2841,6 @@ async function discoverSources(root,config){
  await write(root,SOURCE_MAP,JSON.stringify(map,null,2)+'\n');await write(root,SOURCE_MAP_MD,md);
  return map;
 }
-const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,referenceOptions,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
+const api={VERSION,BASE,CONFIG,MANIFEST,AGENT,KNOWLEDGE,LEGACY_FILES,BASELINES,READINESS,comparison,cleanupComparison,comparisonGuide,baselineAgent,safePath,normalizeConfig,referenceOptions,TARGETS,APPLICATIONS,ANALYSIS_MODES,setupFiles,bundle,render,newPbi,refinePbi,attachmentPath,questionProgress,answerQuestion,skipQuestion,recordAnswer,recordSkip,handoff,branchMatrix,exportHandoff,readiness,checkPbi,approvalBlockers,finalDocuments,docx,approveAndGenerate,readBytes:bytesOf,hashBytes,refreshEvidence,discoverSources,SOURCE_MAP,hash,read,write,plan,apply,uninstallPlan,uninstall,listPbis,zip};
 global.PBI=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -1,5 +1,5 @@
-Akzo SDD PBI Builder 4.2.0
-Validation date: 27 October 2026 (Windows 11, Node 20.20.2, Python 3.13.7,
+Akzo SDD PBI Builder 5.0.0
+Validation date: 30 October 2026 (Windows 11, Node 20.20.2, Python 3.13.7,
 Windows PowerShell 5.1.22621.6133, CurrentUser execution policy RemoteSigned)
 
 BASELINE BEFORE CHANGES
@@ -34,7 +34,19 @@ REFERENCE REPOSITORIES REVIEWED (XRM workflow upgrade; nothing installed or copi
 PASSED
 - Syntax: core.js and ui.js. PowerShell parser for both .ps1 files: 0 errors.
   Installer files are pure ASCII.
-- test-core.cjs: 46 checks on real temporary files.
+- test-core.cjs: 51 checks on real temporary files.
+  - a 4.1 pbi.json (application, no repositories) keeps the 4.x path rules;
+  - 5.0 development targets: repository roles for CDMS + UI, DAB + UI (CDMS always a
+    read-only reference), UI Only (no backend work) and Both (one shared UI); legacy
+    selection; analysis mode; manual identifiers; ui source in sources.yaml;
+  - Approve & Generate for every target on real files: only the user approval
+    missing before, exactly the target's PBIs as MD, DOCX and JSON, approval bound
+    to the reviewed fingerprint, Development-Ready with no issues, history copies;
+  - PBI 305965 regressions: conflicting criteria block approval with nothing
+    written; UI excluded by the requirement; a reference recorded as a target;
+    Development-Ready claimed too early; a failed write restores every file;
+    a changed rule makes the approval stale and a new approval replaces it;
+  - DOCX parsed by Windows PowerShell (Expand-Archive and XML);
   - implementation references: other repositories validated and written to
     sources.yaml, the target never offered, every subset for every target
     recorded in pbi.json, REQUEST.md and the prompt, read-only comparison rules;
@@ -146,7 +158,13 @@ PASSED
   supported only by a bundled historical report, a historical report beside
   current source, and evidence flagged historical.
 - test-ui.cjs: real form handlers with a simulated DOM.
-  - The six-step wizard: progress, required title, Next/Back.
+  - The four-step 5.0 wizard: required fields with inline errors, legacy
+    repository with Validate and Add or remove, development target radios with
+    repository roles, analysis mode, draft and resume, Review summary.
+  - Existing PBI number: Resume, Review, Start New Version, Cancel.
+  - Review & approve: six cards, name required, Approve & Generate, DOCX/MD/JSON
+    and ZIP downloads read back and verified, preview, a tampered file refused,
+    Request Changes, Save Draft, a blocker disables approval.
   - Attachments copied into attachments/; Save draft and Cancel.
   - Resume draft into the same folder; Review summary; Start analysis.
   - A started intake cannot be reopened as a draft.
@@ -159,7 +177,9 @@ PASSED
   - Discover sources writes the source map and reports each source's access.
   - Application choice (Both) shown in Review and saved in REQUEST.md and
     pbi.json; the start prompt says not to ask again.
-- test-ps.cjs: 11 checks with real Windows PowerShell (other repositories via
+- test-ps.cjs: 12 checks with real Windows PowerShell (5.0: -UiSource and -Role ui
+  identical to the form, a 4.x config.json upgrades identically; readiness parity on
+  every fixture case, including the development-target cases; other repositories via
   -OtherSource identical to the form, kept by Repair, cleared by ';'; launchers: Install.cmd,
   Uninstall.cmd, package checksum, missing file, downloaded-file mark with Y/N,
   AllSigned and Restricted not bypassed, interrupted install, repeated install and

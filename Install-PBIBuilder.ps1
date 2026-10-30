@@ -26,10 +26,11 @@ param(
     [string]$RepoPath,
     [string]$ProjectName,
     [ValidateSet('visualstudio', 'vscode')][string]$Ide,
-    [ValidateSet('legacy', 'dab', 'cdms', 'other')][string]$Role,
+    [ValidateSet('legacy', 'dab', 'cdms', 'ui', 'other')][string]$Role,
     [string]$LegacySource,
     [string]$DabSource,
     [string]$CdmsSource,
+    [string]$UiSource,
     [string[]]$OtherSource,
     [switch]$NoReferences,
     [switch]$IncludeReferences,
@@ -42,6 +43,8 @@ Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $Utf8 = New-Object System.Text.UTF8Encoding($false)
 $Sha = [System.Security.Cryptography.SHA256]::Create()
+# Source keys in core.js order (SOURCE_KEYS).
+$SourceKeys = @('legacy', 'dab', 'cdms', 'ui')
 $Ordinal = [System.StringComparison]::Ordinal
 $script:Bound = $PSBoundParameters
 $Interactive = -not $PSBoundParameters.ContainsKey('RepoPath')
@@ -128,9 +131,9 @@ function New-Config($in) {
     if ($null -ne $in.schemaVersion -and -not (Test-One $in.schemaVersion)) { throw "Unsupported config schemaVersion $($in.schemaVersion); this package reads version 1." }
     $name = Read-Line $in.projectName 100 'project name'
     $ideValue = if ([string]$in.ide -ceq 'vscode') { 'vscode' } else { 'visualstudio' }
-    if (-not (Test-In @('legacy', 'dab', 'cdms', 'other') ([string]$in.role))) { throw 'Choose the role of this repository: legacy, dab, cdms or other.' }
+    if (-not (Test-In @('legacy', 'dab', 'cdms', 'ui', 'other') ([string]$in.role))) { throw 'Choose the role of this repository: legacy, dab, cdms, ui or other.' }
     $sources = [ordered]@{}
-    foreach ($k in 'legacy', 'dab', 'cdms') {
+    foreach ($k in $SourceKeys) {
         $v = ([string]$in.sources[$k]).Trim()
         if ($v -match '[\x00-\x1f]') { throw 'Source paths must be on one line.' }
         $sources[$k] = $v.Replace('\', '/')
@@ -143,7 +146,7 @@ function New-Config($in) {
         $n = Read-Line $o.name 60 'name'
         $p = ([string]$o.path).Trim().Replace('\', '/')
         if ($p -eq '' -or $p -match '[\x00-\x1f]') { throw "Give each other repository one path on one line: $n" }
-        if ((Test-In @('legacy', 'dab', 'cdms') $n.ToLowerInvariant()) -or @($others | Where-Object { $_.name.ToLowerInvariant() -ceq $n.ToLowerInvariant() }).Count) { throw "Other repository names must be unique and not Legacy, DAB or CDMS: $n" }
+        if ((Test-In $SourceKeys $n.ToLowerInvariant()) -or @($others | Where-Object { $_.name.ToLowerInvariant() -ceq $n.ToLowerInvariant() }).Count) { throw "Other repository names must be unique and not Legacy, DAB, CDMS or UI: $n" }
         $others += [pscustomobject]@{ name = $n; path = $p }
     }
     return [ordered]@{ schemaVersion = 1; packageVersion = [string]$Bundle.packageVersion; projectName = $name; ide = $ideValue; role = [string]$in.role
@@ -156,12 +159,12 @@ function ConvertTo-ConfigJson($c) {
     return (@('{', '  "schemaVersion": 1,', "  `"packageVersion`": $(& $q $c.packageVersion),", "  `"projectName`": $(& $q $c.projectName),",
             "  `"ide`": $(& $q $c.ide),", "  `"role`": $(& $q $c.role),", "  `"agentName`": $(& $q $c.agentName),",
             "  `"includeReferences`": $(if ($c.includeReferences) { 'true' } else { 'false' }),", '  "sources": {',
-            "    `"legacy`": $(& $q $c.sources.legacy),", "    `"dab`": $(& $q $c.sources.dab),", "    `"cdms`": $(& $q $c.sources.cdms)", '  },', "  `"others`": $others", '}') -join "`n")
+            "    `"legacy`": $(& $q $c.sources.legacy),", "    `"dab`": $(& $q $c.sources.dab),", "    `"cdms`": $(& $q $c.sources.cdms),", "    `"ui`": $(& $q $c.sources.ui)", '  },', "  `"others`": $others", '}') -join "`n")
 }
 function Get-Values($c) {
     $v = New-Map
     $v['PROJECT'] = $c.projectName; $v['PROJECT_ESC'] = ConvertTo-JsEscaped $c.projectName; $v['ROLE'] = $c.role
-    $v['SRC_LEGACY_ESC'] = ConvertTo-JsEscaped $c.sources.legacy; $v['SRC_DAB_ESC'] = ConvertTo-JsEscaped $c.sources.dab; $v['SRC_CDMS_ESC'] = ConvertTo-JsEscaped $c.sources.cdms
+    $v['SRC_LEGACY_ESC'] = ConvertTo-JsEscaped $c.sources.legacy; $v['SRC_DAB_ESC'] = ConvertTo-JsEscaped $c.sources.dab; $v['SRC_CDMS_ESC'] = ConvertTo-JsEscaped $c.sources.cdms; $v['SRC_UI_ESC'] = ConvertTo-JsEscaped $c.sources.ui
     $v['ANALYSIS_DOCS'] = if ($c.includeReferences) { [string]$Bundle.analysisDocs.included } else { [string]$Bundle.analysisDocs.excluded }
     $v['OTHER_SOURCES'] = if ($c.others.Count) { -join @($c.others | ForEach-Object { "`n  - name: `"$(ConvertTo-JsEscaped $_.name)`"`n    repositoryPath: `"$(ConvertTo-JsEscaped $_.path)`"" }) } else { [string]$Bundle.analysisDocs.excluded }
     $v['CONFIG_JSON'] = ConvertTo-ConfigJson $c
@@ -298,6 +301,8 @@ function Get-DocNorm([string]$s) { return Get-Norm ([regex]::Replace($s, '[*`]',
 function Test-HasId([string]$doc, [string]$id) { return [regex]::IsMatch($doc, '(^|[^A-Za-z0-9_-])' + [regex]::Escape($id) + '([^A-Za-z0-9_-]|$)') }
 function Get-Shown($l) { if ($l -is [string]) { return $l } elseif ($null -eq $l) { return 'null' } elseif ($l -is [bool]) { if ($l) { return 'true' }; return 'false' } elseif (Test-Num $l) { return [string]$l }; return ConvertTo-Json -InputObject $l -Compress -Depth 20 }
 function Find-Id($list, $id) { foreach ($x in $list) { if ((Test-Obj $x) -and (Test-Str (Get-Prop $x 'id')) -and (Test-Same $x.id $id)) { return $x } }; return $null }
+# Final document keys in core.js order (cdmsRefined, dabRefined, uiRefined).
+function Get-FinalKeys { return @($Bundle.readiness.finalDocs.PSObject.Properties | ForEach-Object { $_.Name }) }
 function Get-Readiness($state, $docs, [string]$pbi) {
     $Spec = $Bundle.readiness; $S = @($Spec.statuses)
     $issues = New-Object System.Collections.ArrayList
@@ -330,11 +335,13 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         if ($excluded.Count -and -not (Test-Same (Get-Prop (Find-Id $decisions (Get-Prop $evScope 'decisionRef')) 'status') 'approved')) { & $add 'SCOPE_DECISION_MISSING' 2 $pbi }
         $scope = Get-Prop $state 'paths'; if (-not (Test-Obj $scope)) { $scope = [pscustomobject]@{} }
         $applies = New-Object System.Collections.Generic.List[string]
-        foreach ($k in $Spec.requiredPaths) { if (-not (Test-Has $scope $k)) { & $add 'PATH_SCOPE_MISSING' 1 $k } }
+        $target = if (($docs.application -is [string]) -and (Test-Has $Spec.targetPaths $docs.application)) { @(Get-Prop $Spec.targetPaths $docs.application) } else { $null }
+        foreach ($k in $(if ($null -ne $target) { $target } else { $Spec.requiredPaths })) { if (-not (Test-Has $scope $k)) { & $add 'PATH_SCOPE_MISSING' 1 $k } }
         foreach ($k in (Get-Keys $scope)) {
             $v = Get-Prop $scope $k; $ap = Get-Prop $v 'applies'
             if (-not (Test-Obj $v) -or -not ($ap -is [bool]) -or (-not $ap -and -not (Test-Str (Get-Prop $v 'reason')))) { & $add 'PATH_SCOPE_MISSING' 1 $k } elseif ($ap) { $applies.Add($k) }
         }
+        if ($null -ne $target) { foreach ($k in $Spec.targetKeys) { if (($target -notcontains $k) -and $applies.Contains($k)) { & $add 'TARGET_SCOPE_CONFLICT' 2 $k } } }
         $ruleIds = @($rules | Where-Object { (Test-Obj $_) -and (Test-Str (Get-Prop $_ 'id')) } | ForEach-Object { $_.id })
         $ruleTexts = New-Object System.Collections.Generic.List[string]
         for ($i = 0; $i -lt $rules.Count; $i++) {
@@ -512,7 +519,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         }
         foreach ($k in $Spec.approvals) {
             $a = Get-Prop (Get-Prop $state 'approvals') $k
-            if (-not (Test-Obj $a) -or -not (Test-Same (Get-Prop $a 'status') 'approved') -or -not (Test-Str (Get-Prop $a 'by')) -or -not (Test-Str (Get-Prop $a 'at')) -or -not (Test-Str (Get-Prop $a 'evidence'))) { & $add 'APPROVAL_PENDING' 3 $k; continue }
+            if (-not (Test-Obj $a) -or -not (Test-Same (Get-Prop $a 'status') 'approved') -or -not (Test-Str (Get-Prop $a 'by')) -or -not (Test-Str (Get-Prop $a 'at')) -or -not (Test-Str (Get-Prop $a 'evidence'))) { if (@($Spec.requiredApprovals) -contains $k) { & $add 'APPROVAL_PENDING' 3 $k }; continue }
             $b = Get-Prop $a 'basis'; $bad = -not (Test-Obj $b) -or -not @($b.PSObject.Properties).Count
             if (-not $bad) { foreach ($p in $b.PSObject.Properties) { if (-not ($p.Value -is [string]) -or $p.Value -cnotmatch '\A[0-9a-f]{16}\z') { $bad = $true } } }
             if ($bad) { & $add 'APPROVAL_UNBOUND' 3 $k; continue }
@@ -538,7 +545,7 @@ function Get-Readiness($state, $docs, [string]$pbi) {
         }
         $doc = if ($null -ne $docs.refined) { $docs.refined } else { $docs.draft }
         if ($null -eq $doc) { & $add 'DOC_MISSING' 0 $pbi } else { & $checkDoc $doc '' }
-        foreach ($key in @('cdmsRefined', 'dabRefined')) {
+        foreach ($key in (Get-FinalKeys)) {
             $fd = Get-Prop $Spec.finalDocs $key
             if ($null -ne $docs[$key]) { if (-not $applies.Contains($fd[0])) { & $add 'DOC_OUT_OF_SCOPE' 3 $fd[1] }; & $checkDoc $docs[$key] ($fd[1] + '/') }
         }
@@ -546,12 +553,20 @@ function Get-Readiness($state, $docs, [string]$pbi) {
     $capOf = { $c = 4; foreach ($x in $issues) { $j = [array]::IndexOf($S, $x.cap); if ($j -lt $c) { $c = $j } }; $c }
     if ($valid -and (& $capOf) -lt 4) {
         if ($null -ne $docs.refined) { & $add 'FINAL_WITHOUT_APPROVAL' 3 $pbi }
-        foreach ($key in @('cdmsRefined', 'dabRefined')) { if ($null -ne $docs[$key]) { & $add 'FINAL_WITHOUT_APPROVAL' 3 (Get-Prop $Spec.finalDocs $key)[1] } }
+        foreach ($key in (Get-FinalKeys)) { if ($null -ne $docs[$key]) { & $add 'FINAL_WITHOUT_APPROVAL' 3 (Get-Prop $Spec.finalDocs $key)[1] } }
     }
     $claimed = if ($valid -and (Test-In $S (Get-Prop $state 'status'))) { $state.status } else { '' }
     if ($claimed -and [array]::IndexOf($S, $claimed) -gt (& $capOf)) { & $add 'STATUS_OVERCLAIMED' 3 $claimed }
     $computed = $S[(& $capOf)]
     return [ordered]@{ schemaVersion = 2; pbi = $pbi; claimedStatus = $claimed; computedStatus = $computed; finalAllowed = ($computed -ceq 'Development-Ready'); issues = @($issues); review = $review }
+}
+# The development target of a 5.0 intake (pbi.json with repositories); 4.x PBIs keep the 4.x path rules (same as applicationOf in core.js).
+function Get-Application([string]$folder) {
+    $raw = Read-Text "$folder/pbi.json"; if ($null -eq $raw) { return $null }
+    try { $p = $raw | ConvertFrom-Json } catch { return $null }
+    # Read the property directly: a function return would unroll an empty array to `$null.
+    $a = Get-Prop $p 'application'; $repos = if (Test-Obj $p) { $p.PSObject.Properties['repositories'] } else { $null }
+    if (($a -is [string]) -and $null -ne $repos -and ($repos.Value -is [array])) { return $a }; return $null
 }
 function Invoke-CheckPbi {
     if (-not $Pbi) { throw 'Use -Pbi <folder name> (the folder under playbook/pbis).' }
@@ -568,7 +583,7 @@ function Invoke-CheckPbi {
         }
     }
     # 4.0 names are still read when the 4.1 names are absent (same as checkPbi in core.js).
-    $docs = @{ request = Read-Text "$folder/REQUEST.md"; draft = Read-Text "$folder/DRAFT-PBI.md"; refined = Read-Text "$folder/REFINED-PBI.md"; cdmsRefined = Read-Text "$folder/PBI-CDMS.md"; dabRefined = Read-Text "$folder/PBI-DAB.md"; decisionLog = Read-Text "$folder/DECISION-LOG.md"; files = $files }
+    $docs = @{ request = Read-Text "$folder/REQUEST.md"; draft = Read-Text "$folder/DRAFT-PBI.md"; refined = Read-Text "$folder/REFINED-PBI.md"; cdmsRefined = Read-Text "$folder/PBI-CDMS.md"; dabRefined = Read-Text "$folder/PBI-DAB.md"; uiRefined = Read-Text "$folder/PBI-UI.md"; application = (Get-Application $folder); decisionLog = Read-Text "$folder/DECISION-LOG.md"; files = $files }
     foreach ($pair in @(@('cdmsRefined', 'CDMS-REFINED-PBI.md'), @('dabRefined', 'DAB-REFINED-PBI.md'))) { if ($null -eq $docs[$pair[0]]) { $docs[$pair[0]] = Read-Text "$folder/$($pair[1])" } }
     $r = Get-Readiness $state $docs $folder.Split('/')[-1]
     if ($Json) { [Console]::Out.WriteLine((ConvertTo-Json -InputObject $r -Depth 6 -Compress)) }
@@ -635,19 +650,19 @@ function ConvertFrom-OtherSource([string[]]$items) {
 }
 function Get-ConfigInput([bool]$existingOnly) {
     $raw = Read-Text "$($Bundle.base)/config.json"
-    $in = @{ schemaVersion = $null; projectName = (Split-Path -Leaf $script:Repo); ide = 'visualstudio'; role = 'legacy'; includeReferences = $false; sources = @{ legacy = ''; dab = ''; cdms = '' }; others = @() }
+    $in = @{ schemaVersion = $null; projectName = (Split-Path -Leaf $script:Repo); ide = 'visualstudio'; role = 'legacy'; includeReferences = $false; sources = @{ legacy = ''; dab = ''; cdms = ''; ui = '' }; others = @() }
     if ($null -ne $raw) {
         try { $old = $raw | ConvertFrom-Json } catch { throw "The existing $($Bundle.base)/config.json is not valid JSON. Fix or remove it, then rerun." }
         $in.schemaVersion = Get-Prop $old 'schemaVersion'
         foreach ($k in 'projectName', 'ide', 'role', 'includeReferences') { if (Test-Has $old $k) { $in[$k] = $old.$k } }
         # As in the wizard, '.' (this repository) is re-derived from the role.
-        foreach ($k in 'legacy', 'dab', 'cdms') { $v = Get-Prop (Get-Prop $old 'sources') $k; $in.sources[$k] = if ($v -is [string] -and $v -cne '.') { $v } else { '' } }
+        foreach ($k in $SourceKeys) { $v = Get-Prop (Get-Prop $old 'sources') $k; $in.sources[$k] = if ($v -is [string] -and $v -cne '.') { $v } else { '' } }
         $list = Get-Prop $old 'others'
         if ($list -is [array]) { foreach ($o in $list) { $in.others += [pscustomobject]@{ name = Get-Prop $o 'name'; path = Get-Prop $o 'path' } } }
     }
     elseif ($existingOnly) { throw "No $($Bundle.base)/config.json found. Run Install first." }
     if ($existingOnly) {
-        if (@('ProjectName', 'Ide', 'Role', 'LegacySource', 'DabSource', 'CdmsSource', 'OtherSource', 'NoReferences', 'IncludeReferences' | Where-Object { $script:Bound.ContainsKey($_) }).Count) { Write-Warning 'Repair uses the installed config.json; setting parameters were ignored. Use Install to change settings.' }
+        if (@('ProjectName', 'Ide', 'Role', 'LegacySource', 'DabSource', 'CdmsSource', 'UiSource', 'OtherSource', 'NoReferences', 'IncludeReferences' | Where-Object { $script:Bound.ContainsKey($_) }).Count) { Write-Warning 'Repair uses the installed config.json; setting parameters were ignored. Use Install to change settings.' }
         return $in
     }
     if ($script:Bound.ContainsKey('ProjectName')) { $in.projectName = $ProjectName }
@@ -658,12 +673,13 @@ function Get-ConfigInput([bool]$existingOnly) {
     if ($script:Bound.ContainsKey('LegacySource')) { $in.sources.legacy = $LegacySource }
     if ($script:Bound.ContainsKey('DabSource')) { $in.sources.dab = $DabSource }
     if ($script:Bound.ContainsKey('CdmsSource')) { $in.sources.cdms = $CdmsSource }
+    if ($script:Bound.ContainsKey('UiSource')) { $in.sources.ui = $UiSource }
     if ($script:Bound.ContainsKey('OtherSource')) { $in.others = ConvertFrom-OtherSource $OtherSource }
     if ($Interactive) {
         $in.projectName = Read-Choice 'Project name' $in.projectName
         $in.ide = Read-Choice 'Editor: visualstudio or vscode' $in.ide
-        $in.role = Read-Choice 'This repository is: legacy, dab, cdms or other' $in.role
-        foreach ($k in 'legacy', 'dab', 'cdms') { if ($in.role -cne $k) { $in.sources[$k] = Read-Choice "Optional $k repository path, relative to this repository (blank if none)" $in.sources[$k] } }
+        $in.role = Read-Choice 'This repository is: legacy, dab, cdms, ui or other' $in.role
+        foreach ($k in $SourceKeys) { if ($in.role -cne $k) { $in.sources[$k] = Read-Choice "Optional $k repository path, relative to this repository (blank if none)" $in.sources[$k] } }
         $in.others = ConvertFrom-OtherSource ((Read-Choice 'Other reference repositories as Name=path, separated by ; (blank if none)' (@($in.others | ForEach-Object { "$($_.name)=$($_.path)" }) -join ';')) -split ';')
         $in.includeReferences = (Read-Choice 'Also install the older ColorDMS analysis documents as optional background (not needed)? y/n' $(if ($in.includeReferences) { 'y' } else { 'n' })) -match '^(y|yes)$'
     }

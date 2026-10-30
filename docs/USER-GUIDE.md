@@ -1,61 +1,73 @@
-# Akzo SDD PBI Builder 4.0: user guide
+# Akzo SDD PBI Builder 5.0: user guide
 
-You do not need to know the templates, the code or terms such as CDMS, DAB, plugins or
-workflows. Describe what you need; the builder asks only for business decisions.
+You do not need to know the templates, the code or terms such as plugins or workflows. Describe
+what you need; the builder asks only for business decisions.
 
-## Create a PBI
-**In Copilot.** Select "Akzo SDD PBI Builder - <your project>" and type `Create PBI`. You can
-also type New PBI, Create User Story, Refine New Requirement or Start PBI. The agent needs only
-three things, and asks for them in one message when they are missing:
+The workflow is: **Start PBI → enter requirements → select the legacy repository → select the
+development target → deep analysis → review → approve once → generate → preview and download.**
 
-1. the PBI number or title;
-2. the requirement or acceptance criteria, in your own words (pasted Azure DevOps text, rules or
-   code are fine);
-3. optionally, the investigation scope, for example "legacy only".
+## Start a PBI
+**In the form** (recommended). Open `playbook/pbi-builder/PBI-Builder.html`, or the package's
+`Akzo-SDD-PBI-Builder.html`, choose the repository folder and open the **New PBI** tab. It has
+four steps:
 
-If your first message already contains them, the agent asks nothing and starts. It works out the
-rest itself (kind of change, application areas, draft acceptance criteria, attachments) and shows
-it in its first progress summary for you to correct. It then investigates the source on its own:
-it does not ask whether to look at the next rule, file or JavaScript. You hear from it at
-milestones and when a real business decision is needed.
+1. **Requirements**: PBI number (an Azure DevOps number or your own identifier such as
+   `LOCAL-12`), title, description and acceptance criteria are required; attachments are
+   optional. Acceptance criteria are kept exactly as entered. Missing fields are marked
+   where they are, with the reason.
+2. **Legacy repository**: choose the configured legacy source (for example
+   AN.ColorDMS.Customizations). **Validate** lets you browse to the folder to check its name and
+   Git root. **Add or remove repositories** takes you to setup; removing a repository there only
+   changes the configuration, never the folder. The form remembers your last choice.
+3. **Development target**: "Which project are you developing the PBI for?", one choice:
 
-"Target project" is the repository where the Builder is installed and the PBI is saved. The
-application being investigated is established from the requirement and the source.
+   | Choice | Implemented in | Read only (reference) | Final PBIs |
+   | --- | --- | --- | --- |
+   | CDMS + UI | CDMS, shared Angular UI | Legacy | PBI-CDMS.md (with a shared UI section) |
+   | DAB + UI | DAB, shared Angular UI | Legacy, **CDMS** | PBI-DAB.md (with CDMS references and a shared UI section) |
+   | UI Only | Shared Angular UI | Legacy, CDMS and DAB contracts | PBI-UI.md |
+   | Both (CDMS + DAB + UI) | CDMS, DAB, shared Angular UI | Legacy | PBI-CDMS.md, PBI-DAB.md and one PBI-UI.md |
 
-**In the form.** Open `playbook/pbi-builder/PBI-Builder.html`, or the package's
-`Akzo-SDD-PBI-Builder.html`. The **New PBI** tab collects the same details on a few pages,
-including the optional investigation scope. Its file picker copies
-your attachments into the PBI's `attachments` folder. **Save draft** keeps unfinished work.
-**Start analysis** saves the intake and gives you the prompt to paste into Copilot.
+   The form lists each repository's role and path; **Correct repository paths** fixes a missing
+   one. DAB always reads CDMS to reuse what CDMS already implements, and never changes it. CDMS
+   and DAB share one Angular application, so UI work is planned once.
+4. **Review & start**: the analysis mode (Quick, **Deep** by default, or Comprehensive), optional
+   extra references, optional details, and a summary. **Start analysis** saves the intake and
+   gives you the prompt for Copilot. **Save draft** keeps unfinished work.
 
-If a PBI with the same number exists, you are offered Resume (it is selected for you on the
-Continue tab) or **Create a separate draft**. Nothing is overwritten.
+If the PBI number already exists, you choose **Resume**, **Review** or **Start New Version** (a new
+folder). Nothing is overwritten.
+
+**In Copilot.** Select "Akzo SDD PBI Builder - <your project>" and type `Start PBI` (or Create
+PBI, New PBI, Start Development, Implement PBI). The agent asks for what is missing in one
+message, then the legacy repository and the development target. Start Development and
+Implement PBI prepare the PBI; they never change application code.
+
+The agent then investigates on its own: it reads the actual code (never only file names or older
+analysis documents), marks each finding Verified, Proposed, Unverified or Contradicted, and
+reports progress at milestones.
 
 ## Answer business questions
-After investigating, the agent asks only genuine business decisions: one at a time, or up to three
-related ones together. It uses the **Business Decision Advisor** skill
-(`.github/skills/business-decision-advisor/SKILL.md`). Each question shows:
+After investigating, the agent asks only what the request and the code cannot settle, all
+together in one **decision review**. A rule your request already states is recorded as a decision
+without a question. Each question shows:
 - what happens today, what the requirement expects and what is missing;
 - its recommendation and why;
 - numbered choices: the recommended option, alternatives, then Custom answer and Decide later;
-- a ready-to-use answer you can approve as written;
-- the implementation impact and the source evidence.
+- a ready-to-use answer and the implementation impact with evidence.
 
-Answer with the number. Options are never letters.
+Conflicting acceptance criteria are always asked about, never resolved silently.
 
 | Where | How you answer |
 | --- | --- |
 | VS Code | Choose an option in the question control Copilot shows, or type a custom answer |
 | Visual Studio, or when no control appears | Type `1`, `2`, `3`… (the last two are "Custom answer" and "Decide later"); `back` edits your previous answer, `status` shows progress, `why` explains the question |
-| The form, Continue tab, **Answer business questions** | Load questions, pick an answer or write a custom one, enter your name, Submit. The recommended option is preselected. Edit previous answer and Decide later are there too; a required question left for later keeps the PBI from being Development-Ready |
+| The form, Continue tab, **Answer business questions** | Load questions, pick an answer or write a custom one, enter your name, Submit. Edit previous answer and Decide later are there too |
 
-How answers are recorded:
-- Your answer is saved immediately with your name and the time. It approves that one decision,
-  not the whole PBI.
-- Changing an answer keeps the earlier one as superseded history.
-- Answered questions are never asked again unless the requirement changes.
-- The agent does not ask business users about plugin registration, pipelines, builds,
-  repositories or deployment. Missing technical evidence goes into the technical assessment.
+Your answer is saved at once with your name and the time. It decides that one question; it is not
+the approval of the PBI. Answered questions are not asked again unless the requirement changes.
+The agent keeps its own history copies of every document it changes; you never run a snapshot
+command.
 
 ## Other commands
 | Command | What it does |
@@ -66,10 +78,10 @@ How answers are recorded:
 | `Show Decisions 305915` | Lists decisions with who, when and what they replaced |
 | `Analyze Legacy 305915` | Explains how the legacy CRM process works, with file and line evidence |
 | `Show Technical Flow 305915` | The traced call chain |
-| `Extract Plugin Rules 305915 FormulaPlugin` | Reads the plugin code and writes PLUGIN-RULES.md: each validation and business rule with its condition, exact error message, data needed, whether DAB must implement it, and test cases. Asks first if the PBI excludes legacy evidence |
-| `Analyze Workflows 305915 Create Paint System` | Traces the classic CRM workflows and custom workflow activities on that operation and writes PLUGIN-WORKFLOW-COVERAGE.md: which rules plugins, workflows or custom activities already handle (and how sure that is), and what DAB must do. Follows the PBI's scope: CDMS, DAB or Both |
+| `Extract Plugin Rules 305915 FormulaPlugin` | Writes PLUGIN-RULES.md: each validation and business rule with its condition, exact error message, data needed, whether DAB must implement it, and test cases |
+| `Analyze Workflows 305915 Create Paint System` | Writes PLUGIN-WORKFLOW-COVERAGE.md for the classic workflows and custom workflow activities on that operation |
 | `Generate Acceptance Criteria 305915` | Proposed Given/When/Then criteria for review |
-| `Export PBI 305915` | The final PBI if allowed, otherwise the draft clearly marked |
+| `Export PBI 305915` | Points to Review & approve; before approval, the draft clearly marked |
 | `Validate PBI 305915` | Explains the readiness check result |
 
 These are phrases for the agent, not editor commands. The number can also be a title or folder.
@@ -81,33 +93,41 @@ These are phrases for the agent, not editor commands. The number can also be a t
   an export. It never guesses a file's content.
 - Nothing in an attachment counts as an approved requirement just because it is written there.
 
-## Finishing a PBI
-When all questions are answered, the agent:
-1. revalidates everything;
-2. asks you to run **Check PBI readiness** (Continue tab) or
-   `Install-PBIBuilder.cmd -RepoPath <repo> -Action CheckPbi -Pbi <folder>`;
-3. presents one consolidated approval request (PO/BA, technical, final user).
+## Review, approve once and download
+When the analysis is complete the agent sets the draft to Ready for Review and sends you to the
+form: **Continue** tab, select the PBI, **Review selected PBI**. The review shows six cards: the
+PBI, requirements and acceptance criteria, repository analysis, implementation approach (CDMS,
+DAB and shared UI), business decisions, and technical readiness with any blockers. Then:
 
-`REFINED-PBI.md`, `PBI-CDMS.md` and `PBI-DAB.md` are created only when the check allows it,
-and only for the applications you chose: CDMS gives only `PBI-CDMS.md`, DAB only `PBI-DAB.md`,
-and Both exactly two separate PBIs, each complete for its own team (title, description,
-requirements, rules and validations, implementation steps, acceptance criteria, test scenarios,
-dependencies and source references) and linked by a shared requirement line. `PBI-CDMS.md`
-names the JavaScript validations, workflows and application logic CDMS must build besides the
-verified plugins it reuses; `PBI-DAB.md` gives C# steps for every applicable legacy rule,
-including the ones plugins enforce for CDMS. Approval covers the PBI as a whole. Folders from
-4.0 with `CDMS-REFINED-PBI.md` or `DAB-REFINED-PBI.md` are still checked.
+- **Approve & Generate** (needs your name): records your final approval, bound to a fingerprint
+  of exactly what you reviewed, sets the PBI to Development-Ready and generates the final PBIs
+  for the target, each as Markdown, Word (DOCX) and JSON. Every file is read back and checked;
+  if anything fails, the earlier files are restored and nothing is approved. It is disabled
+  while a blocker remains.
+- **Request Changes**: saves your change request as a refinement brief and gives you the prompt
+  for the agent. Nothing is approved.
+- **Save Draft**: saves the review and your note in the PBI's history folder. Nothing is approved.
 
-## Implementation references
-When you choose the application on the New PBI tab, the form opens **Select Implementation
-References**: every configured repository except the target (Legacy, CDMS, DAB and any other
-repository from setup). Tick none, one or several. The agent always analyzes the target first,
-reads the references only (it never changes them), and adds an "Implementation comparison"
-section to VALIDATION-MATRIX.md: requirement, each reference's implementation, what the target
-already has, what is missing, recommended target changes and tests, with file and method
-references, or "No matching implementation found". In Copilot, Create PBI asks the same
-question. Configure the repositories once: form setup (paths typed as `Name = path`) or the
-setup window's **Repositories...** button (Browse per repository). The check confirms completeness and
+After generation the **PBI Generated Successfully** window lists each PBI (for Both: CDMS, DAB and
+shared Angular UI) with Download DOCX, Download MD, Download JSON and Preview, plus **Download
+Complete Package — ZIP** with every PBI and the supporting documents. Downloads are read from the
+generated files and refused if a file changed since. Where the browser supports it you choose
+where to save. Browsers cannot open File Explorer, so the window shows the PBI folder instead.
+
+Your approval is the approval of the PBI draft only. PO/BA, security, architecture or technical
+sign-off that your organization requires is a separate step; the documents say it is not recorded
+by this tool. A later change to anything you reviewed makes the approval stale; review and approve
+again. The final PBIs carry local draft identifiers; the tool never creates or publishes Azure
+DevOps work items.
+
+## Additional implementation references
+The development target already decides which repositories are analyzed. Under **Add
+implementation references** (Review & start) you can add other configured repositories as extra
+read-only references for this PBI. The agent compares each requirement with them in the
+"Implementation comparison" section of VALIDATION-MATRIX.md, with file and method references, or
+"No matching implementation found". Configure repositories once: form setup (paths typed as
+`Name = path`, plus the Legacy, CDMS, DAB and shared Angular UI paths) or the setup window's
+**Repositories...** button (Browse per repository). The check confirms completeness and
 consistency; it cannot confirm that the content is right or who really approved.
 
 ## CDMS, DAB and the legacy rules

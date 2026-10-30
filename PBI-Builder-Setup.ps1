@@ -24,7 +24,7 @@ param(
     [string]$Action = '',
     [string[]]$Repo,
     [ValidateSet('visualstudio', 'vscode')][string]$Ide = 'visualstudio',
-    [ValidateSet('legacy', 'dab', 'cdms', 'other')][string]$Role = 'legacy',
+    [ValidateSet('legacy', 'dab', 'cdms', 'ui', 'other')][string]$Role = 'legacy',
     [switch]$NoGui,
     [string]$HomeRoot = $env:USERPROFILE
 )
@@ -33,7 +33,7 @@ $Engine = Join-Path $PSScriptRoot 'Install-PBIBuilder.ps1'
 $Utf8 = New-Object System.Text.UTF8Encoding($false)
 $PackageVersion = ([System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'pbi-builder-bundle.json'), $Utf8) | ConvertFrom-Json).packageVersion
 $Registry = Join-Path $HomeRoot '.akzo-pbi-builder\repositories.txt'
-$Roles = [ordered]@{ legacy = 'Custom (Legacy CRM/XRM)'; dab = 'DAB (GraphQL)'; cdms = 'CDMS'; other = 'Other project / PBI workspace' }
+$Roles = [ordered]@{ legacy = 'Custom (Legacy CRM/XRM)'; dab = 'DAB (GraphQL)'; cdms = 'CDMS'; ui = 'Shared Angular UI'; other = 'Other project / PBI workspace' }
 
 function Get-Repos {
     if (-not (Test-Path -LiteralPath $Registry)) { return @() }
@@ -186,9 +186,9 @@ $sourcesButton.Add_Click({
         $cfgFile = Join-Path $p 'playbook\pbi-builder\config.json'
         if (-not (Test-Path -LiteralPath $cfgFile)) { [void][System.Windows.Forms.MessageBox]::Show('Install the PBI Builder in this repository first.', 'Repositories', 'OK', 'Information'); return }
         $cfg = [System.IO.File]::ReadAllText($cfgFile, $Utf8) | ConvertFrom-Json
-        $d = New-Object System.Windows.Forms.Form -Property @{ Text = "Repositories for $(Split-Path -Leaf $p)"; Width = 700; Height = 420; FormBorderStyle = 'FixedDialog'; StartPosition = 'CenterParent'; MinimizeBox = $false; MaximizeBox = $false }
+        $d = New-Object System.Windows.Forms.Form -Property @{ Text = "Repositories for $(Split-Path -Leaf $p)"; Width = 700; Height = 454; FormBorderStyle = 'FixedDialog'; StartPosition = 'CenterParent'; MinimizeBox = $false; MaximizeBox = $false }
         $boxes = @{}; $y = 14
-        foreach ($k in 'legacy', 'cdms', 'dab') {
+        foreach ($k in 'legacy', 'cdms', 'dab', 'ui') {
             $tb = New-Object System.Windows.Forms.TextBox -Property @{ Left = 200; Top = $y; Width = 370; Text = $(if ($cfg.sources.$k -eq '.') { '. (this repository)' } else { [string]$cfg.sources.$k }); Enabled = ($cfg.sources.$k -ne '.') }
             $bb = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y - 2; Width = 90; Height = 26; Text = 'Browse...'; Enabled = $tb.Enabled; Tag = $tb }
             $bb.Add_Click({ param($s) $fb = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ Description = 'Select the repository root'; ShowNewFolderButton = $false }; if ($fb.ShowDialog($d) -eq 'OK') { $s.Tag.Text = ConvertTo-RepoRelative $p $fb.SelectedPath } })
@@ -198,14 +198,14 @@ $sourcesButton.Add_Click({
         $others = New-Object System.Windows.Forms.TextBox -Property @{ Left = 12; Top = $y + 26; Width = 558; Height = 140; Multiline = $true; ScrollBars = 'Vertical'; Text = (@($cfg.others | Where-Object { $_ } | ForEach-Object { "$($_.name) = $($_.path)" }) -join "`r`n") }
         $addOther = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y + 24; Width = 90; Height = 26; Text = 'Browse...' }
         $addOther.Add_Click({ $fb = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ Description = 'Select another repository root'; ShowNewFolderButton = $false }; if ($fb.ShowDialog($d) -eq 'OK') { $others.AppendText($(if ($others.Text.Trim()) { "`r`n" } else { '' }) + "$(Split-Path -Leaf $fb.SelectedPath) = $(ConvertTo-RepoRelative $p $fb.SelectedPath)") } })
-        $hint = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = $y + 172; Width = 660; Height = 32; ForeColor = [System.Drawing.Color]::DimGray; Text = 'Each PBI chooses which of these to use as read-only implementation references. Save previews the change and asks before writing.' }
+        $hint = New-Object System.Windows.Forms.Label -Property @{ Left = 12; Top = $y + 172; Width = 660; Height = 32; ForeColor = [System.Drawing.Color]::DimGray; Text = 'Each PBI picks its legacy repository and development target; the target decides which of these are implemented in and which are read-only references. Save previews the change and asks before writing.' }
         $save = New-Object System.Windows.Forms.Button -Property @{ Left = 480; Top = $y + 210; Width = 90; Height = 28; Text = 'Save' }
         $cancel = New-Object System.Windows.Forms.Button -Property @{ Left = 580; Top = $y + 210; Width = 90; Height = 28; Text = 'Cancel'; DialogResult = 'Cancel' }
         $save.Add_Click({ $d.DialogResult = 'OK'; $d.Close() })
         $d.Controls.AddRange(@($others, $addOther, $hint, $save, $cancel)); $d.CancelButton = $cancel
         if ($d.ShowDialog($form) -ne 'OK') { return }
         $extra = @()
-        foreach ($k in 'legacy', 'cdms', 'dab') { if ($boxes[$k].Enabled) { $v = $boxes[$k].Text.Trim().Trim('"'); $extra += @("-$((Get-Culture).TextInfo.ToTitleCase($k))Source", $(if ($v) { $v } else { ' ' })) } }
+        foreach ($k in 'legacy', 'cdms', 'dab', 'ui') { if ($boxes[$k].Enabled) { $v = $boxes[$k].Text.Trim().Trim('"'); $extra += @("-$((Get-Culture).TextInfo.ToTitleCase($k))Source", $(if ($v) { $v } else { ' ' })) } }
         $lines = @($others.Text -split "`r?`n" | Where-Object { $_.Trim() } | ForEach-Object { $_ -replace '^\s*([^=]+?)\s*=\s*', '$1=' })
         $extra += @('-OtherSource', $(if ($lines.Count) { $lines -join ';' } else { ';' }))
         Invoke-Busy { $r = Invoke-InstallFlow $p 'visualstudio' 'legacy' $askApply $extra; Write-Log ($r.text + "`r`n== $(if ($r.ok) { 'Repositories saved' } else { 'Stopped: see above' }) ==") }

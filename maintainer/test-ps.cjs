@@ -205,7 +205,20 @@ const loose=async d=>JSON.parse(await fs.readFile(d,'utf8'));
   await fs.rm(path.join(b,P.BASE,'sources.yaml'));r=ps(pkg,['-RepoPath',b,'-Action','Repair']);assert.equal(r.code,0,r.err);assert.deepEqual(await tree(b),await tree(a));
   r=ps(pkg,['-RepoPath',b,'-OtherSource',';','-AllowUpdates']);assert.equal(r.code,0,r.err+r.out);
   assert.deepEqual(JSON.parse((await tree(b))[P.CONFIG]).others,[]);assert.match((await tree(b))[P.BASE+'/sources.yaml'],/otherRepositories: \[\]/);
-  for(const bad of ['DAB=../x','A=x;a=y','NoEquals'])assert.equal(ps(pkg,['-RepoPath',b,'-OtherSource',bad,'-Preview']).code,2,bad);
+  for(const bad of ['DAB=../x','A=x;a=y','NoEquals','UI=../x'])assert.equal(ps(pkg,['-RepoPath',b,'-OtherSource',bad,'-Preview']).code,2,bad);
+ });
+ await test('5.0 shared Angular UI repository: -UiSource and -Role ui write what the form writes; a 4.x config.json gains an empty ui source',async()=>{
+  for(const [cfg,args] of [[{projectName:'UiRef',ide:'visualstudio',role:'cdms',includeReferences:false,sources:{legacy:'../Legacy',dab:'',cdms:'',ui:'..\\AN.ColorAppsAzure.UI'}},['-Role','cdms','-LegacySource','../Legacy','-UiSource','..\\AN.ColorAppsAzure.UI']],
+   [{projectName:'UiRef',ide:'visualstudio',role:'ui',includeReferences:false,sources:{legacy:'../Legacy',dab:'../DAB',cdms:'../CDMS'}},['-Role','ui','-LegacySource','../Legacy','-DabSource','../DAB','-CdmsSource','../CDMS']]]){
+   const a=await repo(),b=await repo();await jsInstall(a,cfg);
+   const r=ps(pkg,['-RepoPath',b,'-ProjectName','UiRef','-Ide','visualstudio','-NoReferences',...args]);assert.equal(r.code,0,r.err+r.out);assert.deepEqual(await tree(b),await tree(a));}
+  // An installed 4.x config.json (no ui key) upgrades to the same files in both installers.
+  const old={schemaVersion:1,packageVersion:'4.2.0',projectName:'Old',ide:'visualstudio',role:'legacy',agentName:'Akzo SDD PBI Builder - Old',includeReferences:false,sources:{legacy:'.',dab:'../DAB',cdms:''},others:[]};
+  const a=await repo(),b=await repo();await jsInstall(a,old);
+  const oldText=JSON.stringify(old,null,2)+'\n';await fs.mkdir(path.join(b,P.BASE),{recursive:true});await fs.writeFile(path.join(b,P.CONFIG),oldText);
+  await fs.writeFile(path.join(b,P.MANIFEST),JSON.stringify({schemaVersion:1,packageVersion:'4.2.0',files:{[P.CONFIG]:await P.hash(oldText)}},null,2));
+  const r=ps(pkg,['-RepoPath',b,'-AllowUpdates']);assert.equal(r.code,0,r.err+r.out);
+  const ta=await tree(a),tb=await tree(b);assert.equal(tb[P.CONFIG],ta[P.CONFIG]);assert.equal(tb[P.BASE+'/sources.yaml'],ta[P.BASE+'/sources.yaml']);assert.equal(JSON.parse(tb[P.CONFIG]).sources.ui,'');
  });
  console.log(`\n${count} PowerShell installer checks passed (Windows PowerShell, real execution policy, real files).`);
  await fs.rm(tmp,{recursive:true,force:true});
